@@ -2,7 +2,7 @@
 
 Extension Autodesk Fusion en cours de développement pour créer des profils acier le long de lignes ou d'arcs d'un squelette paramétrique.
 
-La V1 est volontairement limitée afin de valider la base avant d'ajouter l'interface complète, les ancrages, les rotations et les jonctions.
+La V1 est volontairement limitée afin de valider progressivement la création, l'interface et l'orientation avant d'ajouter les jonctions.
 
 ## Fonction de la V1
 
@@ -13,7 +13,9 @@ La V1 est volontairement limitée afin de valider la base avant d'ajouter l'inte
 - import direct du DXF sélectionné, sans reconstruction manuelle du contour ;
 - aperçu graphique jaune et semi-transparent, mis à jour avec la sélection du chemin ou du profil ;
 - choix visuel parmi neuf points d'ancrage, avec les points disponibles en bleu et le point actif en rouge ;
-- section placée sur le chemin par l'ancrage choisi, avec le centre `C` par défaut et une rotation de `0°` ;
+- section placée sur le chemin par l'ancrage choisi, avec le centre `C` et une rotation de `0°` par défaut ;
+- angle réglable en degrés autour de l'ancrage, avec aperçu jaune mis à jour avant validation ;
+- boutons `Miroir X` et `Miroir Y`, indépendants et cumulables autour du même ancrage ;
 - un composant indépendant par barre ;
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.

@@ -68,6 +68,49 @@ Tester d'abord l'affichage et l'aperçu, puis créer une seule barre à la fois.
 6. Recommencer avec une cornière inégale afin de vérifier le comportement sur un profil asymétrique.
 7. Recommencer avec un tube rectangulaire afin de vérifier que le changement d'ancrage ne supprime pas le contour intérieur.
 
+## Test 7 — Rotation autour de l'ancrage
+
+Procéder en deux petites phases. Ne lancer la phase B qu'après validation complète de la phase A.
+
+### Phase A — Aperçu uniquement
+
+1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.5.0`.
+2. Ouvrir la commande avec `IPE 100`, conserver l'ancrage central et sélectionner une ligne droite.
+3. Vérifier que le nouveau champ `Rotation` vaut `0°` et que l'aperçu n'a pas changé de position.
+4. Saisir successivement `45°`, `90°` puis `-30°` sans valider la commande.
+5. Vérifier que l'aperçu jaune pivote immédiatement et reste centré sur le même point rouge.
+6. Choisir `Haut gauche`, répéter `0°` puis `90°` et vérifier que ce coin reste sur le chemin pendant toute la rotation.
+7. Annuler la commande sans créer de barre.
+
+### Phase B — Géométrie finale
+
+1. Après validation de la phase A, créer un IPE 100 à `45°` avec l'ancrage `Haut gauche`.
+2. Vérifier que le corps final remplace l'aperçu sans saut de position ni d'orientation.
+3. Ouvrir l'esquisse DXF et vérifier les quatre raccords, la fermeture du contour et l'attribut `rotation_deg = 45`.
+4. Recommencer avec un tube rectangulaire à `90°` afin de vérifier la conservation du contour intérieur.
+
+## Test 8 — Miroirs X et Y
+
+Commencer par un profil asymétrique pour que chaque inversion soit visible sans ambiguïté.
+
+### Phase A — Aperçu uniquement
+
+1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.6.0`.
+2. Choisir une `Cornière inégale`, l'ancrage `Haut gauche`, une rotation de `0°`, puis sélectionner une ligne.
+3. Vérifier que deux boutons `Miroir X` et `Miroir Y` sont présents et désactivés par défaut.
+4. Activer uniquement `Miroir X` et vérifier l'inversion horizontale immédiate de l'aperçu.
+5. Désactiver X, activer uniquement `Miroir Y` et vérifier l'inversion verticale.
+6. Activer X et Y simultanément et vérifier que les deux boutons restent actifs.
+7. Saisir ensuite une rotation de `45°` et vérifier que le même coin d'ancrage reste sur le chemin.
+8. Annuler la commande sans créer de barre.
+
+### Phase B — Géométrie finale
+
+1. Après validation de la phase A, créer la cornière avec `Miroir X`, `Miroir Y` désactivé et une rotation de `45°`.
+2. Vérifier l'absence de saut entre l'aperçu et le corps final.
+3. Vérifier les attributs `flip_x = true`, `flip_y = false` et `rotation_deg = 45`.
+4. Recommencer avec un tube rectangulaire et les deux miroirs afin de vérifier le contour intérieur.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -76,6 +119,8 @@ Tester d'abord l'affichage et l'aperçu, puis créer une seule barre à la fois.
 - neuf ancrages cliquables avec centre sélectionné par défaut ;
 - un seul point rouge et huit points bleus ;
 - aperçu et corps final placés sur le même ancrage ;
+- aperçu et corps final orientés avec le même angle autour de cet ancrage ;
+- miroirs X/Y indépendants et cumulables sans déplacement de l'ancrage ;
 - esquisse créée par import direct du DXF sélectionné ;
 - contours intérieurs conservés pour les profils creux ;
 - une région de matière fermée et un corps unique par barre ;

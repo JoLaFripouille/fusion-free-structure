@@ -15,7 +15,7 @@ Composant racine
     └── CORPS_HEA160
 ```
 
-Le plan de section est normal au chemin et placé à la distance normalisée `0.5`. Le vrai DXF sélectionné est importé sur ce plan dans une esquisse unique. Son contour n'est ni redessiné ni simplifié. Un décalage d'import place le point d'ancrage choisi sur l'origine de l'esquisse. Le balayage utilise le chemin complet : la section se trouve donc au milieu de sa longueur et se développe vers ses deux extrémités.
+Le plan de section est normal au chemin et placé à la distance normalisée `0.5`. Le vrai DXF sélectionné est importé sur ce plan dans une esquisse unique. Son contour n'est ni redessiné ni simplifié. Un décalage d'import place le point d'ancrage choisi sur l'origine de l'esquisse. Après contrôle des dimensions et de cet ancrage, les courbes importées sont pivotées autour de l'axe Z local passant par l'origine. Le balayage utilise le chemin complet : la section se trouve donc au milieu de sa longueur et se développe vers ses deux extrémités.
 
 L'API Fusion interdit l'import DXF depuis les événements d'une commande. La commande enregistre donc les chemins, le profil et l'ancrage choisis, puis déclenche un événement personnalisé mis en file. Fusion exécute l'import lorsque l'interface redevient disponible. Avant le balayage, l'extension compare les dimensions importées aux limites calculées dans le DXF, contrôle la position de l'ancrage et exige au moins une région fermée.
 
@@ -31,7 +31,13 @@ Le résultat final reste exclusivement créé par l'import direct du DXF, puis p
 
 Les neuf points sont calculés sur la boîte géométrique exacte du DXF : trois colonnes `gauche`, `centre`, `droite` et trois lignes `haut`, `milieu`, `bas`. La grille Fusion utilise neuf boutons à icône ; les huit positions disponibles sont bleues et la position active est rouge. Le centre `C` reste sélectionné au démarrage pour conserver le comportement des versions précédentes.
 
-Le même point source est soustrait aux coordonnées de l'aperçu et utilisé comme décalage de l'import DXF final. L'aperçu et le corps ne peuvent donc pas employer deux conventions d'origine différentes.
+Le même point source est soustrait aux coordonnées de l'aperçu et utilisé comme décalage de l'import DXF final. La rotation de l'aperçu puis celle de l'esquisse finale utilisent toutes deux cette origine. L'aperçu et le corps ne peuvent donc pas employer deux conventions de pivot différentes.
+
+## Rotation
+
+L'interface accepte un angle affiché en degrés ; l'API Fusion le fournit en radians. Deux boutons permettent aussi d'inverser séparément les coordonnées locales X et Y. Les miroirs sont toujours calculés avant la rotation, autour de `(0, 0)` après application de l'ancrage.
+
+Une seule matrice 2D est calculée pour l'aperçu et pour le résultat final. Dans l'esquisse DXF importée, elle est étendue en matrice 3D de déterminant positif puis appliquée en une fois à toutes les lignes, tous les arcs et tous les cercles. Les courbes exactes du DXF sont donc conservées : seule leur orientation change.
 
 ## Paramétrage actuel
 
@@ -40,13 +46,14 @@ Le même point source est soustrait aux coordonnées de l'aperçu et utilisé co
 | Profil | famille puis section parmi 341 DXF |
 | Dimensions | celles du DXF sélectionné |
 | Ancrage | 9 points sur l'enveloppe, `C` par défaut |
-| Rotation | 0° |
+| Rotation | angle réglable autour de l'ancrage, `0°` par défaut |
+| Miroirs | X et Y indépendants, désactivés par défaut |
 | Chemin | une ligne ou un arc d'esquisse |
 | Sortie | un composant et un corps par ligne |
 
 ## Traçabilité dans Fusion
 
-Chaque nouveau composant reçoit les attributs `profile`, `profile_family`, `profile_source`, `anchor`, `rotation_deg`, `source_curve_token`, `source_curve_type` et `extension_version`. L'ancien attribut `source_line_token` est aussi conservé pour les lignes afin de maintenir la compatibilité avec la V1.0.1.
+Chaque nouveau composant reçoit les attributs `profile`, `profile_family`, `profile_source`, `anchor`, `rotation_deg`, `flip_x`, `flip_y`, `source_curve_token`, `source_curve_type` et `extension_version`. L'ancien attribut `source_line_token` est aussi conservé pour les lignes afin de maintenir la compatibilité avec la V1.0.1.
 
 ## Lecture de la bibliothèque
 

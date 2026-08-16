@@ -3,7 +3,7 @@ from __future__ import annotations
 import adsk.core
 import adsk.fusion
 
-from . import preview_geometry
+from . import preview_geometry, rotation
 
 
 PREVIEW_YELLOW = (255, 205, 0)
@@ -67,7 +67,16 @@ class PreviewManager:
         if app and app.activeViewport:
             app.activeViewport.refresh()
 
-    def update(self, root_component, curves, profile, anchor_code):
+    def update(
+        self,
+        root_component,
+        curves,
+        profile,
+        anchor_code,
+        rotation_radians=0.0,
+        flip_x=False,
+        flip_y=False,
+    ):
         self.clear()
         if not curves:
             return
@@ -78,6 +87,12 @@ class PreviewManager:
                 anchor_mm=profile.anchor_mm(anchor_code),
             )
             self._profile_key = profile_key
+        oriented_contours = rotation.orient_contours(
+            self._profile_contours,
+            rotation_radians,
+            flip_x,
+            flip_y,
+        )
 
         mesh_color = adsk.fusion.CustomGraphicsSolidColorEffect.create(
             adsk.core.Color.create(*PREVIEW_YELLOW, 255)
@@ -93,16 +108,19 @@ class PreviewManager:
                 group.id = "EI_JHR_PROFILE_PREVIEW"
                 self._groups.append(group)
 
-                for contour in self._profile_contours:
+                for contour in oriented_contours:
                     coordinates, triangles = preview_geometry.build_swept_side_mesh(
                         contour,
                         frames,
                     )
                     graphics_coordinates = adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
                     mesh = group.addMesh(graphics_coordinates, triangles, [], [])
-                    mesh.name = "Aperçu {} ancrage {}".format(
+                    mesh.name = "Aperçu {} ancrage {} rotation {} deg miroirs X={} Y={}".format(
                         profile.designation,
                         anchor_code,
+                        rotation.format_degrees(rotation_radians),
+                        flip_x,
+                        flip_y,
                     )
                     mesh.color = mesh_color
                     mesh.setOpacity(0.28, True)
@@ -113,9 +131,12 @@ class PreviewManager:
                         len(frames),
                     )
                     lines = group.addLines(graphics_coordinates, wire_indices, False)
-                    lines.name = "Contour aperçu {} ancrage {}".format(
+                    lines.name = "Contour aperçu {} ancrage {} rotation {} deg miroirs X={} Y={}".format(
                         profile.designation,
                         anchor_code,
+                        rotation.format_degrees(rotation_radians),
+                        flip_x,
+                        flip_y,
                     )
                     lines.color = line_color
                     lines.weight = 2.0

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import pathlib
 import re
@@ -16,6 +17,10 @@ from lib import addin_info
 
 
 class RepositoryTests(unittest.TestCase):
+    def test_all_python_sources_parse(self):
+        for path in tuple(ADDIN.rglob("*.py")) + tuple((ROOT / "tests").rglob("*.py")):
+            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
     def test_release_payload_has_no_python_bytecode(self):
         self.assertEqual(list(ROOT.rglob("*.pyc")), [])
         self.assertEqual(
@@ -100,6 +105,31 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("ANCHOR_RED_RESOURCES", source)
         self.assertIn('"anchor_code": anchor_code', source)
 
+    def test_command_exposes_rotation_and_forwards_it_to_preview_and_creation(self):
+        command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        preview_source = (ADDIN / "lib" / "preview_graphics.py").read_text(encoding="utf-8")
+        builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
+        self.assertIn("addAngleValueCommandInput", command_source)
+        self.assertIn('ROTATION_INPUT_ID = "profileRotation"', command_source)
+        self.assertIn('"rotation_radians": rotation_radians', command_source)
+        self.assertIn("rotation.orient_contours", preview_source)
+        self.assertIn("rotation.orientation_matrix_2d", builder_source)
+        self.assertIn("transform.setCell", builder_source)
+        self.assertIn("sketch.move(entities, transform)", builder_source)
+        self.assertIn('"rotation_deg",', builder_source)
+
+    def test_command_exposes_two_dynamic_mirror_buttons(self):
+        command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        preview_source = (ADDIN / "lib" / "preview_graphics.py").read_text(encoding="utf-8")
+        builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
+        self.assertIn('FLIP_X_INPUT_ID = "flipX"', command_source)
+        self.assertIn('FLIP_Y_INPUT_ID = "flipY"', command_source)
+        self.assertIn('"flip_x": flip_x', command_source)
+        self.assertIn('"flip_y": flip_y', command_source)
+        self.assertIn("rotation.orient_contours", preview_source)
+        self.assertIn('"flip_x", str(bool(flip_x)).lower()', builder_source)
+        self.assertIn('"flip_y", str(bool(flip_y)).lower()', builder_source)
+
     def test_anchor_icon_resources_are_packaged(self):
         resources = ADDIN / "resources"
         for color in ("anchor_blue", "anchor_red"):
@@ -107,6 +137,14 @@ class RepositoryTests(unittest.TestCase):
                 icon = resources / color / size
                 self.assertTrue(icon.is_file(), icon)
                 self.assertIn("<circle", icon.read_text(encoding="utf-8"))
+
+    def test_mirror_icon_resources_are_packaged(self):
+        resources = ADDIN / "resources"
+        for axis in ("flip_x", "flip_y"):
+            for size in ("16x16.svg", "32x32.svg"):
+                icon = resources / axis / size
+                self.assertTrue(icon.is_file(), icon)
+                self.assertIn("<svg", icon.read_text(encoding="utf-8"))
 
     def test_preview_uses_requested_yellow_color(self):
         source = (ADDIN / "lib" / "preview_graphics.py").read_text(encoding="utf-8")

@@ -12,6 +12,7 @@ from ..lib.preview_graphics import PreviewManager
 from ..lib import addin_info
 from ..lib import anchors
 from ..lib import profile_catalog
+from ..lib import rotation
 
 
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
@@ -21,6 +22,10 @@ FAMILY_INPUT_ID = "profileFamily"
 SECTION_INPUT_ID = "profileSection"
 ANCHOR_TABLE_ID = "anchorGrid"
 ANCHOR_INPUT_PREFIX = "anchor_"
+ROTATION_INPUT_ID = "profileRotation"
+MIRROR_TABLE_ID = "mirrorControls"
+FLIP_X_INPUT_ID = "flipX"
+FLIP_Y_INPUT_ID = "flipY"
 SELECTION_ID = "skeletonLines"
 PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
 CUSTOM_EVENT_ID = "EI_JHR_CreateStructuralMembersV1_Deferred"
@@ -33,6 +38,8 @@ _pending_jobs = []
 
 ANCHOR_BLUE_RESOURCES = str(addin_info.ADDIN_ROOT / "resources" / "anchor_blue")
 ANCHOR_RED_RESOURCES = str(addin_info.ADDIN_ROOT / "resources" / "anchor_red")
+FLIP_X_RESOURCES = str(addin_info.ADDIN_ROOT / "resources" / "flip_x")
+FLIP_Y_RESOURCES = str(addin_info.ADDIN_ROOT / "resources" / "flip_y")
 
 
 def _app_and_ui():
@@ -121,6 +128,50 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 anchor_buttons[anchor.code] = button
             anchor_state = AnchorInputState(anchor_buttons)
 
+            rotation_input = inputs.addAngleValueCommandInput(
+                ROTATION_INPUT_ID,
+                "Rotation",
+                adsk.core.ValueInput.createByString("0 deg"),
+            )
+            rotation_input.tooltip = (
+                "Angle de rotation du profil autour du point d'ancrage sélectionné."
+            )
+
+            mirror_table = inputs.addTableCommandInput(
+                MIRROR_TABLE_ID,
+                "Miroirs",
+                2,
+                "1:1",
+            )
+            mirror_table.minimumVisibleRows = 1
+            mirror_table.maximumVisibleRows = 1
+            mirror_table.hasGrid = False
+            mirror_table.columnSpacing = 4
+            flip_x_input = inputs.addBoolValueInput(
+                FLIP_X_INPUT_ID,
+                "Miroir X",
+                True,
+                FLIP_X_RESOURCES,
+                False,
+            )
+            flip_x_input.tooltip = (
+                "Inverse la coordonnée X du profil autour de l'ancrage."
+            )
+            flip_x_input.isFullWidth = True
+            mirror_table.addCommandInput(flip_x_input, 0, 0)
+            flip_y_input = inputs.addBoolValueInput(
+                FLIP_Y_INPUT_ID,
+                "Miroir Y",
+                True,
+                FLIP_Y_RESOURCES,
+                False,
+            )
+            flip_y_input.tooltip = (
+                "Inverse la coordonnée Y du profil autour de l'ancrage."
+            )
+            flip_y_input.isFullWidth = True
+            mirror_table.addCommandInput(flip_y_input, 0, 1)
+
             selection = inputs.addSelectionInput(
                 SELECTION_ID,
                 "Chemins du squelette",
@@ -131,7 +182,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs.addTextBoxCommandInput(
                 "v1Info",
                 "Version chargée",
-                "Version : {}<br>Profil : famille et section au choix<br>Ancrage : grille 3 × 3, centre par défaut<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
+                "Version : {}<br>Profil : famille et section au choix<br>Ancrage : grille 3 × 3, centre par défaut<br>Orientation : rotation et miroirs X/Y autour de l'ancrage<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
                 .format(addin_info.VERSION),
                 7,
                 True,
@@ -203,6 +254,27 @@ def _selected_profile(inputs, profiles):
     )
 
 
+def _selected_rotation_radians(inputs):
+    rotation_input = adsk.core.AngleValueCommandInput.cast(
+        inputs.itemById(ROTATION_INPUT_ID)
+    )
+    if not rotation_input:
+        raise RuntimeError("Le réglage de rotation est introuvable.")
+    return rotation_input.value
+
+
+def _selected_flip_state(inputs):
+    flip_x_input = adsk.core.BoolValueCommandInput.cast(
+        inputs.itemById(FLIP_X_INPUT_ID)
+    )
+    flip_y_input = adsk.core.BoolValueCommandInput.cast(
+        inputs.itemById(FLIP_Y_INPUT_ID)
+    )
+    if not flip_x_input or not flip_y_input:
+        raise RuntimeError("Les réglages de miroir sont introuvables.")
+    return flip_x_input.value, flip_y_input.value
+
+
 class AnchorInputState:
     def __init__(self, buttons):
         self._buttons = buttons
@@ -270,7 +342,16 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         anchor_changed = changed_input.id.startswith(ANCHOR_INPUT_PREFIX)
         if anchor_changed:
             self._anchor_state.select(changed_input.id[len(ANCHOR_INPUT_PREFIX):])
-        if changed_input.id in (FAMILY_INPUT_ID, SECTION_INPUT_ID) or anchor_changed:
+        if (
+            changed_input.id in (
+                FAMILY_INPUT_ID,
+                SECTION_INPUT_ID,
+                ROTATION_INPUT_ID,
+                FLIP_X_INPUT_ID,
+                FLIP_Y_INPUT_ID,
+            )
+            or anchor_changed
+        ):
             self._preview_manager.clear()
 
 
@@ -320,11 +401,16 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
             selection = event_args.command.commandInputs.itemById(SELECTION_ID)
             curves = _supported_curves_from_selection(selection, design.rootComponent, strict=False)
             profile = _selected_profile(event_args.command.commandInputs, self._profiles)
+            rotation_radians = _selected_rotation_radians(event_args.command.commandInputs)
+            flip_x, flip_y = _selected_flip_state(event_args.command.commandInputs)
             self._preview_manager.update(
                 design.rootComponent,
                 curves,
                 profile,
                 self._anchor_state.selected_code,
+                rotation_radians,
+                flip_x,
+                flip_y,
             )
         except Exception as error:
             self._preview_manager.clear()
@@ -363,6 +449,8 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             curves = _supported_curves_from_selection(selection, root_component, strict=True)
             profile = _selected_profile(event_args.command.commandInputs, self._profiles)
             anchor_code = self._anchor_state.selected_code
+            rotation_radians = _selected_rotation_radians(event_args.command.commandInputs)
+            flip_x, flip_y = _selected_flip_state(event_args.command.commandInputs)
 
             # L'API Fusion interdit l'import DXF depuis un événement de
             # commande. Le travail est donc mis en file puis exécuté par un
@@ -374,6 +462,9 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "curves": curves,
                 "profile": profile,
                 "anchor_code": anchor_code,
+                "rotation_radians": rotation_radians,
+                "flip_x": flip_x,
+                "flip_y": flip_y,
             }
             _pending_jobs.append(job)
             worker = threading.Thread(
@@ -383,8 +474,15 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             )
             worker.start()
             _log(
-                "Import DXF {} avec ancrage {} planifié pour {} chemin(s)"
-                .format(profile.designation, anchor_code, len(curves))
+                "Import DXF {} avec ancrage {}, rotation {} deg et miroirs X={} Y={} planifié pour {} chemin(s)"
+                .format(
+                    profile.designation,
+                    anchor_code,
+                    rotation.format_degrees(rotation_radians),
+                    flip_x,
+                    flip_y,
+                    len(curves),
+                )
             )
         except Exception as error:
             event_args.executeFailed = True
@@ -416,16 +514,22 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                     curve,
                     job["profile"],
                     job["anchor_code"],
+                    job["rotation_radians"],
+                    job["flip_x"],
+                    job["flip_y"],
                 )
                 created_occurrences.append(occurrence)
                 _log("Composant créé depuis le DXF: {}".format(occurrence.component.name))
 
             ui.messageBox(
-                "{} barre(s) {} créée(s) depuis le DXF avec l'ancrage {}."
+                "{} barre(s) {} créée(s) depuis le DXF avec l'ancrage {}, une rotation de {}° et les miroirs X={} Y={}."
                 .format(
                     len(created_occurrences),
                     job["profile"].designation,
                     anchors.label(job["anchor_code"]),
+                    rotation.format_degrees(job["rotation_radians"]),
+                    job["flip_x"],
+                    job["flip_y"],
                 )
             )
         except Exception as error:

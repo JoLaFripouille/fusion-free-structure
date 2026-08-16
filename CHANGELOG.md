@@ -4,6 +4,45 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.6.0] - 2026-08-16
+
+### Ajouté
+
+- deux boutons à état `Miroir X` et `Miroir Y`, indépendants et cumulables ;
+- mise à jour immédiate de l'aperçu jaune lors de chaque inversion ;
+- miroirs appliqués autour du point d'ancrage avant la rotation choisie ;
+- matrice d'orientation commune au calcul de l'aperçu et à l'esquisse DXF finale ;
+- états enregistrés dans les attributs `flip_x` et `flip_y` de chaque composant ;
+- icônes locales X/Y, sans ressource externe ni chemin propre à la machine ;
+- tests des deux axes, de leur combinaison et de l'ordre miroir puis rotation.
+
+### Validé dans Fusion
+
+- affichage et état des deux boutons confirmés ;
+- miroirs X et Y séparés ainsi que leur combinaison confirmés sur l'aperçu ;
+- maintien du point d'ancrage pendant les miroirs et la rotation confirmé par l'utilisateur.
+- correspondance entre aperçu, esquisse DXF et corps final confirmée ;
+- création finale testée sur l'ensemble des familles, y compris les tubes creux, sans défaut signalé ;
+- rotation, ancrage et miroirs combinés confirmés sur les profils testés.
+
+## [1.5.0] - 2026-08-16
+
+### Ajouté
+
+- champ d'angle en degrés dans la fenêtre de commande, avec `0°` par défaut ;
+- rotation dynamique de l'aperçu jaune autour du point d'ancrage actif ;
+- rotation de l'esquisse DXF finale autour de sa propre origine après le contrôle de l'échelle et de l'ancrage ;
+- même valeur d'angle transmise à l'aperçu et à la création différée ;
+- angle réellement demandé enregistré dans l'attribut `rotation_deg` du composant ;
+- tests isolés du pivot autour de l'origine, notamment avec l'ancrage haut gauche d'un IPE 100.
+
+### Validé dans Fusion
+
+- présence du champ d'angle et affichage de la V1.5.0 confirmés ;
+- rotation dynamique de l'aperçu autour de l'ancrage confirmée par l'utilisateur.
+- correspondance entre aperçu et géométrie finale confirmée pendant la validation V1.6.0 ;
+- raccords, contours fermés et vides intérieurs conservés après rotation.
+
 ## [1.4.0] - 2026-08-16
 
 ### Ajouté

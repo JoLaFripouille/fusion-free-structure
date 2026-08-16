@@ -5,7 +5,7 @@ import math
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, profile_catalog
+from . import addin_info, profile_catalog, rotation
 
 
 ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
@@ -27,7 +27,15 @@ def _next_component_name(root_component, profile):
     return "{}{:03d}".format(prefix, index)
 
 
-def _import_profile_sketch(component, section_plane, profile, anchor_code):
+def _import_profile_sketch(
+    component,
+    section_plane,
+    profile,
+    anchor_code,
+    rotation_radians,
+    flip_x,
+    flip_y,
+):
     """Importe le DXF source dans une esquisse unique sur le plan fourni."""
     app = adsk.core.Application.get()
     import_manager = app.importManager
@@ -67,7 +75,9 @@ def _import_profile_sketch(component, section_plane, profile, anchor_code):
         profile.component_token,
         anchor_code,
     )
-    return sketch, _validate_profile_sketch(sketch, profile, anchor_code)
+    _validate_profile_sketch(sketch, profile, anchor_code)
+    _orient_profile_sketch(sketch, rotation_radians, flip_x, flip_y)
+    return sketch, _select_material_profile(sketch, profile)
 
 
 def _validate_profile_sketch(sketch, profile, anchor_code):
@@ -127,6 +137,53 @@ def _validate_profile_sketch(sketch, profile, anchor_code):
             .format(profile.designation)
         )
 
+
+def _orient_profile_sketch(sketch, rotation_radians, flip_x, flip_y):
+    """Applique miroirs puis rotation autour de l'ancrage placé à l'origine."""
+    if not flip_x and not flip_y and rotation.is_effectively_zero(rotation_radians):
+        return
+
+    entities = adsk.core.ObjectCollection.create()
+    for collection in (
+        sketch.sketchCurves.sketchLines,
+        sketch.sketchCurves.sketchArcs,
+        sketch.sketchCurves.sketchCircles,
+    ):
+        for index in range(collection.count):
+            entities.add(collection.item(index))
+    if entities.count < 1:
+        raise RuntimeError("L'esquisse DXF ne contient aucune courbe à orienter.")
+
+    xx, xy, yx, yy = rotation.orientation_matrix_2d(
+        rotation_radians,
+        flip_x,
+        flip_y,
+    )
+    transform = adsk.core.Matrix3D.create()
+    cells = (
+        (0, 0, xx),
+        (0, 1, xy),
+        (1, 0, yx),
+        (1, 1, yy),
+        # Conserve une matrice 3D de déterminant positif. Dans le plan de
+        # l'esquisse, le résultat reste exactement le miroir 2D demandé.
+        (2, 2, (-1.0 if flip_x else 1.0) * (-1.0 if flip_y else 1.0)),
+    )
+    if not all(transform.setCell(row, column, value) for row, column, value in cells):
+        raise RuntimeError("Fusion n'a pas pu préparer l'orientation du profil.")
+    if not sketch.move(entities, transform):
+        raise RuntimeError(
+            "Fusion n'a pas pu orienter le profil autour du point d'ancrage."
+        )
+
+
+def _select_material_profile(sketch, profile):
+    if sketch.profiles.count < 1:
+        raise RuntimeError(
+            "Le DXF {} ne produit plus de profil fermé après orientation."
+            .format(profile.designation)
+        )
+
     # Pour les tubes, Fusion expose généralement le disque intérieur et la
     # couronne comme deux profils. La couronne est la région qui possède le
     # plus de boucles (contour extérieur + contour intérieur).
@@ -141,7 +198,15 @@ def _validate_profile_sketch(sketch, profile, anchor_code):
     return best_profile
 
 
-def create_member(root_component, source_curve, profile, anchor_code):
+def create_member(
+    root_component,
+    source_curve,
+    profile,
+    anchor_code,
+    rotation_radians=0.0,
+    flip_x=False,
+    flip_y=False,
+):
     """Crée un composant du profil choisi, lié à une ligne ou un arc."""
     transform = adsk.core.Matrix3D.create()
     occurrence = root_component.occurrences.addNewComponent(transform)
@@ -161,6 +226,9 @@ def create_member(root_component, source_curve, profile, anchor_code):
             section_plane,
             profile,
             anchor_code,
+            rotation_radians,
+            flip_x,
+            flip_y,
         )
 
         path = adsk.fusion.Path.create(source_curve, adsk.fusion.ChainedCurveOptions.noChainedCurves)
@@ -194,7 +262,13 @@ def create_member(root_component, source_curve, profile, anchor_code):
         component.attributes.add(ATTRIBUTE_GROUP, "profile_family", profile.family_id)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_source", profile.relative_path)
         component.attributes.add(ATTRIBUTE_GROUP, "anchor", anchor_code)
-        component.attributes.add(ATTRIBUTE_GROUP, "rotation_deg", "0")
+        component.attributes.add(
+            ATTRIBUTE_GROUP,
+            "rotation_deg",
+            rotation.format_degrees(rotation_radians),
+        )
+        component.attributes.add(ATTRIBUTE_GROUP, "flip_x", str(bool(flip_x)).lower())
+        component.attributes.add(ATTRIBUTE_GROUP, "flip_y", str(bool(flip_y)).lower())
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_token", source_token)
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_type", source_type)
         if source_type == "line":

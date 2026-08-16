@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="5" fill="#2476c8"/>
+  <path d="M16 5v22" stroke="#ffffff" stroke-width="2" stroke-dasharray="3 2"/>
+  <path d="M13 10H6l3-3M6 10l3 3M19 22h7l-3-3M26 22l-3 3" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="16" y="19" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#ffffff">X</text>
+</svg>

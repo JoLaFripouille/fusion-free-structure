@@ -17,7 +17,8 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [ ] afficher un aperçu visuel du profil ;
 - [x] proposer neuf points d'ancrage cliquables ;
 - [x] afficher les ancrages en bleu et l'ancrage actif en rouge ;
-- [ ] permettre une rotation réglable autour de l'ancrage sélectionné ;
+- [x] permettre une rotation réglable autour de l'ancrage sélectionné ;
+- [x] permettre des miroirs X/Y indépendants autour de l'ancrage ;
 - [x] produire un aperçu dynamique avant validation.
 
 ## Géométrie et structure
@@ -25,7 +26,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] généraliser aux 341 profils l'import DXF relatif d'abord validé sur l'IPE 100 ;
 - [ ] prendre en charge les lignes appartenant à des sous-composants ;
 - [ ] gérer une orientation de référence contrôlable ;
-- [ ] ajouter décalages et inversions ;
+- [ ] ajouter des décalages ;
 - [ ] prévoir les jonctions, coupes, grugeages et assemblages dans une phase séparée.
 
 ## Qualité
