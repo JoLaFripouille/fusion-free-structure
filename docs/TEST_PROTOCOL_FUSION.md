@@ -11,9 +11,11 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 3. Tracer une ligne horizontale contrainte à `200 mm`, puis terminer l'esquisse.
 4. Lancer **Profil acier V1** et sélectionner la ligne.
 5. Valider la commande.
-6. Vérifier la présence d'un composant `BARRE_IPE100_001` contenant un plan, une esquisse, un balayage et un corps.
-7. Mesurer la section : largeur `55 mm`, hauteur `100 mm`.
-8. Mesurer la barre : longueur `200 mm`.
+6. Attendre le message confirmant que la barre a été créée depuis le DXF ; l'import est volontairement exécuté juste après la fermeture de la commande.
+7. Vérifier la présence d'un composant `BARRE_IPE100_001` contenant un plan, une esquisse DXF, un balayage et un corps.
+8. Ouvrir l'esquisse de section et vérifier que son contour correspond exactement au DXF source, avec quatre raccords corrects.
+9. Mesurer la section : largeur `55 mm`, hauteur `100 mm`.
+10. Mesurer la barre : longueur `200 mm`.
 
 ## Test 2 — Mise à jour paramétrique
 
@@ -31,6 +33,7 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
+- esquisse créée par import direct de `profiles/IPE/IPE_100.dxf` ;
 - un profil fermé et un corps unique par barre ;
 - dimensions exactes ;
 - section au milieu du chemin ;

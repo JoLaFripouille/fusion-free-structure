@@ -21,7 +21,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 
 ## Géométrie et structure
 
-- [ ] utiliser les 341 DXF de la bibliothèque relative ;
+- [ ] généraliser aux 341 profils l'import DXF relatif d'abord validé sur l'IPE 100 ;
 - [ ] prendre en charge les lignes appartenant à des sous-composants ;
 - [ ] gérer une orientation de référence contrôlable ;
 - [ ] ajouter décalages et inversions ;

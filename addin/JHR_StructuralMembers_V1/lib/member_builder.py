@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import adsk.core
 import adsk.fusion
 
@@ -7,49 +9,7 @@ from . import ipe100
 
 
 ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
-
-
-def _point2d(x, y):
-    return adsk.core.Point3D.create(float(x), float(y), 0.0)
-
-
-def _draw_ipe100(sketch):
-    """Dessine un IPE 100 exact avec l'ancrage C sur l'origine de l'esquisse."""
-    segments = ipe100.segments_cm(anchor=(0.0, 50.0))
-    lines = sketch.sketchCurves.sketchLines
-    arcs = sketch.sketchCurves.sketchArcs
-    first_entity = None
-    previous_entity = None
-    sketch.isComputeDeferred = True
-    try:
-        for index, segment in enumerate(segments):
-            is_last = index == len(segments) - 1
-            if previous_entity is None:
-                start_input = _point2d(*segment["start"])
-            else:
-                start_input = previous_entity.endSketchPoint
-
-            if segment["type"] == "LINE":
-                end_input = first_entity.startSketchPoint if is_last and first_entity else _point2d(*segment["end"])
-                entity = lines.addByTwoPoints(start_input, end_input)
-            elif segment["type"] == "ARC":
-                entity = arcs.addByCenterStartSweep(
-                    _point2d(*segment["center"]),
-                    start_input,
-                    float(segment["sweep"]),
-                )
-            else:
-                raise ValueError("Primitive IPE non prise en charge: {}".format(segment["type"]))
-
-            if first_entity is None:
-                first_entity = entity
-            previous_entity = entity
-    finally:
-        sketch.isComputeDeferred = False
-
-    if sketch.profiles.count != 1:
-        raise RuntimeError("Le contour IPE 100 ne produit pas un profil fermé unique ({} détecté).".format(sketch.profiles.count))
-    return sketch.profiles.item(0)
+DIMENSION_TOLERANCE_CM = 1e-5
 
 
 def _next_component_name(root_component):
@@ -67,8 +27,87 @@ def _next_component_name(root_component):
     return "{}{:03d}".format(prefix, index)
 
 
+def _import_ipe100_sketch(component, section_plane):
+    """Importe le DXF source dans une esquisse unique sur le plan fourni."""
+    dxf_path = ipe100.resolve_dxf_path()
+    app = adsk.core.Application.get()
+    import_manager = app.importManager
+    options = import_manager.createDXF2DImportOptions(str(dxf_path), section_plane)
+    if not options:
+        raise RuntimeError("Fusion n'a pas pu préparer l'import du DXF IPE 100.")
+
+    options.isViewFit = False
+    options.isSingleSketchResult = True
+    options.position = adsk.core.Point2D.create(*ipe100.IMPORT_OFFSET_CM)
+
+    imported_objects = import_manager.importToTarget2(options, component)
+    if not imported_objects:
+        raise RuntimeError("Fusion n'a retourné aucun objet après l'import du DXF IPE 100.")
+
+    sketches = []
+    for index in range(imported_objects.count):
+        sketch = adsk.fusion.Sketch.cast(imported_objects.item(index))
+        if sketch:
+            sketches.append(sketch)
+    if len(sketches) != 1:
+        raise RuntimeError(
+            "L'import du DXF devait produire une seule esquisse ({} détectée(s))."
+            .format(len(sketches))
+        )
+
+    sketch = sketches[0]
+    sketch.name = "ESQUISSE_IPE100_DXF_ANCRAGE_C"
+    _validate_ipe100_sketch(sketch)
+    return sketch
+
+
+def _validate_ipe100_sketch(sketch):
+    """Refuse un DXF mal mis à l'échelle, décentré ou non exploitable."""
+    boxes = []
+    for collection in (
+        sketch.sketchCurves.sketchLines,
+        sketch.sketchCurves.sketchArcs,
+    ):
+        for index in range(collection.count):
+            boxes.append(collection.item(index).boundingBox)
+    if not boxes:
+        raise RuntimeError("Le DXF IPE 100 importé ne contient aucune ligne ni aucun arc.")
+
+    min_x = min(box.minPoint.x for box in boxes)
+    max_x = max(box.maxPoint.x for box in boxes)
+    min_y = min(box.minPoint.y for box in boxes)
+    max_y = max(box.maxPoint.y for box in boxes)
+    width = max_x - min_x
+    height = max_y - min_y
+    expected_width = ipe100.WIDTH_MM * ipe100.MM_TO_CM
+    expected_height = ipe100.HEIGHT_MM * ipe100.MM_TO_CM
+
+    if not math.isclose(width, expected_width, abs_tol=DIMENSION_TOLERANCE_CM):
+        raise RuntimeError(
+            "Largeur DXF incorrecte : {:.6f} mm au lieu de {:.6f} mm."
+            .format(width / ipe100.MM_TO_CM, ipe100.WIDTH_MM)
+        )
+    if not math.isclose(height, expected_height, abs_tol=DIMENSION_TOLERANCE_CM):
+        raise RuntimeError(
+            "Hauteur DXF incorrecte : {:.6f} mm au lieu de {:.6f} mm."
+            .format(height / ipe100.MM_TO_CM, ipe100.HEIGHT_MM)
+        )
+    if not (
+        math.isclose(min_x, -expected_width / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
+        and math.isclose(max_x, expected_width / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
+        and math.isclose(min_y, -expected_height / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
+        and math.isclose(max_y, expected_height / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
+    ):
+        raise RuntimeError("Le DXF IPE 100 n'est pas centré sur l'ancrage C.")
+    if sketch.profiles.count != 1:
+        raise RuntimeError(
+            "Le DXF IPE 100 ne produit pas un profil fermé unique ({} détecté(s))."
+            .format(sketch.profiles.count)
+        )
+
+
 def create_member(root_component, source_line):
-    """Crée un composant IPE 100 paramétriquement lié à une ligne du squelette."""
+    """Crée un composant IPE 100 lié à une ligne, depuis le vrai DXF."""
     transform = adsk.core.Matrix3D.create()
     occurrence = root_component.occurrences.addNewComponent(transform)
     component = occurrence.component
@@ -82,9 +121,8 @@ def create_member(root_component, source_line):
         section_plane = component.constructionPlanes.add(plane_input)
         section_plane.name = "PLAN_PROFIL_MILIEU"
 
-        section_sketch = component.sketches.add(section_plane)
-        section_sketch.name = "ESQUISSE_IPE100_ANCRAGE_C"
-        section_profile = _draw_ipe100(section_sketch)
+        section_sketch = _import_ipe100_sketch(component, section_plane)
+        section_profile = section_sketch.profiles.item(0)
 
         path = adsk.fusion.Path.create(source_line, adsk.fusion.ChainedCurveOptions.noChainedCurves)
         if not path:
@@ -107,10 +145,11 @@ def create_member(root_component, source_line):
 
         source_token = source_line.entityToken
         component.attributes.add(ATTRIBUTE_GROUP, "profile", ipe100.PROFILE_NAME)
+        component.attributes.add(ATTRIBUTE_GROUP, "profile_source", "profiles/IPE/IPE_100.dxf")
         component.attributes.add(ATTRIBUTE_GROUP, "anchor", ipe100.ANCHOR_NAME)
         component.attributes.add(ATTRIBUTE_GROUP, "rotation_deg", "0")
         component.attributes.add(ATTRIBUTE_GROUP, "source_line_token", source_token)
-        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", "1.0.0")
+        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", "1.0.1")
 
         section_plane.isLightBulbOn = False
         section_sketch.isVisible = False

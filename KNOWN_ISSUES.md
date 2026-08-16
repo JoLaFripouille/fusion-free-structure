@@ -35,6 +35,18 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-007 — Planification DXF refusée depuis le bouton
+
+- **Cause :** le premier essai appelait `fireCustomEvent` directement depuis l'événement `Execute` de la commande.
+- **Correction :** déclenchement depuis un thread de travail après la fermeture du bouton, avec trois tentatives courtes et bornées.
+- **Validation :** création depuis le DXF confirmée dans Fusion par l'utilisateur.
+
+### ISSUE-006 — Contour IPE déformé dans l'esquisse Fusion
+
+- **Cause :** la reconstruction manuelle enchaînait les segments depuis l'extrémité inversée de certains arcs Fusion.
+- **Correction :** reconstruction manuelle supprimée ; import direct de `profiles/IPE/IPE_100.dxf` avec contrôle des dimensions et de l'ancrage.
+- **Validation :** profil et extrusion confirmés dans Fusion par l'utilisateur.
+
 ### ISSUE-0001 — Identifiant produit du manifeste
 
 - **Cause :** valeur générique non conforme au modèle local Fusion.

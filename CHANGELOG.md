@@ -4,6 +4,21 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.0.1] - 2026-08-16
+
+### Corrigé
+
+- reconstruction manuelle de l'IPE 100 remplacée par l'import direct du fichier relatif `profiles/IPE/IPE_100.dxf` ;
+- import exécuté par un événement différé compatible avec la limitation de l'API Fusion ;
+- déclenchement de l'événement déplacé dans un thread de travail après le refus observé lors du premier essai réel ;
+- contrôle automatique avant balayage : section fermée unique, dimensions `55 × 100 mm` et ancrage central `C` ;
+- tests hors Fusion déplacés des coordonnées recopiées vers le contenu du vrai DXF.
+
+### Validé dans Fusion
+
+- import direct, fermeture du profil et extrusion confirmés par l'utilisateur ;
+- problèmes `ISSUE-006` et `ISSUE-007` résolus.
+
 ### Documentation
 
 - installation locale de la V1 confirmée ;
