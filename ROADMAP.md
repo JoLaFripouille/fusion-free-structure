@@ -15,8 +15,8 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 
 - [x] afficher les profils par famille puis par dimension ;
 - [ ] afficher un aperçu visuel du profil ;
-- [ ] proposer neuf points d'ancrage cliquables ;
-- [ ] afficher les ancrages en bleu et l'ancrage actif en rouge ;
+- [x] proposer neuf points d'ancrage cliquables ;
+- [x] afficher les ancrages en bleu et l'ancrage actif en rouge ;
 - [ ] permettre une rotation réglable autour de l'ancrage sélectionné ;
 - [x] produire un aperçu dynamique avant validation.
 

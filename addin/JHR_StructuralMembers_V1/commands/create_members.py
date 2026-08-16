@@ -10,6 +10,7 @@ import adsk.fusion
 from ..lib.member_builder import create_member
 from ..lib.preview_graphics import PreviewManager
 from ..lib import addin_info
+from ..lib import anchors
 from ..lib import profile_catalog
 
 
@@ -18,6 +19,8 @@ COMMAND_NAME = addin_info.DISPLAY_NAME
 COMMAND_DESCRIPTION = "Crée le profil acier choisi sur chaque ligne ou arc d'esquisse sélectionné."
 FAMILY_INPUT_ID = "profileFamily"
 SECTION_INPUT_ID = "profileSection"
+ANCHOR_TABLE_ID = "anchorGrid"
+ANCHOR_INPUT_PREFIX = "anchor_"
 SELECTION_ID = "skeletonLines"
 PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
 CUSTOM_EVENT_ID = "EI_JHR_CreateStructuralMembersV1_Deferred"
@@ -27,6 +30,9 @@ _panel_id = None
 _custom_event = None
 _custom_event_handler = None
 _pending_jobs = []
+
+ANCHOR_BLUE_RESOURCES = str(addin_info.ADDIN_ROOT / "resources" / "anchor_blue")
+ANCHOR_RED_RESOURCES = str(addin_info.ADDIN_ROOT / "resources" / "anchor_red")
 
 
 def _app_and_ui():
@@ -86,6 +92,35 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 default_profile,
             )
 
+            anchor_table = inputs.addTableCommandInput(
+                ANCHOR_TABLE_ID,
+                "Point d'ancrage",
+                3,
+                "1:1:1",
+            )
+            anchor_table.minimumVisibleRows = 3
+            anchor_table.maximumVisibleRows = 3
+            anchor_table.hasGrid = False
+            anchor_table.columnSpacing = 4
+            anchor_table.rowSpacing = 4
+            anchor_table.tooltip = "Cliquer sur le point du profil à placer sur le chemin."
+
+            anchor_buttons = {}
+            for anchor in anchors.ANCHOR_DEFINITIONS:
+                is_selected = anchor.code == anchors.DEFAULT_ANCHOR_CODE
+                button = inputs.addBoolValueInput(
+                    ANCHOR_INPUT_PREFIX + anchor.code,
+                    anchor.label,
+                    False,
+                    ANCHOR_RED_RESOURCES if is_selected else ANCHOR_BLUE_RESOURCES,
+                    False,
+                )
+                button.isFullWidth = True
+                button.tooltip = anchor.label
+                anchor_table.addCommandInput(button, anchor.row, anchor.column)
+                anchor_buttons[anchor.code] = button
+            anchor_state = AnchorInputState(anchor_buttons)
+
             selection = inputs.addSelectionInput(
                 SELECTION_ID,
                 "Chemins du squelette",
@@ -96,19 +131,19 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs.addTextBoxCommandInput(
                 "v1Info",
                 "Version chargée",
-                "Version : {}<br>Profil : famille et section au choix<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
+                "Version : {}<br>Profil : famille et section au choix<br>Ancrage : grille 3 × 3, centre par défaut<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
                 .format(addin_info.VERSION),
-                6,
+                7,
                 True,
             )
 
             preview_manager = PreviewManager()
 
-            execute_handler = ExecuteHandler(preview_manager, profiles)
+            execute_handler = ExecuteHandler(preview_manager, profiles, anchor_state)
             command.execute.add(execute_handler)
             _handlers.append(execute_handler)
 
-            preview_handler = ExecutePreviewHandler(preview_manager, profiles)
+            preview_handler = ExecutePreviewHandler(preview_manager, profiles, anchor_state)
             command.executePreview.add(preview_handler)
             _handlers.append(preview_handler)
 
@@ -117,6 +152,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 profiles,
                 family_input,
                 section_input,
+                anchor_state,
             )
             command.inputChanged.add(input_changed_handler)
             _handlers.append(input_changed_handler)
@@ -167,18 +203,56 @@ def _selected_profile(inputs, profiles):
     )
 
 
+class AnchorInputState:
+    def __init__(self, buttons):
+        self._buttons = buttons
+        self._selected_code = anchors.DEFAULT_ANCHOR_CODE
+        self._is_updating = False
+
+    @property
+    def selected_code(self):
+        return self._selected_code
+
+    @property
+    def is_updating(self):
+        return self._is_updating
+
+    def select(self, anchor_code):
+        anchors.definition(anchor_code)
+        self._selected_code = anchor_code
+        self._is_updating = True
+        try:
+            for code, button in self._buttons.items():
+                is_selected = code == anchor_code
+                button.resourceFolder = (
+                    ANCHOR_RED_RESOURCES if is_selected else ANCHOR_BLUE_RESOURCES
+                )
+        finally:
+            self._is_updating = False
+
+
 class InputChangedHandler(adsk.core.InputChangedEventHandler):
-    def __init__(self, preview_manager, profiles, family_input, section_input):
+    def __init__(
+        self,
+        preview_manager,
+        profiles,
+        family_input,
+        section_input,
+        anchor_state,
+    ):
         super().__init__()
         self._preview_manager = preview_manager
         self._profiles = profiles
         self._family_input = family_input
         self._section_input = section_input
+        self._anchor_state = anchor_state
 
     def notify(self, args):
         event_args = adsk.core.InputChangedEventArgs.cast(args)
         changed_input = event_args.input
         if not changed_input:
+            return
+        if self._anchor_state.is_updating:
             return
         if changed_input.id == FAMILY_INPUT_ID:
             selected_family = self._family_input.selectedItem
@@ -193,7 +267,10 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
                     self._profiles,
                     family_id,
                 )
-        if changed_input.id in (FAMILY_INPUT_ID, SECTION_INPUT_ID):
+        anchor_changed = changed_input.id.startswith(ANCHOR_INPUT_PREFIX)
+        if anchor_changed:
+            self._anchor_state.select(changed_input.id[len(ANCHOR_INPUT_PREFIX):])
+        if changed_input.id in (FAMILY_INPUT_ID, SECTION_INPUT_ID) or anchor_changed:
             self._preview_manager.clear()
 
 
@@ -225,10 +302,11 @@ def _supported_curves_from_selection(selection, root_component, strict):
 
 
 class ExecutePreviewHandler(adsk.core.CommandEventHandler):
-    def __init__(self, preview_manager, profiles):
+    def __init__(self, preview_manager, profiles, anchor_state):
         super().__init__()
         self._preview_manager = preview_manager
         self._profiles = profiles
+        self._anchor_state = anchor_state
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -242,7 +320,12 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
             selection = event_args.command.commandInputs.itemById(SELECTION_ID)
             curves = _supported_curves_from_selection(selection, design.rootComponent, strict=False)
             profile = _selected_profile(event_args.command.commandInputs, self._profiles)
-            self._preview_manager.update(design.rootComponent, curves, profile)
+            self._preview_manager.update(
+                design.rootComponent,
+                curves,
+                profile,
+                self._anchor_state.selected_code,
+            )
         except Exception as error:
             self._preview_manager.clear()
             _log("APERÇU INDISPONIBLE: {}\n{}".format(error, traceback.format_exc()))
@@ -258,10 +341,11 @@ class DestroyHandler(adsk.core.CommandEventHandler):
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
-    def __init__(self, preview_manager, profiles):
+    def __init__(self, preview_manager, profiles, anchor_state):
         super().__init__()
         self._preview_manager = preview_manager
         self._profiles = profiles
+        self._anchor_state = anchor_state
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -278,6 +362,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             selection = event_args.command.commandInputs.itemById(SELECTION_ID)
             curves = _supported_curves_from_selection(selection, root_component, strict=True)
             profile = _selected_profile(event_args.command.commandInputs, self._profiles)
+            anchor_code = self._anchor_state.selected_code
 
             # L'API Fusion interdit l'import DXF depuis un événement de
             # commande. Le travail est donc mis en file puis exécuté par un
@@ -288,6 +373,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "root_component": root_component,
                 "curves": curves,
                 "profile": profile,
+                "anchor_code": anchor_code,
             }
             _pending_jobs.append(job)
             worker = threading.Thread(
@@ -297,8 +383,8 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             )
             worker.start()
             _log(
-                "Import DXF {} planifié pour {} chemin(s)"
-                .format(profile.designation, len(curves))
+                "Import DXF {} avec ancrage {} planifié pour {} chemin(s)"
+                .format(profile.designation, anchor_code, len(curves))
             )
         except Exception as error:
             event_args.executeFailed = True
@@ -325,13 +411,22 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
             for curve in job["curves"]:
                 if not curve or not curve.isValid:
                     raise RuntimeError("Un chemin sélectionné n'est plus valide.")
-                occurrence = create_member(job["root_component"], curve, job["profile"])
+                occurrence = create_member(
+                    job["root_component"],
+                    curve,
+                    job["profile"],
+                    job["anchor_code"],
+                )
                 created_occurrences.append(occurrence)
                 _log("Composant créé depuis le DXF: {}".format(occurrence.component.name))
 
             ui.messageBox(
-                "{} barre(s) {} créée(s) depuis le DXF."
-                .format(len(created_occurrences), job["profile"].designation)
+                "{} barre(s) {} créée(s) depuis le DXF avec l'ancrage {}."
+                .format(
+                    len(created_occurrences),
+                    job["profile"].designation,
+                    anchors.label(job["anchor_code"]),
+                )
             )
         except Exception as error:
             for occurrence in reversed(created_occurrences):

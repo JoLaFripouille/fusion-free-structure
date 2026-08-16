@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import dxf_geometry
+from . import anchors, dxf_geometry
 
 
 MM_TO_CM = 0.1
@@ -91,8 +91,10 @@ class ProfileDefinition:
 
     @property
     def center_mm(self):
-        min_x, min_y, max_x, max_y = self.bounds_mm
-        return ((min_x + max_x) / 2.0, (min_y + max_y) / 2.0)
+        return self.anchor_mm(anchors.DEFAULT_ANCHOR_CODE)
+
+    def anchor_mm(self, anchor_code):
+        return anchors.point_for_bounds(self.bounds_mm, anchor_code)
 
     @property
     def width_mm(self):
@@ -106,8 +108,11 @@ class ProfileDefinition:
 
     @property
     def import_offset_cm(self):
-        center_x, center_y = self.center_mm
-        return (-center_x * MM_TO_CM, -center_y * MM_TO_CM)
+        return self.import_offset_cm_for_anchor(anchors.DEFAULT_ANCHOR_CODE)
+
+    def import_offset_cm_for_anchor(self, anchor_code):
+        anchor_x, anchor_y = self.anchor_mm(anchor_code)
+        return (-anchor_x * MM_TO_CM, -anchor_y * MM_TO_CM)
 
 
 def library_candidates(addin_root=None):

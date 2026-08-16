@@ -4,6 +4,26 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.4.0] - 2026-08-16
+
+### Ajouté
+
+- grille visuelle `3 × 3` de neuf points d'ancrage cliquables ;
+- points disponibles affichés en bleu et point actif affiché en rouge ;
+- ancrage central `C` conservé comme choix par défaut ;
+- déplacement immédiat de l'aperçu jaune autour du point sélectionné ;
+- import final positionné avec le même ancrage, sans déplacement ni simplification du DXF source ;
+- code de l'ancrage enregistré dans le composant créé ;
+- calcul vérifié sur les neuf positions des 341 profils, soit 3 069 combinaisons.
+
+### Validé dans Fusion
+
+- affichage des neuf points, couleur bleue des positions disponibles et couleur rouge du point actif confirmés ;
+- déplacement dynamique de l'aperçu confirmé pour les neuf positions ;
+- correspondance sans saut entre l'aperçu et le corps final confirmée ;
+- positionnement final validé sur un IPE, une cornière asymétrique et un tube creux ;
+- dimensions, contours intérieurs, composant unique et corps unique confirmés par l'utilisateur.
+
 ## [1.3.1] - 2026-08-16
 
 ### Modifié

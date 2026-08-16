@@ -91,6 +91,23 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("_populate_section_input", source)
         self.assertIn('"profile": profile', source)
 
+    def test_command_exposes_clickable_three_by_three_anchor_grid(self):
+        source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        self.assertIn("addTableCommandInput", source)
+        self.assertIn("addBoolValueInput", source)
+        self.assertIn("anchors.ANCHOR_DEFINITIONS", source)
+        self.assertIn("ANCHOR_BLUE_RESOURCES", source)
+        self.assertIn("ANCHOR_RED_RESOURCES", source)
+        self.assertIn('"anchor_code": anchor_code', source)
+
+    def test_anchor_icon_resources_are_packaged(self):
+        resources = ADDIN / "resources"
+        for color in ("anchor_blue", "anchor_red"):
+            for size in ("16x16.svg", "32x32.svg"):
+                icon = resources / color / size
+                self.assertTrue(icon.is_file(), icon)
+                self.assertIn("<circle", icon.read_text(encoding="utf-8"))
+
     def test_preview_uses_requested_yellow_color(self):
         source = (ADDIN / "lib" / "preview_graphics.py").read_text(encoding="utf-8")
         self.assertIn("PREVIEW_YELLOW = (255, 205, 0)", source)

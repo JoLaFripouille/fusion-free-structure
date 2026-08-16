@@ -67,15 +67,15 @@ class PreviewManager:
         if app and app.activeViewport:
             app.activeViewport.refresh()
 
-    def update(self, root_component, curves, profile):
+    def update(self, root_component, curves, profile, anchor_code):
         self.clear()
         if not curves:
             return
-        profile_key = str(profile.dxf_path)
+        profile_key = (str(profile.dxf_path), anchor_code)
         if self._profile_contours is None or self._profile_key != profile_key:
             self._profile_contours = preview_geometry.tessellate_profile_contours_cm(
                 profile.dxf_path,
-                anchor_mm=profile.center_mm,
+                anchor_mm=profile.anchor_mm(anchor_code),
             )
             self._profile_key = profile_key
 
@@ -100,7 +100,10 @@ class PreviewManager:
                     )
                     graphics_coordinates = adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
                     mesh = group.addMesh(graphics_coordinates, triangles, [], [])
-                    mesh.name = "Aperçu {}".format(profile.designation)
+                    mesh.name = "Aperçu {} ancrage {}".format(
+                        profile.designation,
+                        anchor_code,
+                    )
                     mesh.color = mesh_color
                     mesh.setOpacity(0.28, True)
                     mesh.isSelectable = False
@@ -110,7 +113,10 @@ class PreviewManager:
                         len(frames),
                     )
                     lines = group.addLines(graphics_coordinates, wire_indices, False)
-                    lines.name = "Contour aperçu {}".format(profile.designation)
+                    lines.name = "Contour aperçu {} ancrage {}".format(
+                        profile.designation,
+                        anchor_code,
+                    )
                     lines.color = line_color
                     lines.weight = 2.0
                     lines.isSelectable = False

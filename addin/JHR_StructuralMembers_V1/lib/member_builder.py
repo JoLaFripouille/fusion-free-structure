@@ -27,7 +27,7 @@ def _next_component_name(root_component, profile):
     return "{}{:03d}".format(prefix, index)
 
 
-def _import_profile_sketch(component, section_plane, profile):
+def _import_profile_sketch(component, section_plane, profile, anchor_code):
     """Importe le DXF source dans une esquisse unique sur le plan fourni."""
     app = adsk.core.Application.get()
     import_manager = app.importManager
@@ -40,7 +40,9 @@ def _import_profile_sketch(component, section_plane, profile):
 
     options.isViewFit = False
     options.isSingleSketchResult = True
-    options.position = adsk.core.Point2D.create(*profile.import_offset_cm)
+    options.position = adsk.core.Point2D.create(
+        *profile.import_offset_cm_for_anchor(anchor_code)
+    )
 
     imported_objects = import_manager.importToTarget2(options, component)
     if not imported_objects:
@@ -61,12 +63,15 @@ def _import_profile_sketch(component, section_plane, profile):
         )
 
     sketch = sketches[0]
-    sketch.name = "ESQUISSE_{}_DXF_ANCRAGE_C".format(profile.component_token)
-    return sketch, _validate_profile_sketch(sketch, profile)
+    sketch.name = "ESQUISSE_{}_DXF_ANCRAGE_{}".format(
+        profile.component_token,
+        anchor_code,
+    )
+    return sketch, _validate_profile_sketch(sketch, profile, anchor_code)
 
 
-def _validate_profile_sketch(sketch, profile):
-    """Refuse un DXF mal mis à l'échelle, décentré ou non exploitable."""
+def _validate_profile_sketch(sketch, profile, anchor_code):
+    """Refuse un DXF mal mis à l'échelle, mal ancré ou non exploitable."""
     boxes = []
     for collection in (
         sketch.sketchCurves.sketchLines,
@@ -89,6 +94,12 @@ def _validate_profile_sketch(sketch, profile):
     height = max_y - min_y
     expected_width = profile.width_mm * profile_catalog.MM_TO_CM
     expected_height = profile.height_mm * profile_catalog.MM_TO_CM
+    source_min_x, source_min_y, source_max_x, source_max_y = profile.bounds_mm
+    anchor_x, anchor_y = profile.anchor_mm(anchor_code)
+    expected_min_x = (source_min_x - anchor_x) * profile_catalog.MM_TO_CM
+    expected_max_x = (source_max_x - anchor_x) * profile_catalog.MM_TO_CM
+    expected_min_y = (source_min_y - anchor_y) * profile_catalog.MM_TO_CM
+    expected_max_y = (source_max_y - anchor_y) * profile_catalog.MM_TO_CM
 
     if not math.isclose(width, expected_width, abs_tol=DIMENSION_TOLERANCE_CM):
         raise RuntimeError(
@@ -101,14 +112,14 @@ def _validate_profile_sketch(sketch, profile):
             .format(height / profile_catalog.MM_TO_CM, profile.height_mm)
         )
     if not (
-        math.isclose(min_x, -expected_width / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
-        and math.isclose(max_x, expected_width / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
-        and math.isclose(min_y, -expected_height / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
-        and math.isclose(max_y, expected_height / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
+        math.isclose(min_x, expected_min_x, abs_tol=DIMENSION_TOLERANCE_CM)
+        and math.isclose(max_x, expected_max_x, abs_tol=DIMENSION_TOLERANCE_CM)
+        and math.isclose(min_y, expected_min_y, abs_tol=DIMENSION_TOLERANCE_CM)
+        and math.isclose(max_y, expected_max_y, abs_tol=DIMENSION_TOLERANCE_CM)
     ):
         raise RuntimeError(
-            "Le DXF {} n'est pas centré sur l'ancrage C."
-            .format(profile.designation)
+            "Le DXF {} n'est pas positionné sur l'ancrage {}."
+            .format(profile.designation, anchor_code)
         )
     if sketch.profiles.count < 1:
         raise RuntimeError(
@@ -130,7 +141,7 @@ def _validate_profile_sketch(sketch, profile):
     return best_profile
 
 
-def create_member(root_component, source_curve, profile):
+def create_member(root_component, source_curve, profile, anchor_code):
     """Crée un composant du profil choisi, lié à une ligne ou un arc."""
     transform = adsk.core.Matrix3D.create()
     occurrence = root_component.occurrences.addNewComponent(transform)
@@ -149,6 +160,7 @@ def create_member(root_component, source_curve, profile):
             component,
             section_plane,
             profile,
+            anchor_code,
         )
 
         path = adsk.fusion.Path.create(source_curve, adsk.fusion.ChainedCurveOptions.noChainedCurves)
@@ -181,7 +193,7 @@ def create_member(root_component, source_curve, profile):
         component.attributes.add(ATTRIBUTE_GROUP, "profile", profile.designation)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_family", profile.family_id)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_source", profile.relative_path)
-        component.attributes.add(ATTRIBUTE_GROUP, "anchor", "C")
+        component.attributes.add(ATTRIBUTE_GROUP, "anchor", anchor_code)
         component.attributes.add(ATTRIBUTE_GROUP, "rotation_deg", "0")
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_token", source_token)
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_type", source_type)

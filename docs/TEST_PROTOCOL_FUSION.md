@@ -56,11 +56,26 @@ Effectuer chaque essai sur une nouvelle ligne droite de `200 mm` afin d'isoler l
 8. Recommencer avec `Tube rond`, section `Ø 60.3 — ép. 3 mm`.
 9. Vérifier une enveloppe extérieure de diamètre `60.3 mm`, une épaisseur `3 mm` et un corps creux unique.
 
+## Test 6 — Points d'ancrage
+
+Tester d'abord l'affichage et l'aperçu, puis créer une seule barre à la fois.
+
+1. Ouvrir la commande avec `IPE 100` et vérifier une grille de neuf points bleus avec le centre rouge.
+2. Sélectionner une ligne droite et cliquer successivement sur les neuf points.
+3. Vérifier qu'un seul point reste rouge et que les huit autres redeviennent bleus.
+4. Vérifier que l'aperçu jaune se déplace à chaque clic et que le point actif reste sur la ligne.
+5. Choisir `Haut gauche`, valider et vérifier que le composant contient `ESQUISSE_IPE100_DXF_ANCRAGE_TL` et l'attribut `anchor = TL`.
+6. Recommencer avec une cornière inégale afin de vérifier le comportement sur un profil asymétrique.
+7. Recommencer avec un tube rectangulaire afin de vérifier que le changement d'ancrage ne supprime pas le contour intérieur.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
 - aperçu temporaire visible avant validation et absent de l'historique ;
 - famille et section sélectionnables uniquement parmi les DXF présents ;
+- neuf ancrages cliquables avec centre sélectionné par défaut ;
+- un seul point rouge et huit points bleus ;
+- aperçu et corps final placés sur le même ancrage ;
 - esquisse créée par import direct du DXF sélectionné ;
 - contours intérieurs conservés pour les profils creux ;
 - une région de matière fermée et un corps unique par barre ;

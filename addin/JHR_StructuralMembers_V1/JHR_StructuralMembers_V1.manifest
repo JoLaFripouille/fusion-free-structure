@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.3.1 : crée le profil choisi sur chaque ligne ou arc d'esquisse sélectionné."
+    "": "Profil acier V1.4.0 : crée le profil choisi avec un point d'ancrage sélectionnable."
   },
-  "version": "1.3.1",
+  "version": "1.4.0",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

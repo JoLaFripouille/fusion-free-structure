@@ -12,7 +12,8 @@ La V1 est volontairement limitée afin de valider la base avant d'ajouter l'inte
 - création d'une barre droite ou cintrée par chemin avec le profil choisi ;
 - import direct du DXF sélectionné, sans reconstruction manuelle du contour ;
 - aperçu graphique jaune et semi-transparent, mis à jour avec la sélection du chemin ou du profil ;
-- section centrée au milieu de la ligne, avec l'ancrage `C` et une rotation de `0°` ;
+- choix visuel parmi neuf points d'ancrage, avec les points disponibles en bleu et le point actif en rouge ;
+- section placée sur le chemin par l'ancrage choisi, avec le centre `C` par défaut et une rotation de `0°` ;
 - un composant indépendant par barre ;
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
