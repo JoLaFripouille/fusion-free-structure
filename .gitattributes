@@ -1,0 +1,5 @@
+*.dxf binary
+*.py text eol=lf
+*.md text eol=lf
+*.manifest text eol=lf
+VERSION text eol=lf

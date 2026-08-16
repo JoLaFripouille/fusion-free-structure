@@ -1,0 +1,13 @@
+{
+  "autodeskProduct": "Fusion",
+  "type": "addin",
+  "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
+  "author": "EI_JHR",
+  "description": {
+    "": "V1 technique : crée un composant IPE 100 sur chaque ligne droite d'esquisse sélectionnée."
+  },
+  "version": "1.0.0",
+  "runOnStartup": false,
+  "supportedOS": "windows",
+  "editEnabled": true
+}
