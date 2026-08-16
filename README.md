@@ -1,15 +1,16 @@
 # fusion-free-structure
 
-Extension Autodesk Fusion en cours de développement pour créer des profils acier le long de lignes d'un squelette paramétrique.
+Extension Autodesk Fusion en cours de développement pour créer des profils acier le long de lignes ou d'arcs d'un squelette paramétrique.
 
 La V1 est volontairement limitée afin de valider la base avant d'ajouter l'interface complète, les ancrages, les rotations et les jonctions.
 
 ## Fonction de la V1
 
 - sélection d'une ou plusieurs lignes ou arcs d'esquisse dans le composant racine ;
-- création d'une barre `IPE 100` droite ou cintrée par chemin ;
-- import direct du fichier `profiles/IPE/IPE_100.dxf`, sans reconstruction manuelle du contour ;
-- aperçu graphique jaune et semi-transparent, mis à jour avec la sélection avant validation ;
+- choix de la famille puis de la section parmi les 341 DXF disponibles ;
+- création d'une barre droite ou cintrée par chemin avec le profil choisi ;
+- import direct du DXF sélectionné, sans reconstruction manuelle du contour ;
+- aperçu graphique jaune et semi-transparent, mis à jour avec la sélection du chemin ou du profil ;
 - section centrée au milieu de la ligne, avec l'ancrage `C` et une rotation de `0°` ;
 - un composant indépendant par barre ;
 - une esquisse de section et un corps dans chaque composant ;
@@ -17,7 +18,7 @@ La V1 est volontairement limitée afin de valider la base avant d'ajouter l'inte
 
 ## Bibliothèque incluse
 
-Le dossier [`profiles`](profiles/) contient 341 profils DXF R12 à l'échelle 1:1, suivant la convention millimétrique validée lors de l'extraction, répartis uniquement dans les 12 familles réellement détectées. Le DXF R12 ne stocke pas le champ moderne `$INSUNITS` : l'application importatrice doit donc être réglée en millimètres.
+Le dossier [`profiles`](profiles/) contient 341 profils DXF R12 à l'échelle 1:1, suivant la convention millimétrique validée lors de l'extraction, répartis uniquement dans les 12 familles réellement détectées. Les listes de l'extension sont produites directement depuis ces dossiers. Le DXF R12 ne stocke pas le champ moderne `$INSUNITS` : l'application importatrice doit donc être réglée en millimètres.
 
 | Famille | Nombre |
 |---|---:|

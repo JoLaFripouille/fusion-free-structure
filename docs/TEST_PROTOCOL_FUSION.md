@@ -9,7 +9,7 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 1. Créer un nouveau modèle avec l'historique de conception activé.
 2. Dans le composant racine, créer une esquisse sur le plan XY.
 3. Tracer une ligne horizontale contrainte à `200 mm`, puis terminer l'esquisse.
-4. Lancer **Profil acier V1** et sélectionner la ligne.
+4. Lancer **Profil acier V1**, conserver la famille `IPE` et la section `100`, puis sélectionner la ligne.
 5. Avant de valider, vérifier qu'un aperçu jaune semi-transparent suit la ligne sans ajouter de composant dans l'arborescence.
 6. Retirer puis resélectionner la ligne et vérifier que l'aperçu disparaît puis réapparaît.
 7. Valider la commande.
@@ -42,12 +42,28 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 6. Ouvrir l'esquisse DXF et contrôler que la section reste `55 × 100 mm` avec ses quatre raccords corrects.
 7. Modifier le rayon ou l'angle de l'arc, puis vérifier que la barre cintrée se recalcule sans créer un nouveau composant.
 
+## Test 5 — Choix de la famille et de la section
+
+Effectuer chaque essai sur une nouvelle ligne droite de `200 mm` afin d'isoler les erreurs.
+
+1. Ouvrir la commande et choisir la famille `HEA`, puis la section `160`.
+2. Vérifier que la liste des sections change lorsque la famille change.
+3. Sélectionner la ligne et vérifier que l'aperçu jaune devient un HEA 160.
+4. Valider, puis mesurer la section créée : `160 × 152 mm`.
+5. Recommencer avec `Tube carré`, section `80 × 80 — ép. 4 mm`.
+6. Vérifier dans l'aperçu la présence du contour extérieur et du contour intérieur.
+7. Valider, puis vérifier une enveloppe extérieure `80 × 80 mm`, une épaisseur `4 mm` et un corps creux unique.
+8. Recommencer avec `Tube rond`, section `Ø 60.3 — ép. 3 mm`.
+9. Vérifier une enveloppe extérieure de diamètre `60.3 mm`, une épaisseur `3 mm` et un corps creux unique.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
 - aperçu temporaire visible avant validation et absent de l'historique ;
-- esquisse créée par import direct de `profiles/IPE/IPE_100.dxf` ;
-- un profil fermé et un corps unique par barre ;
+- famille et section sélectionnables uniquement parmi les DXF présents ;
+- esquisse créée par import direct du DXF sélectionné ;
+- contours intérieurs conservés pour les profils creux ;
+- une région de matière fermée et un corps unique par barre ;
 - dimensions exactes ;
 - section au milieu du chemin ;
 - mise à jour après modification du squelette ;

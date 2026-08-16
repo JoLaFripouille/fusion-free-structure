@@ -1,85 +1,35 @@
 from __future__ import annotations
 
-import math
+from . import dxf_geometry
 
 
 def read_r12_polyline_vertices(dxf_path):
     """Lit les sommets de la première POLYLINE 2D d'un DXF ASCII R12."""
-    lines = dxf_path.read_text(encoding="ascii").splitlines()
-    pairs = [
-        (lines[index].strip(), lines[index + 1].strip())
-        for index in range(0, len(lines) - 1, 2)
-    ]
-    vertices = []
-    current = None
-    inside_polyline = False
-    for code, value in pairs:
-        if code == "0":
-            if current:
-                vertices.append((current["x"], current["y"], current.get("bulge", 0.0)))
-                current = None
-            if value == "POLYLINE" and not inside_polyline:
-                inside_polyline = True
-            elif value == "VERTEX" and inside_polyline:
-                current = {}
-            elif value == "SEQEND" and inside_polyline:
-                break
-        elif current is not None:
-            if code == "10":
-                current["x"] = float(value)
-            elif code == "20":
-                current["y"] = float(value)
-            elif code == "42":
-                current["bulge"] = float(value)
-    if current:
-        vertices.append((current["x"], current["y"], current.get("bulge", 0.0)))
-    if len(vertices) < 3:
-        raise ValueError("Le DXF ne contient pas de POLYLINE fermée exploitable pour l'aperçu.")
-    return vertices
-
-
-def _arc_data(start, end, bulge):
-    x1, y1 = start
-    x2, y2 = end
-    dx, dy = x2 - x1, y2 - y1
-    chord = math.hypot(dx, dy)
-    if chord <= 0:
-        raise ValueError("Arc DXF de longueur nulle")
-    sweep = 4.0 * math.atan(bulge)
-    center_offset = chord / (2.0 * math.tan(sweep / 2.0))
-    midpoint_x = (x1 + x2) / 2.0
-    midpoint_y = (y1 + y2) / 2.0
-    left_x, left_y = -dy / chord, dx / chord
-    center = (
-        midpoint_x + left_x * center_offset,
-        midpoint_y + left_y * center_offset,
-    )
-    radius = math.hypot(x1 - center[0], y1 - center[1])
-    start_angle = math.atan2(y1 - center[1], x1 - center[0])
-    return center, radius, start_angle, sweep
+    for entity in dxf_geometry.read_r12_entities(dxf_path):
+        if entity["type"] == "POLYLINE":
+            return entity["vertices"]
+    raise ValueError("Le DXF ne contient pas de POLYLINE exploitable pour l'aperçu.")
 
 
 def tessellate_profile_cm(dxf_path, anchor_mm=(0.0, 50.0), max_angle_deg=7.5):
-    """Approxime visuellement le contour DXF sans modifier la géométrie finale."""
-    vertices = read_r12_polyline_vertices(dxf_path)
-    max_angle = math.radians(max_angle_deg)
-    anchor_x, anchor_y = anchor_mm
-    points_mm = []
-    for index, (x1, y1, bulge) in enumerate(vertices):
-        x2, y2, _ = vertices[(index + 1) % len(vertices)]
-        if abs(bulge) < 1e-12:
-            points_mm.append((x1 - anchor_x, y1 - anchor_y))
-            continue
+    """Compatibilité V1.2 : retourne le premier contour visuel du DXF."""
+    return tessellate_profile_contours_cm(dxf_path, anchor_mm, max_angle_deg)[0]
 
-        center, radius, start_angle, sweep = _arc_data((x1, y1), (x2, y2), bulge)
-        subdivisions = max(1, int(math.ceil(abs(sweep) / max_angle)))
-        for step in range(subdivisions):
-            angle = start_angle + sweep * step / subdivisions
-            points_mm.append((
-                center[0] + radius * math.cos(angle) - anchor_x,
-                center[1] + radius * math.sin(angle) - anchor_y,
-            ))
-    return [(x * 0.1, y * 0.1) for x, y in points_mm]
+
+def tessellate_profile_contours_cm(dxf_path, anchor_mm=None, max_angle_deg=7.5):
+    """Approxime tous les contours pour l'aperçu, sans modifier le DXF final."""
+    contours = dxf_geometry.tessellate_profile_contours_mm(dxf_path, max_angle_deg)
+    if anchor_mm is None:
+        min_x, min_y, max_x, max_y = dxf_geometry.profile_bounds_mm(dxf_path)
+        anchor_mm = ((min_x + max_x) / 2.0, (min_y + max_y) / 2.0)
+    anchor_x, anchor_y = anchor_mm
+    return [
+        [
+            ((x - anchor_x) * 0.1, (y - anchor_y) * 0.1)
+            for x, y in contour
+        ]
+        for contour in contours
+    ]
 
 
 def build_swept_side_mesh(profile_points, frames):

@@ -4,6 +4,26 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.3.0] - 2026-08-16
+
+### Ajouté
+
+- deux listes liées permettent de choisir d'abord la famille, puis la section disponible ;
+- les listes sont générées depuis les 341 DXF réellement présents, sans catalogue recopié dans le code ;
+- l'aperçu jaune change immédiatement avec le profil sélectionné ;
+- l'import final, le nom du composant et les attributs de traçabilité utilisent le même DXF sélectionné ;
+- le centre de la boîte géométrique du DXF devient l'ancrage `C`, sans modifier la géométrie source ;
+- les lignes, arcs, cercles et polylignes DXF sont pris en charge par l'aperçu ;
+- les contours intérieurs des tubes carrés, rectangulaires et ronds sont conservés ;
+- contrôle automatisé de la géométrie et des contours des 341 profils.
+
+### Validé dans Fusion
+
+- chargement du complément et profil `IPE 100` sélectionné par défaut confirmés ;
+- navigation dans toutes les familles et mise à jour de l'aperçu jaune confirmées ;
+- création des profils pleins et des tubes creux confirmée, sans défaut signalé ;
+- dimensions, extrusion et fonctionnement général confirmés par l'utilisateur.
+
 ## [1.2.0] - 2026-08-16
 
 ### Ajouté

@@ -3,7 +3,6 @@ from __future__ import annotations
 import adsk.core
 import adsk.fusion
 
-from . import ipe100
 from . import preview_geometry
 
 
@@ -56,7 +55,8 @@ class PreviewManager:
 
     def __init__(self):
         self._groups = []
-        self._profile_points = None
+        self._profile_contours = None
+        self._profile_key = None
 
     def clear(self):
         for group in reversed(self._groups):
@@ -67,15 +67,17 @@ class PreviewManager:
         if app and app.activeViewport:
             app.activeViewport.refresh()
 
-    def update(self, root_component, curves):
+    def update(self, root_component, curves, profile):
         self.clear()
         if not curves:
             return
-        if self._profile_points is None:
-            self._profile_points = preview_geometry.tessellate_profile_cm(
-                ipe100.resolve_dxf_path(),
-                anchor_mm=(0.0, ipe100.HEIGHT_MM / 2.0),
+        profile_key = str(profile.dxf_path)
+        if self._profile_contours is None or self._profile_key != profile_key:
+            self._profile_contours = preview_geometry.tessellate_profile_contours_cm(
+                profile.dxf_path,
+                anchor_mm=profile.center_mm,
             )
+            self._profile_key = profile_key
 
         mesh_color = adsk.fusion.CustomGraphicsSolidColorEffect.create(
             adsk.core.Color.create(*PREVIEW_YELLOW, 255)
@@ -87,30 +89,31 @@ class PreviewManager:
         try:
             for curve in curves:
                 frames = _frames_for_curve(curve)
-                coordinates, triangles = preview_geometry.build_swept_side_mesh(
-                    self._profile_points,
-                    frames,
-                )
-                graphics_coordinates = adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
                 group = root_component.customGraphicsGroups.add()
                 group.id = "EI_JHR_PROFILE_PREVIEW"
                 self._groups.append(group)
 
-                mesh = group.addMesh(graphics_coordinates, triangles, [], [])
-                mesh.name = "Aperçu IPE 100"
-                mesh.color = mesh_color
-                mesh.setOpacity(0.28, True)
-                mesh.isSelectable = False
+                for contour in self._profile_contours:
+                    coordinates, triangles = preview_geometry.build_swept_side_mesh(
+                        contour,
+                        frames,
+                    )
+                    graphics_coordinates = adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
+                    mesh = group.addMesh(graphics_coordinates, triangles, [], [])
+                    mesh.name = "Aperçu {}".format(profile.designation)
+                    mesh.color = mesh_color
+                    mesh.setOpacity(0.28, True)
+                    mesh.isSelectable = False
 
-                wire_indices = preview_geometry.build_wire_indices(
-                    len(self._profile_points),
-                    len(frames),
-                )
-                lines = group.addLines(graphics_coordinates, wire_indices, False)
-                lines.name = "Contour aperçu IPE 100"
-                lines.color = line_color
-                lines.weight = 2.0
-                lines.isSelectable = False
+                    wire_indices = preview_geometry.build_wire_indices(
+                        len(contour),
+                        len(frames),
+                    )
+                    lines = group.addLines(graphics_coordinates, wire_indices, False)
+                    lines.name = "Contour aperçu {}".format(profile.designation)
+                    lines.color = line_color
+                    lines.weight = 2.0
+                    lines.isSelectable = False
         except Exception:
             self.clear()
             raise

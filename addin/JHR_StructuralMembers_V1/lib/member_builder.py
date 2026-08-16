@@ -5,15 +5,16 @@ import math
 import adsk.core
 import adsk.fusion
 
-from . import ipe100
+from . import profile_catalog
 
 
 ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
 DIMENSION_TOLERANCE_CM = 1e-5
+EXTENSION_VERSION = "1.3.0"
 
 
-def _next_component_name(root_component):
-    prefix = "BARRE_IPE100_"
+def _next_component_name(root_component, profile):
+    prefix = "BARRE_{}_".format(profile.component_token)
     used = set()
     for occurrence in root_component.allOccurrences:
         name = occurrence.component.name
@@ -27,22 +28,27 @@ def _next_component_name(root_component):
     return "{}{:03d}".format(prefix, index)
 
 
-def _import_ipe100_sketch(component, section_plane):
+def _import_profile_sketch(component, section_plane, profile):
     """Importe le DXF source dans une esquisse unique sur le plan fourni."""
-    dxf_path = ipe100.resolve_dxf_path()
     app = adsk.core.Application.get()
     import_manager = app.importManager
-    options = import_manager.createDXF2DImportOptions(str(dxf_path), section_plane)
+    options = import_manager.createDXF2DImportOptions(str(profile.dxf_path), section_plane)
     if not options:
-        raise RuntimeError("Fusion n'a pas pu préparer l'import du DXF IPE 100.")
+        raise RuntimeError(
+            "Fusion n'a pas pu préparer l'import du DXF {}."
+            .format(profile.designation)
+        )
 
     options.isViewFit = False
     options.isSingleSketchResult = True
-    options.position = adsk.core.Point2D.create(*ipe100.IMPORT_OFFSET_CM)
+    options.position = adsk.core.Point2D.create(*profile.import_offset_cm)
 
     imported_objects = import_manager.importToTarget2(options, component)
     if not imported_objects:
-        raise RuntimeError("Fusion n'a retourné aucun objet après l'import du DXF IPE 100.")
+        raise RuntimeError(
+            "Fusion n'a retourné aucun objet après l'import du DXF {}."
+            .format(profile.designation)
+        )
 
     sketches = []
     for index in range(imported_objects.count):
@@ -56,22 +62,25 @@ def _import_ipe100_sketch(component, section_plane):
         )
 
     sketch = sketches[0]
-    sketch.name = "ESQUISSE_IPE100_DXF_ANCRAGE_C"
-    _validate_ipe100_sketch(sketch)
-    return sketch
+    sketch.name = "ESQUISSE_{}_DXF_ANCRAGE_C".format(profile.component_token)
+    return sketch, _validate_profile_sketch(sketch, profile)
 
 
-def _validate_ipe100_sketch(sketch):
+def _validate_profile_sketch(sketch, profile):
     """Refuse un DXF mal mis à l'échelle, décentré ou non exploitable."""
     boxes = []
     for collection in (
         sketch.sketchCurves.sketchLines,
         sketch.sketchCurves.sketchArcs,
+        sketch.sketchCurves.sketchCircles,
     ):
         for index in range(collection.count):
             boxes.append(collection.item(index).boundingBox)
     if not boxes:
-        raise RuntimeError("Le DXF IPE 100 importé ne contient aucune ligne ni aucun arc.")
+        raise RuntimeError(
+            "Le DXF {} ne contient aucune courbe exploitable."
+            .format(profile.designation)
+        )
 
     min_x = min(box.minPoint.x for box in boxes)
     max_x = max(box.maxPoint.x for box in boxes)
@@ -79,18 +88,18 @@ def _validate_ipe100_sketch(sketch):
     max_y = max(box.maxPoint.y for box in boxes)
     width = max_x - min_x
     height = max_y - min_y
-    expected_width = ipe100.WIDTH_MM * ipe100.MM_TO_CM
-    expected_height = ipe100.HEIGHT_MM * ipe100.MM_TO_CM
+    expected_width = profile.width_mm * profile_catalog.MM_TO_CM
+    expected_height = profile.height_mm * profile_catalog.MM_TO_CM
 
     if not math.isclose(width, expected_width, abs_tol=DIMENSION_TOLERANCE_CM):
         raise RuntimeError(
             "Largeur DXF incorrecte : {:.6f} mm au lieu de {:.6f} mm."
-            .format(width / ipe100.MM_TO_CM, ipe100.WIDTH_MM)
+            .format(width / profile_catalog.MM_TO_CM, profile.width_mm)
         )
     if not math.isclose(height, expected_height, abs_tol=DIMENSION_TOLERANCE_CM):
         raise RuntimeError(
             "Hauteur DXF incorrecte : {:.6f} mm au lieu de {:.6f} mm."
-            .format(height / ipe100.MM_TO_CM, ipe100.HEIGHT_MM)
+            .format(height / profile_catalog.MM_TO_CM, profile.height_mm)
         )
     if not (
         math.isclose(min_x, -expected_width / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
@@ -98,20 +107,36 @@ def _validate_ipe100_sketch(sketch):
         and math.isclose(min_y, -expected_height / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
         and math.isclose(max_y, expected_height / 2.0, abs_tol=DIMENSION_TOLERANCE_CM)
     ):
-        raise RuntimeError("Le DXF IPE 100 n'est pas centré sur l'ancrage C.")
-    if sketch.profiles.count != 1:
         raise RuntimeError(
-            "Le DXF IPE 100 ne produit pas un profil fermé unique ({} détecté(s))."
-            .format(sketch.profiles.count)
+            "Le DXF {} n'est pas centré sur l'ancrage C."
+            .format(profile.designation)
+        )
+    if sketch.profiles.count < 1:
+        raise RuntimeError(
+            "Le DXF {} ne produit aucun profil fermé."
+            .format(profile.designation)
         )
 
+    # Pour les tubes, Fusion expose généralement le disque intérieur et la
+    # couronne comme deux profils. La couronne est la région qui possède le
+    # plus de boucles (contour extérieur + contour intérieur).
+    best_profile = sketch.profiles.item(0)
+    best_loop_count = best_profile.profileLoops.count
+    for index in range(1, sketch.profiles.count):
+        candidate = sketch.profiles.item(index)
+        loop_count = candidate.profileLoops.count
+        if loop_count > best_loop_count:
+            best_profile = candidate
+            best_loop_count = loop_count
+    return best_profile
 
-def create_member(root_component, source_curve):
-    """Crée un composant IPE 100 lié à une ligne ou un arc."""
+
+def create_member(root_component, source_curve, profile):
+    """Crée un composant du profil choisi, lié à une ligne ou un arc."""
     transform = adsk.core.Matrix3D.create()
     occurrence = root_component.occurrences.addNewComponent(transform)
     component = occurrence.component
-    component.name = _next_component_name(root_component)
+    component.name = _next_component_name(root_component, profile)
 
     try:
         plane_input = component.constructionPlanes.createInput(occurrence)
@@ -121,8 +146,11 @@ def create_member(root_component, source_curve):
         section_plane = component.constructionPlanes.add(plane_input)
         section_plane.name = "PLAN_PROFIL_MILIEU"
 
-        section_sketch = _import_ipe100_sketch(component, section_plane)
-        section_profile = section_sketch.profiles.item(0)
+        section_sketch, section_profile = _import_profile_sketch(
+            component,
+            section_plane,
+            profile,
+        )
 
         path = adsk.fusion.Path.create(source_curve, adsk.fusion.ChainedCurveOptions.noChainedCurves)
         if not path:
@@ -147,19 +175,20 @@ def create_member(root_component, source_curve):
         if sweep.bodies.count != 1:
             raise RuntimeError("La création n'a pas produit un corps unique.")
         body = sweep.bodies.item(0)
-        body.name = "CORPS_IPE100"
+        body.name = "CORPS_{}".format(profile.component_token)
 
         source_token = source_curve.entityToken
         source_type = "arc" if adsk.fusion.SketchArc.cast(source_curve) else "line"
-        component.attributes.add(ATTRIBUTE_GROUP, "profile", ipe100.PROFILE_NAME)
-        component.attributes.add(ATTRIBUTE_GROUP, "profile_source", "profiles/IPE/IPE_100.dxf")
-        component.attributes.add(ATTRIBUTE_GROUP, "anchor", ipe100.ANCHOR_NAME)
+        component.attributes.add(ATTRIBUTE_GROUP, "profile", profile.designation)
+        component.attributes.add(ATTRIBUTE_GROUP, "profile_family", profile.family_id)
+        component.attributes.add(ATTRIBUTE_GROUP, "profile_source", profile.relative_path)
+        component.attributes.add(ATTRIBUTE_GROUP, "anchor", "C")
         component.attributes.add(ATTRIBUTE_GROUP, "rotation_deg", "0")
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_token", source_token)
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_type", source_type)
         if source_type == "line":
             component.attributes.add(ATTRIBUTE_GROUP, "source_line_token", source_token)
-        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", "1.2.0")
+        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", EXTENSION_VERSION)
 
         section_plane.isLightBulbOn = False
         section_sketch.isVisible = False

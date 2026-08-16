@@ -9,11 +9,14 @@ import adsk.fusion
 
 from ..lib.member_builder import create_member
 from ..lib.preview_graphics import PreviewManager
+from ..lib import profile_catalog
 
 
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
 COMMAND_NAME = "Profil acier V1"
-COMMAND_DESCRIPTION = "Crée un composant IPE 100 sur chaque ligne ou arc d'esquisse sélectionné."
+COMMAND_DESCRIPTION = "Crée le profil acier choisi sur chaque ligne ou arc d'esquisse sélectionné."
+FAMILY_INPUT_ID = "profileFamily"
+SECTION_INPUT_ID = "profileSection"
 SELECTION_ID = "skeletonLines"
 PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
 CUSTOM_EVENT_ID = "EI_JHR_CreateStructuralMembersV1_Deferred"
@@ -56,6 +59,32 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             command.isRepeatable = False
             inputs = command.commandInputs
 
+            profiles = profile_catalog.discover_profiles()
+            default_profile = profile_catalog.default_profile(profiles)
+            family_input = inputs.addDropDownCommandInput(
+                FAMILY_INPUT_ID,
+                "Famille",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            for family_id, family_label in profile_catalog.family_options(profiles):
+                family_input.listItems.add(
+                    family_label,
+                    family_id == default_profile.family_id,
+                    "",
+                )
+
+            section_input = inputs.addDropDownCommandInput(
+                SECTION_INPUT_ID,
+                "Section",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            _populate_section_input(
+                section_input,
+                profiles,
+                default_profile.family_id,
+                default_profile,
+            )
+
             selection = inputs.addSelectionInput(
                 SELECTION_ID,
                 "Chemins du squelette",
@@ -66,20 +95,29 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs.addTextBoxCommandInput(
                 "v1Info",
                 "V1 technique",
-                "Profil fixe : IPE 100<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin.",
+                "Profil : famille et section au choix<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin.",
                 5,
                 True,
             )
 
             preview_manager = PreviewManager()
 
-            execute_handler = ExecuteHandler(preview_manager)
+            execute_handler = ExecuteHandler(preview_manager, profiles)
             command.execute.add(execute_handler)
             _handlers.append(execute_handler)
 
-            preview_handler = ExecutePreviewHandler(preview_manager)
+            preview_handler = ExecutePreviewHandler(preview_manager, profiles)
             command.executePreview.add(preview_handler)
             _handlers.append(preview_handler)
+
+            input_changed_handler = InputChangedHandler(
+                preview_manager,
+                profiles,
+                family_input,
+                section_input,
+            )
+            command.inputChanged.add(input_changed_handler)
+            _handlers.append(input_changed_handler)
 
             destroy_handler = DestroyHandler(preview_manager)
             command.destroy.add(destroy_handler)
@@ -99,6 +137,62 @@ class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         event_args = adsk.core.ValidateInputsEventArgs.cast(args)
         selection = event_args.inputs.itemById(SELECTION_ID)
         event_args.areInputsValid = bool(selection and selection.selectionCount >= 1)
+
+
+def _populate_section_input(section_input, profiles, family_id, selected_profile=None):
+    section_input.listItems.clear()
+    family_profiles = profile_catalog.profiles_for_family(profiles, family_id)
+    for index, profile in enumerate(family_profiles):
+        is_selected = (
+            profile == selected_profile
+            if selected_profile is not None
+            else index == 0
+        )
+        section_input.listItems.add(profile.section_label, is_selected, "")
+
+
+def _selected_profile(inputs, profiles):
+    family_input = inputs.itemById(FAMILY_INPUT_ID)
+    section_input = inputs.itemById(SECTION_INPUT_ID)
+    if not family_input or not family_input.selectedItem:
+        raise RuntimeError("Aucune famille de profil n'est sélectionnée.")
+    if not section_input or not section_input.selectedItem:
+        raise RuntimeError("Aucune section de profil n'est sélectionnée.")
+    return profile_catalog.profile_from_labels(
+        profiles,
+        family_input.selectedItem.name,
+        section_input.selectedItem.name,
+    )
+
+
+class InputChangedHandler(adsk.core.InputChangedEventHandler):
+    def __init__(self, preview_manager, profiles, family_input, section_input):
+        super().__init__()
+        self._preview_manager = preview_manager
+        self._profiles = profiles
+        self._family_input = family_input
+        self._section_input = section_input
+
+    def notify(self, args):
+        event_args = adsk.core.InputChangedEventArgs.cast(args)
+        changed_input = event_args.input
+        if not changed_input:
+            return
+        if changed_input.id == FAMILY_INPUT_ID:
+            selected_family = self._family_input.selectedItem
+            if selected_family:
+                family_id = next(
+                    family_id
+                    for family_id, family_label in profile_catalog.family_options(self._profiles)
+                    if family_label == selected_family.name
+                )
+                _populate_section_input(
+                    self._section_input,
+                    self._profiles,
+                    family_id,
+                )
+        if changed_input.id in (FAMILY_INPUT_ID, SECTION_INPUT_ID):
+            self._preview_manager.clear()
 
 
 def _supported_curves_from_selection(selection, root_component, strict):
@@ -129,9 +223,10 @@ def _supported_curves_from_selection(selection, root_component, strict):
 
 
 class ExecutePreviewHandler(adsk.core.CommandEventHandler):
-    def __init__(self, preview_manager):
+    def __init__(self, preview_manager, profiles):
         super().__init__()
         self._preview_manager = preview_manager
+        self._profiles = profiles
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -144,7 +239,8 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
                 return
             selection = event_args.command.commandInputs.itemById(SELECTION_ID)
             curves = _supported_curves_from_selection(selection, design.rootComponent, strict=False)
-            self._preview_manager.update(design.rootComponent, curves)
+            profile = _selected_profile(event_args.command.commandInputs, self._profiles)
+            self._preview_manager.update(design.rootComponent, curves, profile)
         except Exception as error:
             self._preview_manager.clear()
             _log("APERÇU INDISPONIBLE: {}\n{}".format(error, traceback.format_exc()))
@@ -160,9 +256,10 @@ class DestroyHandler(adsk.core.CommandEventHandler):
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
-    def __init__(self, preview_manager):
+    def __init__(self, preview_manager, profiles):
         super().__init__()
         self._preview_manager = preview_manager
+        self._profiles = profiles
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -178,6 +275,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             root_component = design.rootComponent
             selection = event_args.command.commandInputs.itemById(SELECTION_ID)
             curves = _supported_curves_from_selection(selection, root_component, strict=True)
+            profile = _selected_profile(event_args.command.commandInputs, self._profiles)
 
             # L'API Fusion interdit l'import DXF depuis un événement de
             # commande. Le travail est donc mis en file puis exécuté par un
@@ -187,6 +285,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "design": design,
                 "root_component": root_component,
                 "curves": curves,
+                "profile": profile,
             }
             _pending_jobs.append(job)
             worker = threading.Thread(
@@ -195,7 +294,10 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 daemon=True,
             )
             worker.start()
-            _log("Import DXF planifié pour {} chemin(s)".format(len(curves)))
+            _log(
+                "Import DXF {} planifié pour {} chemin(s)"
+                .format(profile.designation, len(curves))
+            )
         except Exception as error:
             event_args.executeFailed = True
             _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
@@ -221,11 +323,14 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
             for curve in job["curves"]:
                 if not curve or not curve.isValid:
                     raise RuntimeError("Un chemin sélectionné n'est plus valide.")
-                occurrence = create_member(job["root_component"], curve)
+                occurrence = create_member(job["root_component"], curve, job["profile"])
                 created_occurrences.append(occurrence)
                 _log("Composant créé depuis le DXF: {}".format(occurrence.component.name))
 
-            ui.messageBox("{} barre(s) IPE 100 créée(s) depuis le DXF.".format(len(created_occurrences)))
+            ui.messageBox(
+                "{} barre(s) {} créée(s) depuis le DXF."
+                .format(len(created_occurrences), job["profile"].designation)
+            )
         except Exception as error:
             for occurrence in reversed(created_occurrences):
                 if occurrence and occurrence.isValid:

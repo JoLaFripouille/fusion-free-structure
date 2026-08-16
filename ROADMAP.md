@@ -13,7 +13,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 
 ## Interface profils
 
-- [ ] afficher les profils par famille puis par dimension ;
+- [x] afficher les profils par famille puis par dimension ;
 - [ ] afficher un aperçu visuel du profil ;
 - [ ] proposer neuf points d'ancrage cliquables ;
 - [ ] afficher les ancrages en bleu et l'ancrage actif en rouge ;
@@ -22,7 +22,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 
 ## Géométrie et structure
 
-- [ ] généraliser aux 341 profils l'import DXF relatif d'abord validé sur l'IPE 100 ;
+- [x] généraliser aux 341 profils l'import DXF relatif d'abord validé sur l'IPE 100 ;
 - [ ] prendre en charge les lignes appartenant à des sous-composants ;
 - [ ] gérer une orientation de référence contrôlable ;
 - [ ] ajouter décalages et inversions ;
@@ -31,7 +31,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 ## Qualité
 
 - [ ] choisir une licence publique ;
-- [ ] automatiser le contrôle de tous les DXF à chaque livraison ;
+- [x] automatiser le contrôle de tous les DXF à chaque livraison ;
 - [ ] ajouter des essais Fusion reproductibles pour chaque fonction importante.
 - [ ] libérer les gestionnaires propres à une commande quand sa fenêtre est détruite afin d'éviter leur accumulation pendant une longue session ;
 - [ ] définir une limite pratique ou un traitement par lots pour les très grandes sélections de lignes.

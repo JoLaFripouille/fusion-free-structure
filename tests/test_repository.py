@@ -70,6 +70,15 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("adsk.fusion.SketchArc.cast(entity)", source)
         self.assertIn("n'est pas une ligne ou un arc", source)
 
+    def test_command_exposes_linked_family_and_section_lists(self):
+        source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        self.assertIn("addDropDownCommandInput", source)
+        self.assertIn('FAMILY_INPUT_ID = "profileFamily"', source)
+        self.assertIn('SECTION_INPUT_ID = "profileSection"', source)
+        self.assertIn("class InputChangedHandler", source)
+        self.assertIn("_populate_section_input", source)
+        self.assertIn('"profile": profile', source)
+
     def test_preview_uses_requested_yellow_color(self):
         source = (ADDIN / "lib" / "preview_graphics.py").read_text(encoding="utf-8")
         self.assertIn("PREVIEW_YELLOW = (255, 205, 0)", source)
