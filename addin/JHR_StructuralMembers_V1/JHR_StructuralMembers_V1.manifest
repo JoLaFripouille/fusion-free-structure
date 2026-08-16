@@ -6,7 +6,7 @@
   "description": {
     "": "V1 technique : crée un composant IPE 100 sur chaque ligne droite d'esquisse sélectionnée."
   },
-  "version": "1.1.0",
+  "version": "1.2.0",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

@@ -70,6 +70,10 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("adsk.fusion.SketchArc.cast(entity)", source)
         self.assertIn("n'est pas une ligne ou un arc", source)
 
+    def test_preview_uses_requested_yellow_color(self):
+        source = (ADDIN / "lib" / "preview_graphics.py").read_text(encoding="utf-8")
+        self.assertIn("PREVIEW_YELLOW = (255, 205, 0)", source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,12 +10,14 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 2. Dans le composant racine, créer une esquisse sur le plan XY.
 3. Tracer une ligne horizontale contrainte à `200 mm`, puis terminer l'esquisse.
 4. Lancer **Profil acier V1** et sélectionner la ligne.
-5. Valider la commande.
-6. Attendre le message confirmant que la barre a été créée depuis le DXF ; l'import est volontairement exécuté juste après la fermeture de la commande.
-7. Vérifier la présence d'un composant `BARRE_IPE100_001` contenant un plan, une esquisse DXF, un balayage et un corps.
-8. Ouvrir l'esquisse de section et vérifier que son contour correspond exactement au DXF source, avec quatre raccords corrects.
-9. Mesurer la section : largeur `55 mm`, hauteur `100 mm`.
-10. Mesurer la barre : longueur `200 mm`.
+5. Avant de valider, vérifier qu'un aperçu jaune semi-transparent suit la ligne sans ajouter de composant dans l'arborescence.
+6. Retirer puis resélectionner la ligne et vérifier que l'aperçu disparaît puis réapparaît.
+7. Valider la commande.
+8. Attendre le message confirmant que la barre a été créée depuis le DXF ; l'import est volontairement exécuté juste après la fermeture de la commande.
+9. Vérifier la présence d'un composant `BARRE_IPE100_001` contenant un plan, une esquisse DXF, un balayage et un corps.
+10. Ouvrir l'esquisse de section et vérifier que son contour correspond exactement au DXF source, avec quatre raccords corrects.
+11. Mesurer la section : largeur `55 mm`, hauteur `100 mm`.
+12. Mesurer la barre : longueur `200 mm`.
 
 ## Test 2 — Mise à jour paramétrique
 
@@ -34,14 +36,16 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 
 1. Ajouter dans le composant racine un arc de `90°` et de rayon `500 mm`.
 2. Relancer la commande et sélectionner uniquement cet arc.
-3. Vérifier qu'un composant indépendant est créé.
-4. Vérifier que l'IPE suit l'arc entier, avec sa section perpendiculaire au chemin.
-5. Ouvrir l'esquisse DXF et contrôler que la section reste `55 × 100 mm` avec ses quatre raccords corrects.
-6. Modifier le rayon ou l'angle de l'arc, puis vérifier que la barre cintrée se recalcule sans créer un nouveau composant.
+3. Vérifier que l'aperçu jaune suit l'arc avant de valider.
+4. Vérifier qu'un composant indépendant est créé.
+5. Vérifier que l'IPE suit l'arc entier, avec sa section perpendiculaire au chemin.
+6. Ouvrir l'esquisse DXF et contrôler que la section reste `55 × 100 mm` avec ses quatre raccords corrects.
+7. Modifier le rayon ou l'angle de l'arc, puis vérifier que la barre cintrée se recalcule sans créer un nouveau composant.
 
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
+- aperçu temporaire visible avant validation et absent de l'historique ;
 - esquisse créée par import direct de `profiles/IPE/IPE_100.dxf` ;
 - un profil fermé et un corps unique par barre ;
 - dimensions exactes ;

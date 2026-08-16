@@ -8,6 +8,7 @@ import adsk.core
 import adsk.fusion
 
 from ..lib.member_builder import create_member
+from ..lib.preview_graphics import PreviewManager
 
 
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
@@ -65,14 +66,24 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs.addTextBoxCommandInput(
                 "v1Info",
                 "V1 technique",
-                "Profil fixe : IPE 100<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Un composant indépendant par chemin.",
-                4,
+                "Profil fixe : IPE 100<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin.",
+                5,
                 True,
             )
 
-            execute_handler = ExecuteHandler()
+            preview_manager = PreviewManager()
+
+            execute_handler = ExecuteHandler(preview_manager)
             command.execute.add(execute_handler)
             _handlers.append(execute_handler)
+
+            preview_handler = ExecutePreviewHandler(preview_manager)
+            command.executePreview.add(preview_handler)
+            _handlers.append(preview_handler)
+
+            destroy_handler = DestroyHandler(preview_manager)
+            command.destroy.add(destroy_handler)
+            _handlers.append(destroy_handler)
 
             validate_handler = ValidateInputsHandler()
             command.validateInputs.add(validate_handler)
@@ -90,10 +101,73 @@ class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         event_args.areInputsValid = bool(selection and selection.selectionCount >= 1)
 
 
+def _supported_curves_from_selection(selection, root_component, strict):
+    curves = []
+    for index in range(selection.selectionCount):
+        entity = selection.selection(index).entity
+        curve = adsk.fusion.SketchLine.cast(entity) or adsk.fusion.SketchArc.cast(entity)
+        if not curve:
+            if strict:
+                raise RuntimeError(
+                    "La sélection {} n'est pas une ligne ou un arc d'esquisse pris en charge."
+                    .format(index + 1)
+                )
+            continue
+        native_curve = curve.nativeObject if curve.nativeObject else curve
+        if native_curve.parentSketch.parentComponent != root_component:
+            if strict:
+                raise RuntimeError(
+                    "La V1 accepte uniquement les lignes et arcs d'un squelette placé dans le composant racine."
+                )
+            continue
+        if native_curve.length <= 1e-6:
+            if strict:
+                raise RuntimeError("Un chemin sélectionné a une longueur nulle ou trop petite.")
+            continue
+        curves.append(native_curve)
+    return curves
+
+
+class ExecutePreviewHandler(adsk.core.CommandEventHandler):
+    def __init__(self, preview_manager):
+        super().__init__()
+        self._preview_manager = preview_manager
+
+    def notify(self, args):
+        event_args = adsk.core.CommandEventArgs.cast(args)
+        event_args.isValidResult = False
+        try:
+            app, _ = _app_and_ui()
+            design = adsk.fusion.Design.cast(app.activeProduct)
+            if not design:
+                self._preview_manager.clear()
+                return
+            selection = event_args.command.commandInputs.itemById(SELECTION_ID)
+            curves = _supported_curves_from_selection(selection, design.rootComponent, strict=False)
+            self._preview_manager.update(design.rootComponent, curves)
+        except Exception as error:
+            self._preview_manager.clear()
+            _log("APERÇU INDISPONIBLE: {}\n{}".format(error, traceback.format_exc()))
+
+
+class DestroyHandler(adsk.core.CommandEventHandler):
+    def __init__(self, preview_manager):
+        super().__init__()
+        self._preview_manager = preview_manager
+
+    def notify(self, args):
+        self._preview_manager.clear()
+
+
 class ExecuteHandler(adsk.core.CommandEventHandler):
+    def __init__(self, preview_manager):
+        super().__init__()
+        self._preview_manager = preview_manager
+
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
         try:
+            self._preview_manager.clear()
             app, ui = _app_and_ui()
             design = adsk.fusion.Design.cast(app.activeProduct)
             if not design:
@@ -103,23 +177,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
 
             root_component = design.rootComponent
             selection = event_args.command.commandInputs.itemById(SELECTION_ID)
-            curves = []
-            for index in range(selection.selectionCount):
-                entity = selection.selection(index).entity
-                curve = adsk.fusion.SketchLine.cast(entity) or adsk.fusion.SketchArc.cast(entity)
-                if not curve:
-                    raise RuntimeError(
-                        "La sélection {} n'est pas une ligne ou un arc d'esquisse pris en charge."
-                        .format(index + 1)
-                    )
-                native_curve = curve.nativeObject if curve.nativeObject else curve
-                if native_curve.parentSketch.parentComponent != root_component:
-                    raise RuntimeError(
-                        "La V1 accepte uniquement les lignes et arcs d'un squelette placé dans le composant racine."
-                    )
-                if native_curve.length <= 1e-6:
-                    raise RuntimeError("Un chemin sélectionné a une longueur nulle ou trop petite.")
-                curves.append(native_curve)
+            curves = _supported_curves_from_selection(selection, root_component, strict=True)
 
             # L'API Fusion interdit l'import DXF depuis un événement de
             # commande. Le travail est donc mis en file puis exécuté par un

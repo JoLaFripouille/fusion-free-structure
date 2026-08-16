@@ -19,6 +19,12 @@ Le plan de section est normal à la ligne et placé à la distance normalisée `
 
 L'API Fusion interdit l'import DXF depuis les événements d'une commande. La commande enregistre donc la sélection, puis déclenche un événement personnalisé mis en file. Fusion exécute l'import lorsque l'interface redevient disponible. Avant le balayage, l'extension contrôle automatiquement une section de `55 × 100 mm`, centrée, fermée et composée d'un profil unique.
 
+## Aperçu dynamique
+
+Pendant que la commande est ouverte, l'événement `executePreview` dessine un maillage graphique jaune semi-transparent dans le composant racine. Le contour affiché est lu dans le même DXF, mais ses arcs sont discrétisés uniquement pour l'affichage. Cet aperçu n'est pas une entité CAO : il ne crée ni composant, ni esquisse, ni corps, ni entrée d'historique. Il est supprimé avant l'exécution finale et lors de l'annulation.
+
+Le résultat final reste exclusivement créé par l'import direct du DXF, puis par le balayage Fusion. La discrétisation graphique ne peut donc pas altérer la géométrie réelle.
+
 ## Paramétrage actuel
 
 | Paramètre | V1 |

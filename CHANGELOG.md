@@ -4,6 +4,20 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.2.0] - 2026-08-16
+
+### Ajouté
+
+- aperçu dynamique jaune semi-transparent pour chaque ligne ou arc sélectionné ;
+- contour d'aperçu lu depuis le vrai DXF, sans import ni entité CAO pendant la commande ;
+- suppression automatique de l'aperçu avant la création finale et lors de l'annulation ;
+- maillage visuel isolé du DXF final afin que l'approximation d'affichage ne modifie jamais la section réelle.
+
+### Validé dans Fusion
+
+- apparition, mise à jour et remplacement de l'aperçu par le corps final confirmés par l'utilisateur ;
+- couleur finale remplacée par le jaune demandé.
+
 ## [1.1.0] - 2026-08-16
 
 ### Ajouté

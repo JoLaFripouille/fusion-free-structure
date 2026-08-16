@@ -9,6 +9,7 @@ La V1 est volontairement limitée afin de valider la base avant d'ajouter l'inte
 - sélection d'une ou plusieurs lignes ou arcs d'esquisse dans le composant racine ;
 - création d'une barre `IPE 100` droite ou cintrée par chemin ;
 - import direct du fichier `profiles/IPE/IPE_100.dxf`, sans reconstruction manuelle du contour ;
+- aperçu graphique jaune et semi-transparent, mis à jour avec la sélection avant validation ;
 - section centrée au milieu de la ligne, avec l'ancrage `C` et une rotation de `0°` ;
 - un composant indépendant par barre ;
 - une esquisse de section et un corps dans chaque composant ;

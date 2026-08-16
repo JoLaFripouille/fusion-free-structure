@@ -18,7 +18,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [ ] proposer neuf points d'ancrage cliquables ;
 - [ ] afficher les ancrages en bleu et l'ancrage actif en rouge ;
 - [ ] permettre une rotation réglable autour de l'ancrage sélectionné ;
-- [ ] produire un aperçu dynamique avant validation.
+- [x] produire un aperçu dynamique avant validation.
 
 ## Géométrie et structure
 

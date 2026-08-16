@@ -159,7 +159,7 @@ def create_member(root_component, source_curve):
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_type", source_type)
         if source_type == "line":
             component.attributes.add(ATTRIBUTE_GROUP, "source_line_token", source_token)
-        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", "1.1.0")
+        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", "1.2.0")
 
         section_plane.isLightBulbOn = False
         section_sketch.isVisible = False
