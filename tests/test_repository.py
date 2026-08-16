@@ -3,12 +3,16 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+import sys
 import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ADDIN = ROOT / "addin" / "JHR_StructuralMembers_V1"
 PROFILES = ROOT / "profiles"
+sys.path.insert(0, str(ADDIN))
+
+from lib import addin_info
 
 
 class RepositoryTests(unittest.TestCase):
@@ -25,6 +29,14 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(manifest["autodeskProduct"], "Fusion")
         self.assertEqual(manifest["type"], "addin")
         self.assertEqual(manifest["version"], version)
+        self.assertEqual(addin_info.VERSION, version)
+        self.assertEqual(addin_info.DISPLAY_NAME, "Profil acier V{}".format(version))
+
+    def test_visible_command_name_uses_the_manifest_version(self):
+        command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
+        self.assertIn("COMMAND_NAME = addin_info.DISPLAY_NAME", command_source)
+        self.assertIn('"extension_version", addin_info.VERSION', builder_source)
 
     def test_expected_profile_inventory(self):
         expected = {

@@ -8,6 +8,7 @@ La V1 est volontairement limitée afin de valider la base avant d'ajouter l'inte
 
 - sélection d'une ou plusieurs lignes ou arcs d'esquisse dans le composant racine ;
 - choix de la famille puis de la section parmi les 341 DXF disponibles ;
+- version exacte chargée visible dans le nom du bouton et dans la fenêtre de commande ;
 - création d'une barre droite ou cintrée par chemin avec le profil choisi ;
 - import direct du DXF sélectionné, sans reconstruction manuelle du contour ;
 - aperçu graphique jaune et semi-transparent, mis à jour avec la sélection du chemin ou du profil ;

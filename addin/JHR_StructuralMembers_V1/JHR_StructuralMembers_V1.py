@@ -3,6 +3,7 @@ import traceback
 import adsk.core
 
 from .commands import create_members
+from .lib import addin_info
 
 
 def run(context):
@@ -13,7 +14,10 @@ def run(context):
         create_members.start()
     except Exception:
         if ui:
-            ui.messageBox("Échec du démarrage de JHR Structural Members V1:\n{}".format(traceback.format_exc()))
+            ui.messageBox(
+                "Échec du démarrage de {}:\n{}"
+                .format(addin_info.DISPLAY_NAME, traceback.format_exc())
+            )
 
 
 def stop(context):
@@ -24,4 +28,7 @@ def stop(context):
         create_members.stop()
     except Exception:
         if ui:
-            ui.messageBox("Échec de l'arrêt de JHR Structural Members V1:\n{}".format(traceback.format_exc()))
+            ui.messageBox(
+                "Échec de l'arrêt de {}:\n{}"
+                .format(addin_info.DISPLAY_NAME, traceback.format_exc())
+            )

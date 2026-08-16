@@ -9,11 +9,12 @@ import adsk.fusion
 
 from ..lib.member_builder import create_member
 from ..lib.preview_graphics import PreviewManager
+from ..lib import addin_info
 from ..lib import profile_catalog
 
 
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
-COMMAND_NAME = "Profil acier V1"
+COMMAND_NAME = addin_info.DISPLAY_NAME
 COMMAND_DESCRIPTION = "Crée le profil acier choisi sur chaque ligne ou arc d'esquisse sélectionné."
 FAMILY_INPUT_ID = "profileFamily"
 SECTION_INPUT_ID = "profileSection"
@@ -35,7 +36,7 @@ def _app_and_ui():
 
 def _log(message):
     app, _ = _app_and_ui()
-    app.log("[EI_JHR V1] {}".format(message))
+    app.log("{} {}".format(addin_info.LOG_PREFIX, message))
 
 
 def _fire_deferred_event_from_worker(app):
@@ -94,9 +95,10 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             selection.setSelectionLimits(1, 0)
             inputs.addTextBoxCommandInput(
                 "v1Info",
-                "V1 technique",
-                "Profil : famille et section au choix<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin.",
-                5,
+                "Version chargée",
+                "Version : {}<br>Profil : famille et section au choix<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
+                .format(addin_info.VERSION),
+                6,
                 True,
             )
 

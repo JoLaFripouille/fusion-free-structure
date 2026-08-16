@@ -4,6 +4,18 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.3.1] - 2026-08-16
+
+### Modifié
+
+- nom du bouton généré depuis le manifeste, sous la forme `Profil acier V1.3.1` ;
+- version exacte également affichée dans la fenêtre de commande et dans le journal Fusion ;
+- attribut `extension_version` des nouvelles barres alimenté par la même source, afin d'éviter les versions divergentes.
+
+### Validé dans Fusion
+
+- affichage de `Profil acier V1.3.1` et de la version chargée confirmé par l'utilisateur.
+
 ## [1.3.0] - 2026-08-16
 
 ### Ajouté

@@ -5,12 +5,11 @@ import math
 import adsk.core
 import adsk.fusion
 
-from . import profile_catalog
+from . import addin_info, profile_catalog
 
 
 ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
 DIMENSION_TOLERANCE_CM = 1e-5
-EXTENSION_VERSION = "1.3.0"
 
 
 def _next_component_name(root_component, profile):
@@ -188,7 +187,7 @@ def create_member(root_component, source_curve, profile):
         component.attributes.add(ATTRIBUTE_GROUP, "source_curve_type", source_type)
         if source_type == "line":
             component.attributes.add(ATTRIBUTE_GROUP, "source_line_token", source_token)
-        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", EXTENSION_VERSION)
+        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", addin_info.VERSION)
 
         section_plane.isLightBulbOn = False
         section_sketch.isVisible = False
