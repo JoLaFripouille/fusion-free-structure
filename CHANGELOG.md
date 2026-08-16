@@ -4,6 +4,20 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.1.0] - 2026-08-16
+
+### Ajouté
+
+- sélection des arcs d'esquisse en plus des lignes droites ;
+- création d'un IPE 100 cintré par balayage du DXF sur l'arc entier ;
+- traçabilité généralisée avec `source_curve_token` et `source_curve_type` ;
+- refus explicite des autres courbes d'esquisse pour limiter cette étape aux lignes et aux arcs.
+
+### Validé dans Fusion
+
+- création sur ligne et sur arc confirmée par l'utilisateur ;
+- mise à jour dynamique du profil cintré confirmée.
+
 ## [1.0.1] - 2026-08-16
 
 ### Corrigé

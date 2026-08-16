@@ -106,8 +106,8 @@ def _validate_ipe100_sketch(sketch):
         )
 
 
-def create_member(root_component, source_line):
-    """Crée un composant IPE 100 lié à une ligne, depuis le vrai DXF."""
+def create_member(root_component, source_curve):
+    """Crée un composant IPE 100 lié à une ligne ou un arc."""
     transform = adsk.core.Matrix3D.create()
     occurrence = root_component.occurrences.addNewComponent(transform)
     component = occurrence.component
@@ -116,17 +116,17 @@ def create_member(root_component, source_line):
     try:
         plane_input = component.constructionPlanes.createInput(occurrence)
         midpoint = adsk.core.ValueInput.createByReal(0.5)
-        if not plane_input.setByDistanceOnPath(source_line, midpoint):
-            raise RuntimeError("Fusion n'a pas pu définir le plan médian perpendiculaire à la ligne.")
+        if not plane_input.setByDistanceOnPath(source_curve, midpoint):
+            raise RuntimeError("Fusion n'a pas pu définir le plan médian perpendiculaire au chemin.")
         section_plane = component.constructionPlanes.add(plane_input)
         section_plane.name = "PLAN_PROFIL_MILIEU"
 
         section_sketch = _import_ipe100_sketch(component, section_plane)
         section_profile = section_sketch.profiles.item(0)
 
-        path = adsk.fusion.Path.create(source_line, adsk.fusion.ChainedCurveOptions.noChainedCurves)
+        path = adsk.fusion.Path.create(source_curve, adsk.fusion.ChainedCurveOptions.noChainedCurves)
         if not path:
-            raise RuntimeError("Fusion n'a pas pu créer le chemin à partir de la ligne sélectionnée.")
+            raise RuntimeError("Fusion n'a pas pu créer le chemin à partir de la courbe sélectionnée.")
 
         sweeps = component.features.sweepFeatures
         sweep_input = sweeps.createInput(
@@ -136,20 +136,30 @@ def create_member(root_component, source_line):
         )
         sweep_input.creationOccurrence = occurrence
         sweep_input.orientation = adsk.fusion.SweepOrientationTypes.PerpendicularOrientationType
-        sweep = sweeps.add(sweep_input)
-        sweep.name = "BARRE_SYMETRIQUE_SUR_LIGNE"
+        try:
+            sweep = sweeps.add(sweep_input)
+        except Exception as error:
+            raise RuntimeError(
+                "Fusion n'a pas pu balayer le profil sur ce chemin. "
+                "Pour un arc, vérifier notamment que son rayon n'est pas trop faible."
+            ) from error
+        sweep.name = "BARRE_CENTREE_SUR_CHEMIN"
         if sweep.bodies.count != 1:
             raise RuntimeError("La création n'a pas produit un corps unique.")
         body = sweep.bodies.item(0)
         body.name = "CORPS_IPE100"
 
-        source_token = source_line.entityToken
+        source_token = source_curve.entityToken
+        source_type = "arc" if adsk.fusion.SketchArc.cast(source_curve) else "line"
         component.attributes.add(ATTRIBUTE_GROUP, "profile", ipe100.PROFILE_NAME)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_source", "profiles/IPE/IPE_100.dxf")
         component.attributes.add(ATTRIBUTE_GROUP, "anchor", ipe100.ANCHOR_NAME)
         component.attributes.add(ATTRIBUTE_GROUP, "rotation_deg", "0")
-        component.attributes.add(ATTRIBUTE_GROUP, "source_line_token", source_token)
-        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", "1.0.1")
+        component.attributes.add(ATTRIBUTE_GROUP, "source_curve_token", source_token)
+        component.attributes.add(ATTRIBUTE_GROUP, "source_curve_type", source_type)
+        if source_type == "line":
+            component.attributes.add(ATTRIBUTE_GROUP, "source_line_token", source_token)
+        component.attributes.add(ATTRIBUTE_GROUP, "extension_version", "1.1.0")
 
         section_plane.isLightBulbOn = False
         section_sketch.isVisible = False

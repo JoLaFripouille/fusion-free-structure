@@ -63,6 +63,13 @@ class RepositoryTests(unittest.TestCase):
         for path in ADDIN.rglob("*.py"):
             self.assertIsNone(forbidden.search(path.read_text(encoding="utf-8")), path)
 
+    def test_command_accepts_lines_and_arcs_only(self):
+        source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        self.assertIn('selection.addSelectionFilter("SketchCurves")', source)
+        self.assertIn("adsk.fusion.SketchLine.cast(entity)", source)
+        self.assertIn("adsk.fusion.SketchArc.cast(entity)", source)
+        self.assertIn("n'est pas une ligne ou un arc", source)
+
 
 if __name__ == "__main__":
     unittest.main()

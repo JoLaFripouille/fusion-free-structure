@@ -30,6 +30,15 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 2. Relancer la commande et sélectionner deux lignes encore non traitées.
 3. Vérifier qu'un composant indépendant est créé pour chacune.
 
+## Test 4 — Profil cintré sur un arc
+
+1. Ajouter dans le composant racine un arc de `90°` et de rayon `500 mm`.
+2. Relancer la commande et sélectionner uniquement cet arc.
+3. Vérifier qu'un composant indépendant est créé.
+4. Vérifier que l'IPE suit l'arc entier, avec sa section perpendiculaire au chemin.
+5. Ouvrir l'esquisse DXF et contrôler que la section reste `55 × 100 mm` avec ses quatre raccords corrects.
+6. Modifier le rayon ou l'angle de l'arc, puis vérifier que la barre cintrée se recalcule sans créer un nouveau composant.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -38,6 +47,7 @@ Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitemen
 - dimensions exactes ;
 - section au milieu du chemin ;
 - mise à jour après modification du squelette ;
+- lignes droites et arcs traités comme chemins indépendants ;
 - composants indépendants et noms prévisibles.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

@@ -12,7 +12,7 @@ from ..lib.member_builder import create_member
 
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
 COMMAND_NAME = "Profil acier V1"
-COMMAND_DESCRIPTION = "Crée un composant IPE 100 sur chaque ligne droite d'esquisse sélectionnée."
+COMMAND_DESCRIPTION = "Crée un composant IPE 100 sur chaque ligne ou arc d'esquisse sélectionné."
 SELECTION_ID = "skeletonLines"
 PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
 CUSTOM_EVENT_ID = "EI_JHR_CreateStructuralMembersV1_Deferred"
@@ -57,15 +57,15 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             selection = inputs.addSelectionInput(
                 SELECTION_ID,
-                "Lignes du squelette",
-                "Sélectionner une ou plusieurs lignes droites d'esquisse dans le composant racine.",
+                "Chemins du squelette",
+                "Sélectionner une ou plusieurs lignes ou arcs d'esquisse dans le composant racine.",
             )
-            selection.addSelectionFilter("SketchLines")
+            selection.addSelectionFilter("SketchCurves")
             selection.setSelectionLimits(1, 0)
             inputs.addTextBoxCommandInput(
                 "v1Info",
                 "V1 technique",
-                "Profil fixe : IPE 100<br>Ancrage : C<br>Rotation : 0°<br>Un composant indépendant par ligne.",
+                "Profil fixe : IPE 100<br>Ancrage : C<br>Rotation : 0°<br>Chemins : lignes et arcs<br>Un composant indépendant par chemin.",
                 4,
                 True,
             )
@@ -103,17 +103,23 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
 
             root_component = design.rootComponent
             selection = event_args.command.commandInputs.itemById(SELECTION_ID)
-            lines = []
+            curves = []
             for index in range(selection.selectionCount):
-                line = adsk.fusion.SketchLine.cast(selection.selection(index).entity)
-                if not line:
-                    raise RuntimeError("La sélection {} n'est pas une ligne d'esquisse.".format(index + 1))
-                native_line = line.nativeObject if line.nativeObject else line
-                if native_line.parentSketch.parentComponent != root_component:
-                    raise RuntimeError("La V1 accepte uniquement les lignes d'un squelette placé dans le composant racine.")
-                if native_line.length <= 1e-6:
-                    raise RuntimeError("Une ligne sélectionnée a une longueur nulle ou trop petite.")
-                lines.append(native_line)
+                entity = selection.selection(index).entity
+                curve = adsk.fusion.SketchLine.cast(entity) or adsk.fusion.SketchArc.cast(entity)
+                if not curve:
+                    raise RuntimeError(
+                        "La sélection {} n'est pas une ligne ou un arc d'esquisse pris en charge."
+                        .format(index + 1)
+                    )
+                native_curve = curve.nativeObject if curve.nativeObject else curve
+                if native_curve.parentSketch.parentComponent != root_component:
+                    raise RuntimeError(
+                        "La V1 accepte uniquement les lignes et arcs d'un squelette placé dans le composant racine."
+                    )
+                if native_curve.length <= 1e-6:
+                    raise RuntimeError("Un chemin sélectionné a une longueur nulle ou trop petite.")
+                curves.append(native_curve)
 
             # L'API Fusion interdit l'import DXF depuis un événement de
             # commande. Le travail est donc mis en file puis exécuté par un
@@ -122,7 +128,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "document": app.activeDocument,
                 "design": design,
                 "root_component": root_component,
-                "lines": lines,
+                "curves": curves,
             }
             _pending_jobs.append(job)
             worker = threading.Thread(
@@ -131,7 +137,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 daemon=True,
             )
             worker.start()
-            _log("Import DXF planifié pour {} ligne(s)".format(len(lines)))
+            _log("Import DXF planifié pour {} chemin(s)".format(len(curves)))
         except Exception as error:
             event_args.executeFailed = True
             _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
@@ -154,10 +160,10 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
             if not design or design != job["design"]:
                 raise RuntimeError("La conception active a changé avant l'import du DXF.")
 
-            for line in job["lines"]:
-                if not line or not line.isValid:
-                    raise RuntimeError("Une ligne sélectionnée n'est plus valide.")
-                occurrence = create_member(job["root_component"], line)
+            for curve in job["curves"]:
+                if not curve or not curve.isValid:
+                    raise RuntimeError("Un chemin sélectionné n'est plus valide.")
+                occurrence = create_member(job["root_component"], curve)
                 created_occurrences.append(occurrence)
                 _log("Composant créé depuis le DXF: {}".format(occurrence.component.name))
 

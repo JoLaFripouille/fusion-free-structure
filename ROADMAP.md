@@ -8,6 +8,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [ ] créer une barre sur une ligne de 200 mm ;
 - [ ] modifier la ligne à 300 mm et vérifier la mise à jour automatique ;
 - [ ] créer deux barres à partir de deux lignes ;
+- [x] créer une barre cintrée sur un arc et vérifier son fonctionnement dans Fusion ;
 - [ ] vérifier l'arborescence, la section 55 × 100 mm et le corps unique.
 
 ## Interface profils

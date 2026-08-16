@@ -2,7 +2,7 @@
 
 ## Principe
 
-Le squelette reste dans le composant racine. Pour chaque ligne sélectionnée, la commande crée un nouveau composant contenant sa propre section et son propre corps.
+Le squelette reste dans le composant racine. Pour chaque ligne ou arc sélectionné, la commande crée un nouveau composant contenant sa propre section et son propre corps.
 
 ```text
 Composant racine
@@ -27,12 +27,12 @@ L'API Fusion interdit l'import DXF depuis les événements d'une commande. La co
 | Dimensions | 55 × 100 mm |
 | Ancrage | C, centre de section |
 | Rotation | 0° |
-| Chemin | une ligne droite d'esquisse |
+| Chemin | une ligne ou un arc d'esquisse |
 | Sortie | un composant et un corps par ligne |
 
 ## Traçabilité dans Fusion
 
-Chaque composant reçoit les attributs `profile`, `anchor`, `rotation_deg`, `source_line_token` et `extension_version`. Ils préparent les futures commandes d'édition sans dépendre du nom affiché dans l'arborescence.
+Chaque nouveau composant reçoit les attributs `profile`, `anchor`, `rotation_deg`, `source_curve_token`, `source_curve_type` et `extension_version`. L'ancien attribut `source_line_token` est aussi conservé pour les lignes afin de maintenir la compatibilité avec la V1.0.1.
 
 ## Lecture de la bibliothèque
 
