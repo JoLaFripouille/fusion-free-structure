@@ -26,6 +26,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 - **État :** décision utilisateur requise
 - **Impact :** le dépôt est visible publiquement, mais il ne donne pas encore de permission générale de réutilisation.
 
+### ISSUE-005 — Essai Fusion en attente d'un lancement manuel
+
+- **État :** ouvert, environnement de test uniquement
+- **Symptôme :** le pilotage automatique de la fenêtre Fusion échoue avant toute interaction avec `GetCursorPos failed: Accès refusé (0x80070005)`.
+- **Impact :** aucun ; le complément est installé, mais son essai réel n'a pas encore démarré et aucune conclusion fonctionnelle ne doit être tirée de cette erreur externe.
+- **Suite :** lancer manuellement le complément depuis **Scripts et compléments**, puis reprendre le protocole `docs/TEST_PROTOCOL_FUSION.md`.
+
 ## Résolus pendant la préparation de la V1
 
 ### ISSUE-0001 — Identifiant produit du manifeste

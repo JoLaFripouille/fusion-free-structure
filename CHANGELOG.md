@@ -2,6 +2,13 @@
 
 Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
+## [Non publié]
+
+### Documentation
+
+- installation locale de la V1 confirmée ;
+- blocage externe du pilotage automatique de la fenêtre Fusion consigné dans `KNOWN_ISSUES.md` ; aucun échec de l'extension n'est conclu tant que l'essai manuel n'a pas été lancé.
+
 ## [1.0.0] - 2026-08-16
 
 ### Ajouté
