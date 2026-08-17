@@ -238,6 +238,34 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 4. Vérifier simultanément que le nouveau profil jaune apparaît et suit les changements de section, d'ancrage et de rotation.
 5. Cocher le remplacement, vérifier que `OK` devient disponible puis valider.
 
+## Test 17 — Première jonction droite
+
+Utiliser d'abord deux lignes perpendiculaires dans une même esquisse : une principale horizontale et une secondaire dont une extrémité rejoint le milieu de la principale.
+
+### Phase A — Coupe sans jeu
+
+1. Arrêter puis exécuter le complément et vérifier les boutons `Profil acier V1.12.0` et `Jonction droite V1.12.0`.
+2. Créer un IPE ou HEA sur chaque ligne et attendre la fin des deux créations.
+3. Ouvrir `Jonction droite V1.12.0`.
+4. Sélectionner la barre horizontale comme `Barre principale`, puis l'autre comme `Barre secondaire`.
+5. Conserver `Jeu : 0 mm` et vérifier que le rapport annonce les deux bons composants ainsi qu'un angle de `90°`.
+6. Vérifier que le plan de coupe orange se trouve sur la première surface extérieure rencontrée de la barre principale.
+7. Valider et vérifier que la barre principale est strictement inchangée.
+8. Vérifier que la secondaire s'arrête sur l'enveloppe principale et que son composant contient encore un seul corps visible.
+9. Dans l'historique de la secondaire, vérifier les plans de jonction, la coupe et la fonction de retrait de la surlongueur.
+
+### Phase B — Jeu réglable et garde-fous
+
+1. Annuler la jonction avec l'historique Fusion ou recréer deux barres identiques.
+2. Refaire la jonction avec `Jeu : 2 mm` et vérifier le déplacement immédiat du plan orange vers l'intérieur de la secondaire.
+3. Valider puis mesurer un espace de `2 mm` entre l'extrémité secondaire et l'enveloppe principale.
+4. Tenter de sélectionner la même occurrence pour les deux rôles et vérifier le refus avant création.
+5. Tenter une barre créée sur un arc et vérifier le refus explicite.
+6. Tenter deux barres déconnectées ou parallèles et vérifier le refus explicite.
+7. Tenter une seconde jonction sur la même barre secondaire et vérifier le refus sans modification.
+
+Cette première validation ne porte pas encore sur les coupes d'onglet, grugeages, platines, boulons ni sur deux jonctions aux deux extrémités de la même barre.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -265,5 +293,8 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 - inspection des barres sans modification de la géométrie ni de l'historique.
 - matériau choisi dans une bibliothèque Fusion, réellement affecté au corps et relu avec le même identifiant.
 - exactement une occurrence de chacune des trois nuances européennes dans le document actif après plusieurs lancements.
+- aperçu orange du plan de jonction sans entité temporaire dans l'historique.
+- barre principale inchangée et seule la surlongueur secondaire retirée.
+- jeu de jonction mesurable et conforme à la valeur saisie.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

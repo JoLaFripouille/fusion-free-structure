@@ -4,6 +4,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
+### ISSUE-019 — Première jonction limitée à une coupe droite entre deux barres droites
+
+- **État :** limitation volontaire de la V1.12.0.
+- **Impact :** la barre secondaire doit être créée sur une ligne et l'une de ses extrémités doit rejoindre l'axe d'une barre principale droite. Les arcs, barres presque parallèles, grugeages, coupes d'onglet, platines et boulons ne sont pas encore pris en charge.
+- **Sécurité :** les cas non reconnus sont refusés avant toute création de fonction ; une même barre secondaire ne peut recevoir qu'une jonction de cette première version.
+- **Validation prévue :** commencer par deux IPE ou HEA perpendiculaires et suivre le test 17.
+
 ### ISSUE-001 — Validation réelle dans Fusion à terminer
 
 - **État :** ouvert

@@ -4,6 +4,31 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.12.0] - En validation
+
+### Ajouté
+
+- nouvelle commande séparée `Jonction droite V1.12.0` avec sélection explicite d'une barre principale et d'une barre secondaire ;
+- aperçu orange semi-transparent du plan de coupe, recalculé lors d'un changement de barre ou de jeu ;
+- coupe de la barre secondaire à l'enveloppe extérieure de la barre principale, tandis que la principale reste intacte ;
+- jeu positif ou nul réglable en millimètres ;
+- plan d'appui associatif lié à un sommet de la barre principale, plan de jeu paramétrique, séparation du corps puis fonction Fusion `Retirer` pour la surlongueur ;
+- traçabilité de la jonction et de la barre principale dans les attributs du composant secondaire ;
+- guide complet d'installation depuis GitHub, incluant la méthode autonome et la place obligatoire du dossier `profiles`.
+
+### Sécurisé
+
+- refus des arcs, barres presque parallèles, chemins déconnectés, composants non générés par l'extension, corps multiples et seconde jonction sur la même barre secondaire ;
+- suppression automatique des fonctions de jonction déjà créées si une étape ultérieure échoue ;
+- première validation volontairement limitée à deux barres droites dont une extrémité secondaire rejoint l'axe de la principale.
+
+### À valider dans Fusion
+
+- premier essai sur deux IPE ou HEA perpendiculaires avec un jeu nul, puis avec `2 mm` ;
+- conservation du corps principal et présence d'un seul corps visible dans le composant secondaire ;
+- recalcul de la coupe après une modification raisonnable du squelette ou de la section principale ;
+- annulation Fusion de la jonction et retour à la barre secondaire entière.
+
 ## [1.11.3] - En validation
 
 ### Corrigé

@@ -2,7 +2,7 @@
 
 Extension Autodesk Fusion en cours de développement pour créer des profils acier le long de lignes ou d'arcs d'un squelette paramétrique.
 
-La V1 est volontairement limitée afin de valider progressivement la création, l'interface et l'orientation avant d'ajouter les jonctions.
+La V1 est volontairement limitée afin de valider progressivement la création, l'interface, l'orientation puis chaque type de jonction séparément.
 
 ## Fonction de la V1
 
@@ -25,6 +25,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - un composant indépendant par barre ;
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
+- première commande `Jonction droite` : barre principale intacte, coupe de la barre secondaire à l'enveloppe extérieure, jeu réglable et aperçu orange du plan de coupe.
 
 ## Bibliothèque incluse
 
@@ -71,13 +72,19 @@ fusion-free-structure/
 
 Les profils personnels ne figurent volontairement pas dans cette arborescence : ils restent dans les données locales de l'utilisateur.
 
-## Installation de développement
+## Installation dans Fusion
 
-Dans Fusion, ouvrir **Utilitaires > Scripts et compléments**, puis ajouter le dossier relatif :
+Le guide complet décrit le téléchargement depuis GitHub, les deux méthodes d'installation Windows, la copie indispensable de la bibliothèque DXF, le démarrage et la mise à jour :
+
+**[Installer le complément dans Autodesk Fusion](docs/INSTALLATION_FUSION.md)**
+
+Pour un premier essai, conserver l'arborescence GitHub complète puis ajouter dans **Utilitaires > Scripts et compléments > Compléments** le dossier :
 
 ```text
-addin/JHR_StructuralMembers_V1
+<dossier extrait>/fusion-free-structure/addin/JHR_StructuralMembers_V1
 ```
+
+Ne pas copier uniquement ce sous-dossier sans suivre la méthode autonome du guide : sinon les 341 profils placés à la racine du dépôt ne seront pas trouvés.
 
 La V1 doit d'abord être testée dans un nouveau document paramétrique. Le protocole exact est décrit dans [`docs/TEST_PROTOCOL_FUSION.md`](docs/TEST_PROTOCOL_FUSION.md).
 

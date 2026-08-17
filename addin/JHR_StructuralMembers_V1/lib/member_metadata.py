@@ -9,6 +9,28 @@ from . import anchors
 
 
 ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
+ATTRIBUTE_KEYS = (
+    "profile",
+    "profile_category",
+    "profile_region",
+    "profile_family",
+    "profile_source",
+    "steel_grade",
+    "material_name",
+    "material_id",
+    "material_library_name",
+    "material_library_id",
+    "material_source_id",
+    "material_property_count",
+    "anchor",
+    "rotation_deg",
+    "flip_x",
+    "flip_y",
+    "source_curve_token",
+    "source_line_token",
+    "source_curve_type",
+    "extension_version",
+)
 
 
 @dataclass(frozen=True)

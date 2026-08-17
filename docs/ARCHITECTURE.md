@@ -99,3 +99,13 @@ Chaque DXF possède un fichier JSON voisin contenant uniquement son nom de famil
 L'ajout valide le DXF avant de le copier et vérifie que la copie est identique à la source. L'origine du fichier n'est pas déplacée : comme pour les profils normalisés, les neuf ancrages sont calculés à partir de l'enveloppe géométrique exacte, puis l'ancrage choisi est placé sur le chemin lors de la création.
 
 La suppression est limitée à cette branche locale. Le DXF, son JSON et un enregistrement de suppression sont déplacés ensemble dans `corbeille_profils/<horodatage>-<profil>`. Les composants Fusion existants ne sont pas effacés ; leur attribut `profile_source` permet d'avertir l'utilisateur avant le retrait du fichier.
+
+## Première jonction droite
+
+La commande de jonction travaille sur deux occurrences déjà créées par l'extension. La barre principale est une référence et n'est jamais modifiée. Une extrémité de la ligne source secondaire doit rejoindre le segment de la ligne principale avec une tolérance de `1 mm`; les deux axes doivent former au moins `5°`.
+
+L'enveloppe d'entrée de la barre principale est déterminée par le sommet de son corps dont la projection est minimale dans le sens d'approche de la secondaire. Dans le composant secondaire, un plan parallèle à `PLAN_PROFIL_MILIEU` est créé à travers ce sommet avec `setByOffsetThroughPoint`. Cette référence inter-composants conserve la dépendance à la géométrie principale. Un second plan applique le jeu par un décalage paramétrique.
+
+Le corps secondaire est séparé par ce plan étendu. Le morceau situé du côté de la barre principale est identifié par sa projection puis retiré avec une fonction Fusion `Retirer`, au lieu d'être simplement masqué. Les plans sont masqués mais restent dans l'historique. Le groupe d'attributs `EI_JHR_StructuralJoint` conserve le type, la barre principale, sa ligne source, le jeu et la version.
+
+Avant validation, seul un carré graphique orange représente le plan de coupe. Il ne crée aucune entité CAO. Les arcs, les jonctions multiples sur une secondaire et les assemblages avec platines ou boulons sont volontairement exclus de cette première étape.

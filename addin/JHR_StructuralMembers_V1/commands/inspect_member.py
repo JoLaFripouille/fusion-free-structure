@@ -16,29 +16,6 @@ SELECTION_ID = "memberOccurrence"
 REPORT_ID = "memberReport"
 PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
 
-ATTRIBUTE_KEYS = (
-    "profile",
-    "profile_category",
-    "profile_region",
-    "profile_family",
-    "profile_source",
-    "steel_grade",
-    "material_name",
-    "material_id",
-    "material_library_name",
-    "material_library_id",
-    "material_source_id",
-    "material_property_count",
-    "anchor",
-    "rotation_deg",
-    "flip_x",
-    "flip_y",
-    "source_curve_token",
-    "source_line_token",
-    "source_curve_type",
-    "extension_version",
-)
-
 _handlers = []
 _panel_id = None
 
@@ -55,7 +32,7 @@ def _log(message):
 
 def _attribute_values(component):
     values = {}
-    for key in ATTRIBUTE_KEYS:
+    for key in member_metadata.ATTRIBUTE_KEYS:
         attribute = component.attributes.itemByName(member_metadata.ATTRIBUTE_GROUP, key)
         if attribute:
             values[key] = attribute.value

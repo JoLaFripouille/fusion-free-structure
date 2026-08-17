@@ -45,7 +45,10 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [ ] prendre en charge les lignes appartenant à des sous-composants ;
 - [ ] gérer une orientation de référence contrôlable ;
 - [ ] ajouter des décalages ;
-- [ ] prévoir les jonctions, coupes, grugeages et assemblages dans une phase séparée.
+- [x] ajouter une première jonction droite : principale intacte, secondaire coupée à l'enveloppe et jeu réglable.
+- [ ] permettre la suppression contrôlée d'une jonction depuis une commande dédiée.
+- [ ] prendre en charge une seconde jonction sur l'autre extrémité d'une même barre.
+- [ ] ajouter séparément les coupes d'onglet, grugeages, platines, boulons et assemblages composés.
 
 ## Qualité
 

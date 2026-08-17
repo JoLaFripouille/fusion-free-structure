@@ -3,7 +3,7 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from .commands import create_members, inspect_member, manage_custom_profiles
+from .commands import create_joint, create_members, inspect_member, manage_custom_profiles
 from .lib import addin_info, structural_materials
 
 
@@ -27,6 +27,7 @@ def run(context):
                 )
             )
         create_members.start()
+        create_joint.start()
         inspect_member.start()
         manage_custom_profiles.start()
     except Exception:
@@ -44,6 +45,7 @@ def stop(context):
         ui = app.userInterface
         manage_custom_profiles.stop()
         inspect_member.stop()
+        create_joint.stop()
         create_members.stop()
     except Exception:
         if ui:

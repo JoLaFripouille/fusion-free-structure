@@ -39,11 +39,53 @@ class RepositoryTests(unittest.TestCase):
 
     def test_visible_command_name_uses_the_manifest_version(self):
         command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        joint_source = (ADDIN / "commands" / "create_joint.py").read_text(encoding="utf-8")
         inspection_source = (ADDIN / "commands" / "inspect_member.py").read_text(encoding="utf-8")
         builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
         self.assertIn("COMMAND_NAME = addin_info.DISPLAY_NAME", command_source)
+        self.assertIn('COMMAND_NAME = "Jonction droite V{}".format(addin_info.VERSION)', joint_source)
         self.assertIn('COMMAND_NAME = "Inspecter un profil acier V{}".format(addin_info.VERSION)', inspection_source)
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
+
+    def test_first_straight_joint_is_registered_previewed_and_parametric(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
+            encoding="utf-8"
+        )
+        command_source = (ADDIN / "commands" / "create_joint.py").read_text(
+            encoding="utf-8"
+        )
+        builder_source = (ADDIN / "lib" / "joint_builder.py").read_text(
+            encoding="utf-8"
+        )
+        preview_source = (ADDIN / "lib" / "joint_preview.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("create_joint.start()", entry_source)
+        self.assertIn("create_joint.stop()", entry_source)
+        self.assertEqual(command_source.count('addSelectionFilter("Occurrences")'), 2)
+        self.assertIn('GAP_INPUT_ID = "jointGap"', command_source)
+        self.assertIn("JointPreviewManager", command_source)
+        self.assertIn("setByOffsetThroughPoint", builder_source)
+        self.assertIn("component.features.splitBodyFeatures", builder_source)
+        self.assertIn("split_features.createInput", builder_source)
+        self.assertIn("component.features.removeFeatures.add", builder_source)
+        self.assertIn('JOINT_ATTRIBUTE_GROUP = "EI_JHR_StructuralJoint"', builder_source)
+        self.assertIn("CustomGraphicsCoordinates.create", preview_source)
+        self.assertIn("CUT_PREVIEW_ORANGE", preview_source)
+
+    def test_github_installation_guide_covers_profiles_and_updates(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        guide = (ROOT / "docs" / "INSTALLATION_FUSION.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("docs/INSTALLATION_FUSION.md", readme)
+        self.assertIn("Download ZIP", guide)
+        self.assertIn("Scripts et compléments", guide)
+        self.assertIn("API/AddIns", guide)
+        self.assertIn("JHR_StructuralMembers_V1/profiles", guide)
+        self.assertIn("Arrêter", guide)
+        self.assertIn("Exécuter", guide)
+        self.assertIn("341 profils", guide)
 
     def test_read_only_inspection_command_is_registered(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(encoding="utf-8")
