@@ -4,6 +4,21 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.10.0] - En validation
+
+### Ajouté
+
+- nouveau choix `Catégorie`, actuellement limité à `Zones géographiques` ;
+- nouveau choix `Zone géographique`, actuellement limité à `Europe` ;
+- enregistrement de la catégorie et de la zone dans chaque nouvelle barre, puis affichage dans l'inspecteur ;
+- détection automatique de futures zones placées sous `profiles/Zones_geographiques`.
+
+### Modifié
+
+- déplacement sans altération des 341 DXF vers `profiles/Zones_geographiques/Europe/<famille>` ;
+- compatibilité conservée avec les métadonnées et chemins relatifs des versions antérieures ;
+- architecture préparée pour une future catégorie `Personnalisés`, distincte des zones géographiques.
+
 ## [1.9.7] - En validation
 
 ### Corrigé

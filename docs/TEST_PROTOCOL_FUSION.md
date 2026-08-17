@@ -173,11 +173,23 @@ Utiliser un nouveau document de conception paramétrique pour isoler ce test.
 7. Contrôler les limites d'élasticité : `235 MPa` pour S235JR, `275 MPa` pour S275JR et `355 MPa` pour S355J2.
 8. Si l'espace Simulation est disponible, ouvrir `Matériaux de l'étude` et vérifier que les trois matériaux sont acceptés sans avertissement jaune avant tout calcul.
 
+## Test 12 — Catégorie et zone géographique
+
+1. Arrêter puis exécuter le complément et vérifier que les deux commandes indiquent la V1.10.0.
+2. Ouvrir `Profil acier V1.10.0`.
+3. Vérifier `Catégorie : Zones géographiques` puis `Zone géographique : Europe`.
+4. Vérifier que `IPE / 100` reste la sélection par défaut.
+5. Choisir `HEA / 160`, sélectionner une ligne et vérifier que l'aperçu jaune reste correct.
+6. Créer la barre puis l'ouvrir avec `Inspecter un profil acier V1.10.0`.
+7. Vérifier `Catégorie : Zones géographiques`, `Zone géographique : Europe` et `DXF disponible : Oui`.
+8. Inspecter si possible une barre créée avec une version antérieure et vérifier que son ancien chemin DXF reste disponible.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
 - aperçu temporaire visible avant validation et absent de l'historique ;
 - famille et section sélectionnables uniquement parmi les DXF présents ;
+- catégorie `Zones géographiques` et zone `Europe` affichées avant la famille ;
 - neuf ancrages cliquables avec centre sélectionné par défaut ;
 - un seul point rouge et huit points bleus ;
 - aperçu et corps final placés sur le même ancrage ;

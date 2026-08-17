@@ -14,8 +14,10 @@ class MemberMetadataTests(unittest.TestCase):
     def setUp(self):
         self.values = {
             "profile": "Cornière inégale 100 × 50 — ép. 8 mm",
+            "profile_category": "Zones_geographiques",
+            "profile_region": "Europe",
             "profile_family": "Corniere_Inegale",
-            "profile_source": "profiles/Corniere_Inegale/Corniere_Inegale_100x50_ep8.dxf",
+            "profile_source": "profiles/Zones_geographiques/Europe/Corniere_Inegale/Corniere_Inegale_100x50_ep8.dxf",
             "material_name": "Steel, Mild",
             "material_id": "fusion-material-id",
             "material_library_name": "Fusion Material Library",
@@ -33,6 +35,8 @@ class MemberMetadataTests(unittest.TestCase):
 
     def test_current_member_attributes_are_parsed_exactly(self):
         metadata = member_metadata.parse_member_attributes(self.values)
+        self.assertEqual(metadata.profile_category, "Zones_geographiques")
+        self.assertEqual(metadata.profile_region, "Europe")
         self.assertEqual(metadata.profile_family, "Corniere_Inegale")
         self.assertEqual(metadata.anchor, "TL")
         self.assertEqual(metadata.material_name, "Steel, Mild")
@@ -45,6 +49,11 @@ class MemberMetadataTests(unittest.TestCase):
         self.assertEqual(metadata.source_curve_token, "token-fusion")
 
     def test_older_line_token_and_orientation_defaults_are_supported(self):
+        del self.values["profile_region"]
+        del self.values["profile_category"]
+        self.values["profile_source"] = (
+            "profiles/Corniere_Inegale/Corniere_Inegale_100x50_ep8.dxf"
+        )
         del self.values["source_curve_token"]
         del self.values["rotation_deg"]
         del self.values["flip_x"]
@@ -61,6 +70,8 @@ class MemberMetadataTests(unittest.TestCase):
         self.values["source_line_token"] = "ancien-token"
         metadata = member_metadata.parse_member_attributes(self.values)
         self.assertEqual(metadata.source_curve_token, "ancien-token")
+        self.assertEqual(metadata.profile_category, "Zones_geographiques")
+        self.assertEqual(metadata.profile_region, "Europe")
         self.assertEqual(metadata.rotation_deg, 0.0)
         self.assertFalse(metadata.flip_x)
         self.assertFalse(metadata.flip_y)

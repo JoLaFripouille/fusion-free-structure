@@ -38,7 +38,14 @@ def _dxf_vertex_data(path):
 
 class Ipe100DxfTests(unittest.TestCase):
     def setUp(self):
-        self.dxf_path = ROOT / "profiles" / "IPE" / "IPE_100.dxf"
+        self.dxf_path = (
+            ROOT
+            / "profiles"
+            / "Zones_geographiques"
+            / "Europe"
+            / "IPE"
+            / "IPE_100.dxf"
+        )
 
     def test_repository_profile_path_is_resolved(self):
         self.assertEqual(ipe100.resolve_dxf_path(ADDIN), self.dxf_path)
@@ -46,7 +53,14 @@ class Ipe100DxfTests(unittest.TestCase):
     def test_standalone_addin_profile_path_is_resolved_first(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             addin_root = Path(temp_dir)
-            local_dxf = addin_root / "profiles" / "IPE" / "IPE_100.dxf"
+            local_dxf = (
+                addin_root
+                / "profiles"
+                / "Zones_geographiques"
+                / "Europe"
+                / "IPE"
+                / "IPE_100.dxf"
+            )
             local_dxf.parent.mkdir(parents=True)
             local_dxf.write_text("DXF TEST", encoding="ascii")
             self.assertEqual(ipe100.resolve_dxf_path(addin_root), local_dxf)

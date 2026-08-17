@@ -14,6 +14,8 @@ ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
 @dataclass(frozen=True)
 class MemberMetadata:
     profile: str
+    profile_category: str
+    profile_region: str
     profile_family: str
     profile_source: str
     steel_grade: str
@@ -152,6 +154,10 @@ def parse_member_attributes(values):
 
     return MemberMetadata(
         profile=_required_text(values, "profile", "profil"),
+        profile_category=(
+            _optional_text(values, "profile_category") or "Zones_geographiques"
+        ),
+        profile_region=_optional_text(values, "profile_region") or "Europe",
         profile_family=_required_text(values, "profile_family", "famille"),
         profile_source=_relative_profile_source(values),
         steel_grade=steel_grade,

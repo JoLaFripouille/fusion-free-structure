@@ -6,7 +6,7 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from ..lib import addin_info, anchors, member_metadata
+from ..lib import addin_info, anchors, member_metadata, profile_catalog
 
 
 COMMAND_ID = "EI_JHR_InspectStructuralMemberV1"
@@ -18,6 +18,8 @@ PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
 
 ATTRIBUTE_KEYS = (
     "profile",
+    "profile_category",
+    "profile_region",
     "profile_family",
     "profile_source",
     "steel_grade",
@@ -122,7 +124,10 @@ def _physical_material_status(occurrence, metadata):
 
 def _report_html(occurrence, metadata, design):
     linked_curve = _linked_curve(design, metadata)
-    source_dxf = addin_info.ADDIN_ROOT / metadata.profile_source
+    source_dxf = profile_catalog.resolve_profile_source(
+        metadata.profile_source,
+        addin_info.ADDIN_ROOT,
+    )
     if linked_curve:
         curve_label = "Arc" if adsk.fusion.SketchArc.cast(linked_curve) else "Ligne"
         link_status = "OK — {} du squelette retrouvée".format(curve_label)
@@ -141,6 +146,8 @@ def _report_html(occurrence, metadata, design):
     rows = (
         ("Composant", occurrence.component.name),
         ("Profil", metadata.profile),
+        ("Catégorie", profile_catalog.category_label(metadata.profile_category)),
+        ("Zone géographique", metadata.profile_region),
         ("Famille", metadata.profile_family),
         ("DXF source", metadata.profile_source),
         ("DXF disponible", _yes_no(source_dxf.is_file())),

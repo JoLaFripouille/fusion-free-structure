@@ -43,7 +43,7 @@ Une seule matrice 2D est calculée pour l'aperçu et pour le résultat final. Da
 
 | Paramètre | V1 |
 |---|---|
-| Profil | famille puis section parmi 341 DXF |
+| Profil | catégorie, zone géographique, famille puis section parmi 341 DXF |
 | Dimensions | celles du DXF sélectionné |
 | Ancrage | 9 points sur l'enveloppe, `C` par défaut |
 | Rotation | angle réglable autour de l'ancrage, `0°` par défaut |
@@ -54,7 +54,7 @@ Une seule matrice 2D est calculée pour l'aperçu et pour le résultat final. Da
 
 ## Traçabilité dans Fusion
 
-Chaque nouveau composant reçoit les attributs `profile`, `profile_family`, `profile_source`, `anchor`, `rotation_deg`, `flip_x`, `flip_y`, `source_curve_token`, `source_curve_type` et `extension_version`. Les attributs `material_name`, `material_id`, `material_library_name`, `material_library_id`, `material_source_id` et `material_property_count` tracent le matériau physique. L'ancien attribut `source_line_token` est aussi conservé pour les lignes afin de maintenir la compatibilité avec la V1.0.1.
+Chaque nouveau composant reçoit les attributs `profile`, `profile_category`, `profile_region`, `profile_family`, `profile_source`, `anchor`, `rotation_deg`, `flip_x`, `flip_y`, `source_curve_token`, `source_curve_type` et `extension_version`. Les attributs `material_name`, `material_id`, `material_library_name`, `material_library_id`, `material_source_id` et `material_property_count` tracent le matériau physique. L'ancien attribut `source_line_token` est aussi conservé pour les lignes afin de maintenir la compatibilité avec la V1.0.1. Pour une barre ancienne, l'absence de catégorie et de zone est interprétée comme `Zones_geographiques` et `Europe`.
 
 ## Inspection des barres existantes
 
@@ -84,4 +84,6 @@ La portée est volontairement limitée au document : l'API publique `Materials.a
 
 ## Lecture de la bibliothèque
 
-La V1 cherche le dossier `profiles` par deux chemins relatifs seulement : d'abord dans une installation autonome du complément, puis dans le dépôt de développement. Aucun chemin propre à une machine n'est codé. Les familles et sections proposées sont découvertes dans cette bibliothèque au moment où la commande s'ouvre ; une installation autonome doit donc embarquer le dossier `profiles` complet.
+La V1 cherche le dossier `profiles` par deux chemins relatifs seulement : d'abord dans une installation autonome du complément, puis dans le dépôt de développement. Aucun chemin propre à une machine n'est codé. Les profils normalisés suivent `profiles/Zones_geographiques/<zone>/<famille>/<profil>.dxf`. Les zones, familles et sections proposées sont découvertes dans cette bibliothèque au moment où la commande s'ouvre ; une installation autonome doit donc embarquer le dossier `profiles` complet.
+
+Les anciens chemins `profiles/<famille>/<profil>.dxf` et le chemin transitoire `profiles/<zone>/<famille>/<profil>.dxf` restent résolus vers la zone Europe. La future catégorie `Personnalisés` restera une branche sœur de `Zones_geographiques` et ne sera pas assimilée à une région.

@@ -71,11 +71,21 @@ class RepositoryTests(unittest.TestCase):
             "UPE": 14,
             "UPN": 14,
         }
+        geographic = PROFILES / "Zones_geographiques"
+        europe = geographic / "Europe"
         actual = {
             folder.name: len(list(folder.glob("*.dxf")))
-            for folder in PROFILES.iterdir()
+            for folder in europe.iterdir()
             if folder.is_dir()
         }
+        self.assertEqual(
+            [folder.name for folder in PROFILES.iterdir() if folder.is_dir()],
+            ["Zones_geographiques"],
+        )
+        self.assertEqual(
+            [folder.name for folder in geographic.iterdir() if folder.is_dir()],
+            ["Europe"],
+        )
         self.assertEqual(actual, expected)
         self.assertEqual(sum(actual.values()), 341)
 
@@ -100,14 +110,21 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("adsk.fusion.SketchArc.cast(entity)", source)
         self.assertIn("n'est pas une ligne ou un arc", source)
 
-    def test_command_exposes_linked_family_and_section_lists(self):
+    def test_command_exposes_linked_category_region_family_and_section_lists(self):
         source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
         self.assertIn("addDropDownCommandInput", source)
+        self.assertIn('CATEGORY_INPUT_ID = "profileCategory"', source)
+        self.assertIn('REGION_INPUT_ID = "profileRegion"', source)
         self.assertIn('FAMILY_INPUT_ID = "profileFamily"', source)
         self.assertIn('SECTION_INPUT_ID = "profileSection"', source)
         self.assertIn("class InputChangedHandler", source)
         self.assertIn("_populate_section_input", source)
+        self.assertIn("profile_catalog.category_options", source)
+        self.assertIn("profile_catalog.region_options", source)
         self.assertIn('"profile": profile', source)
+        builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
+        self.assertIn('"profile_category", profile.category_id', builder_source)
+        self.assertIn('"profile_region", profile.region_id', builder_source)
 
     def test_command_exposes_and_persists_real_fusion_material(self):
         command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")

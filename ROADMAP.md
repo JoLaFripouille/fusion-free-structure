@@ -14,6 +14,11 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 ## Interface profils
 
 - [x] afficher les profils par famille puis par dimension ;
+- [x] organiser les profils normalisés par catégorie puis par zone géographique ;
+- [x] exposer la zone Europe sans modifier les 341 DXF existants ;
+- [ ] ajouter une catégorie séparée `Personnalisés` ;
+- [ ] permettre à l'utilisateur d'importer ses propres profils DXF dans cette catégorie ;
+- [ ] contrôler avant import personnalisé les unités, les contours fermés, l'origine et le nommage ;
 - [ ] afficher un aperçu visuel du profil ;
 - [x] proposer neuf points d'ancrage cliquables ;
 - [x] afficher les ancrages en bleu et l'ancrage actif en rouge ;

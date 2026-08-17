@@ -278,6 +278,8 @@ def create_member(
         source_token = source_curve.entityToken
         source_type = "arc" if adsk.fusion.SketchArc.cast(source_curve) else "line"
         component.attributes.add(ATTRIBUTE_GROUP, "profile", profile.designation)
+        component.attributes.add(ATTRIBUTE_GROUP, "profile_category", profile.category_id)
+        component.attributes.add(ATTRIBUTE_GROUP, "profile_region", profile.region_id)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_family", profile.family_id)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_source", profile.relative_path)
         component.attributes.add(ATTRIBUTE_GROUP, "material_name", assigned_material.name)

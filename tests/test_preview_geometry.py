@@ -12,7 +12,14 @@ from lib import preview_geometry
 
 class PreviewGeometryTests(unittest.TestCase):
     def setUp(self):
-        self.dxf_path = ROOT / "profiles" / "IPE" / "IPE_100.dxf"
+        self.dxf_path = (
+            ROOT
+            / "profiles"
+            / "Zones_geographiques"
+            / "Europe"
+            / "IPE"
+            / "IPE_100.dxf"
+        )
         self.profile = preview_geometry.tessellate_profile_cm(self.dxf_path)
 
     def test_preview_reads_real_dxf_and_preserves_extents(self):

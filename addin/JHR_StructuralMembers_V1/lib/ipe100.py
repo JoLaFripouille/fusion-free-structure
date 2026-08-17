@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 PROFILE_NAME = "IPE 100"
+PROFILE_REGION = "Europe"
 PROFILE_FAMILY = "IPE"
 DXF_FILENAME = "IPE_100.dxf"
 ANCHOR_NAME = "C"
@@ -20,10 +21,24 @@ IMPORT_OFFSET_CM = (0.0, -HEIGHT_MM * MM_TO_CM / 2.0)
 def dxf_candidates(addin_root=None):
     """Retourne les emplacements relatifs acceptés pour la bibliothèque."""
     root = Path(addin_root) if addin_root else Path(__file__).resolve().parents[1]
-    relative_profile = Path("profiles") / PROFILE_FAMILY / DXF_FILENAME
+    relative_profile = (
+        Path("profiles")
+        / "Zones_geographiques"
+        / PROFILE_REGION
+        / PROFILE_FAMILY
+        / DXF_FILENAME
+    )
+    transition_relative_profile = (
+        Path("profiles") / PROFILE_REGION / PROFILE_FAMILY / DXF_FILENAME
+    )
+    legacy_relative_profile = Path("profiles") / PROFILE_FAMILY / DXF_FILENAME
     return (
         root / relative_profile,
         root.parent.parent / relative_profile,
+        root / transition_relative_profile,
+        root.parent.parent / transition_relative_profile,
+        root / legacy_relative_profile,
+        root.parent.parent / legacy_relative_profile,
     )
 
 
@@ -33,6 +48,6 @@ def resolve_dxf_path(addin_root=None):
         if candidate.is_file():
             return candidate
     raise FileNotFoundError(
-        "Le profil relatif profiles/{}/{} est introuvable dans l'installation."
-        .format(PROFILE_FAMILY, DXF_FILENAME)
+        "Le profil relatif profiles/Zones_geographiques/{}/{}/{} est introuvable dans l'installation."
+        .format(PROFILE_REGION, PROFILE_FAMILY, DXF_FILENAME)
     )

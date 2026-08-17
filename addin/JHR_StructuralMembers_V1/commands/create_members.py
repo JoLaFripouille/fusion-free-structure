@@ -20,6 +20,8 @@ from ..lib import structural_materials
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
 COMMAND_NAME = addin_info.DISPLAY_NAME
 COMMAND_DESCRIPTION = "Crée le profil acier choisi sur chaque ligne ou arc d'esquisse sélectionné."
+CATEGORY_INPUT_ID = "profileCategory"
+REGION_INPUT_ID = "profileRegion"
 FAMILY_INPUT_ID = "profileFamily"
 SECTION_INPUT_ID = "profileSection"
 PHYSICAL_MATERIAL_INPUT_ID = "physicalMaterial"
@@ -93,12 +95,43 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 design.materials,
             )
             default_material = physical_materials.default_choice(material_choices)
+            category_input = inputs.addDropDownCommandInput(
+                CATEGORY_INPUT_ID,
+                "Catégorie",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            for category_id, category_label in profile_catalog.category_options(profiles):
+                category_input.listItems.add(
+                    category_label,
+                    category_id == default_profile.category_id,
+                    "",
+                )
+
+            region_input = inputs.addDropDownCommandInput(
+                REGION_INPUT_ID,
+                "Zone géographique",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            for region_id, region_label in profile_catalog.region_options(
+                profiles,
+                default_profile.category_id,
+            ):
+                region_input.listItems.add(
+                    region_label,
+                    region_id == default_profile.region_id,
+                    "",
+                )
+
             family_input = inputs.addDropDownCommandInput(
                 FAMILY_INPUT_ID,
                 "Famille",
                 adsk.core.DropDownStyles.TextListDropDownStyle,
             )
-            for family_id, family_label in profile_catalog.family_options(profiles):
+            for family_id, family_label in profile_catalog.family_options(
+                profiles,
+                default_profile.region_id,
+                default_profile.category_id,
+            ):
                 family_input.listItems.add(
                     family_label,
                     family_id == default_profile.family_id,
@@ -114,6 +147,8 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 section_input,
                 profiles,
                 default_profile.family_id,
+                default_profile.region_id,
+                default_profile.category_id,
                 default_profile,
             )
 
@@ -217,7 +252,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs.addTextBoxCommandInput(
                 "v1Info",
                 "Version chargée",
-                "Version : {}<br>Profil : famille et section au choix<br>Matériau : liste physique fournie par Fusion et affectée au corps<br>Ancrage : grille 3 × 3, centre par défaut<br>Orientation : rotation et miroirs X/Y autour de l'ancrage<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
+                "Version : {}<br>Profil : catégorie, zone, famille et section au choix<br>Matériau : liste physique fournie par Fusion et affectée au corps<br>Ancrage : grille 3 × 3, centre par défaut<br>Orientation : rotation et miroirs X/Y autour de l'ancrage<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
                 .format(addin_info.VERSION),
                 7,
                 True,
@@ -241,6 +276,8 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             input_changed_handler = InputChangedHandler(
                 preview_manager,
                 profiles,
+                category_input,
+                region_input,
                 family_input,
                 section_input,
                 anchor_state,
@@ -274,9 +311,40 @@ class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         )
 
 
-def _populate_section_input(section_input, profiles, family_id, selected_profile=None):
+def _populate_family_input(
+    family_input,
+    profiles,
+    region_id,
+    category_id=None,
+    selected_profile=None,
+):
+    family_input.listItems.clear()
+    for index, (family_id, family_label) in enumerate(
+        profile_catalog.family_options(profiles, region_id, category_id)
+    ):
+        is_selected = (
+            family_id == selected_profile.family_id
+            if selected_profile is not None
+            else index == 0
+        )
+        family_input.listItems.add(family_label, is_selected, "")
+
+
+def _populate_section_input(
+    section_input,
+    profiles,
+    family_id,
+    region_id=None,
+    category_id=None,
+    selected_profile=None,
+):
     section_input.listItems.clear()
-    family_profiles = profile_catalog.profiles_for_family(profiles, family_id)
+    family_profiles = profile_catalog.profiles_for_family(
+        profiles,
+        family_id,
+        region_id,
+        category_id,
+    )
     for index, profile in enumerate(family_profiles):
         is_selected = (
             profile == selected_profile
@@ -287,8 +355,14 @@ def _populate_section_input(section_input, profiles, family_id, selected_profile
 
 
 def _selected_profile(inputs, profiles):
+    category_input = inputs.itemById(CATEGORY_INPUT_ID)
+    region_input = inputs.itemById(REGION_INPUT_ID)
     family_input = inputs.itemById(FAMILY_INPUT_ID)
     section_input = inputs.itemById(SECTION_INPUT_ID)
+    if not category_input or not category_input.selectedItem:
+        raise RuntimeError("Aucune catégorie de profil n'est sélectionnée.")
+    if not region_input or not region_input.selectedItem:
+        raise RuntimeError("Aucune zone géographique n'est sélectionnée.")
     if not family_input or not family_input.selectedItem:
         raise RuntimeError("Aucune famille de profil n'est sélectionnée.")
     if not section_input or not section_input.selectedItem:
@@ -297,6 +371,8 @@ def _selected_profile(inputs, profiles):
         profiles,
         family_input.selectedItem.name,
         section_input.selectedItem.name,
+        region_input.selectedItem.name,
+        category_input.selectedItem.name,
     )
 
 
@@ -366,6 +442,8 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         self,
         preview_manager,
         profiles,
+        category_input,
+        region_input,
         family_input,
         section_input,
         anchor_state,
@@ -373,6 +451,8 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         super().__init__()
         self._preview_manager = preview_manager
         self._profiles = profiles
+        self._category_input = category_input
+        self._region_input = region_input
         self._family_input = family_input
         self._section_input = section_input
         self._anchor_state = anchor_state
@@ -384,24 +464,141 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             return
         if self._anchor_state.is_updating:
             return
-        if changed_input.id == FAMILY_INPUT_ID:
+        if changed_input.id == CATEGORY_INPUT_ID:
+            selected_category = self._category_input.selectedItem
+            if selected_category:
+                category_id = next(
+                    category_id
+                    for category_id, category_label in profile_catalog.category_options(
+                        self._profiles
+                    )
+                    if category_label == selected_category.name
+                )
+                self._region_input.listItems.clear()
+                for index, (_, region_label) in enumerate(
+                    profile_catalog.region_options(self._profiles, category_id)
+                ):
+                    self._region_input.listItems.add(region_label, index == 0, "")
+                selected_region = self._region_input.selectedItem
+                if selected_region:
+                    region_id = next(
+                        region_id
+                        for region_id, region_label in profile_catalog.region_options(
+                            self._profiles,
+                            category_id,
+                        )
+                        if region_label == selected_region.name
+                    )
+                    _populate_family_input(
+                        self._family_input,
+                        self._profiles,
+                        region_id,
+                        category_id,
+                    )
+                    selected_family = self._family_input.selectedItem
+                    if selected_family:
+                        family_id = next(
+                            family_id
+                            for family_id, family_label in profile_catalog.family_options(
+                                self._profiles,
+                                region_id,
+                                category_id,
+                            )
+                            if family_label == selected_family.name
+                        )
+                        _populate_section_input(
+                            self._section_input,
+                            self._profiles,
+                            family_id,
+                            region_id,
+                            category_id,
+                        )
+        elif changed_input.id == REGION_INPUT_ID:
+            selected_category = self._category_input.selectedItem
+            selected_region = self._region_input.selectedItem
+            if selected_category and selected_region:
+                category_id = next(
+                    category_id
+                    for category_id, category_label in profile_catalog.category_options(
+                        self._profiles
+                    )
+                    if category_label == selected_category.name
+                )
+                region_id = next(
+                    region_id
+                    for region_id, region_label in profile_catalog.region_options(
+                        self._profiles,
+                        category_id,
+                    )
+                    if region_label == selected_region.name
+                )
+                _populate_family_input(
+                    self._family_input,
+                    self._profiles,
+                    region_id,
+                    category_id,
+                )
+                selected_family = self._family_input.selectedItem
+                if selected_family:
+                    family_id = next(
+                        family_id
+                        for family_id, family_label in profile_catalog.family_options(
+                            self._profiles,
+                            region_id,
+                            category_id,
+                        )
+                        if family_label == selected_family.name
+                    )
+                    _populate_section_input(
+                        self._section_input,
+                        self._profiles,
+                        family_id,
+                        region_id,
+                        category_id,
+                    )
+        elif changed_input.id == FAMILY_INPUT_ID:
+            selected_category = self._category_input.selectedItem
+            selected_region = self._region_input.selectedItem
             selected_family = self._family_input.selectedItem
-            if selected_family:
+            if selected_category and selected_region and selected_family:
+                category_id = next(
+                    category_id
+                    for category_id, category_label in profile_catalog.category_options(
+                        self._profiles
+                    )
+                    if category_label == selected_category.name
+                )
+                region_id = next(
+                    region_id
+                    for region_id, region_label in profile_catalog.region_options(
+                        self._profiles,
+                        category_id,
+                    )
+                    if region_label == selected_region.name
+                )
                 family_id = next(
                     family_id
-                    for family_id, family_label in profile_catalog.family_options(self._profiles)
+                    for family_id, family_label in profile_catalog.family_options(
+                        self._profiles,
+                        region_id,
+                        category_id,
+                    )
                     if family_label == selected_family.name
                 )
                 _populate_section_input(
                     self._section_input,
                     self._profiles,
                     family_id,
+                    region_id,
+                    category_id,
                 )
         anchor_changed = changed_input.id.startswith(ANCHOR_INPUT_PREFIX)
         if anchor_changed:
             self._anchor_state.select(changed_input.id[len(ANCHOR_INPUT_PREFIX):])
         if (
             changed_input.id in (
+                CATEGORY_INPUT_ID,
+                REGION_INPUT_ID,
                 FAMILY_INPUT_ID,
                 SECTION_INPUT_ID,
                 ROTATION_INPUT_ID,
