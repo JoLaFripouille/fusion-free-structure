@@ -11,19 +11,9 @@ sys.path.insert(0, str(ADDIN))
 from lib import structural_materials
 
 
-CONVERTED_VALUES = {
-    (7850.0, "kg/m^3", "kg/m^3"): 7850.0,
-    (210.0, "GPa", "MPa"): 210000.0,
-    (235.0, "MPa", "MPa"): 235.0,
-    (355.0, "MPa", "MPa"): 355.0,
-    (360.0, "MPa", "MPa"): 360.0,
-    (470.0, "MPa", "MPa"): 470.0,
-}
-
-
 class FakeUnitsManager:
     def convert(self, value, input_units, output_units):
-        return CONVERTED_VALUES[(float(value), input_units, output_units)]
+        raise AssertionError("La conversion des matériaux ne doit pas dépendre de Fusion.")
 
 
 class FakeProperty:
@@ -246,6 +236,41 @@ class StructuralMaterialTests(unittest.TestCase):
 
         self.assertEqual(document_materials.add_count, 0)
         self.assertEqual(document_materials.count, 0)
+
+    def test_material_values_are_converted_to_declared_property_units(self):
+        self.assertEqual(
+            structural_materials._physical_value_in_property_units(
+                "density",
+                "7850 kg/m^3",
+                "kg / m^3",
+            ),
+            7850.0,
+        )
+        self.assertAlmostEqual(
+            structural_materials._physical_value_in_property_units(
+                "density",
+                "7850 kg/m^3",
+                "kg / mm^3",
+            ),
+            7.85e-6,
+            places=12,
+        )
+        self.assertEqual(
+            structural_materials._physical_value_in_property_units(
+                "young_modulus",
+                "210 GPa",
+                "Pa",
+            ),
+            210e9,
+        )
+        self.assertEqual(
+            structural_materials._physical_value_in_property_units(
+                "yield_strength",
+                "355 MPa",
+                "N / mm^2",
+            ),
+            355.0,
+        )
 
 
 if __name__ == "__main__":

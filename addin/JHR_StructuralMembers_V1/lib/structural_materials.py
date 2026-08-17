@@ -155,7 +155,75 @@ def _required_properties(material):
     return found
 
 
-def _expected_value(units_manager, material_property, expression, unitless_value=None):
+def _normalized_units(units):
+    return (
+        str(units)
+        .strip()
+        .casefold()
+        .replace("³", "^3")
+        .replace("²", "^2")
+        .replace(" ", "")
+    )
+
+
+def _physical_value_in_property_units(property_key, expression, property_units):
+    parts = str(expression).split(maxsplit=1)
+    if len(parts) != 2:
+        raise RuntimeError(
+            "La valeur physique '{}' ne contient pas une valeur et une unité."
+            .format(expression)
+        )
+    source_value = float(parts[0])
+    source_units = _normalized_units(parts[1])
+    target_units = _normalized_units(property_units)
+
+    if property_key == "density":
+        if source_units not in ("kg/m^3", "kg/m3"):
+            raise RuntimeError("La densité source '{}' n'est pas prise en charge.".format(expression))
+        density_factors = {
+            "kg/m^3": 1.0,
+            "kg/m3": 1.0,
+            "kg/cm^3": 1e-6,
+            "kg/cm3": 1e-6,
+            "kg/mm^3": 1e-9,
+            "kg/mm3": 1e-9,
+            "g/cm^3": 1e-3,
+            "g/cm3": 1e-3,
+            "g/mm^3": 1e-6,
+            "g/mm3": 1e-6,
+            "lbm/in^3": 3.6127292000084e-5,
+            "lbmass/in^3": 3.6127292000084e-5,
+            "lb/in^3": 3.6127292000084e-5,
+        }
+        if target_units in density_factors:
+            return source_value * density_factors[target_units]
+
+    if property_key in ("young_modulus", "yield_strength", "tensile_strength"):
+        pressure_to_mpa = {
+            "pa": 1e-6,
+            "kpa": 1e-3,
+            "mpa": 1.0,
+            "gpa": 1e3,
+            "n/m^2": 1e-6,
+            "n/m2": 1e-6,
+            "n/mm^2": 1.0,
+            "n/mm2": 1.0,
+            "psi": 0.006894757293168,
+            "ksi": 6.894757293168,
+        }
+        if source_units not in pressure_to_mpa:
+            raise RuntimeError("La pression source '{}' n'est pas prise en charge.".format(expression))
+        if target_units in pressure_to_mpa:
+            value_mpa = source_value * pressure_to_mpa[source_units]
+            return value_mpa / pressure_to_mpa[target_units]
+
+    raise RuntimeError(
+        "L'unité Fusion '{}' de la propriété '{}' n'est pas encore prise en charge."
+        .format(property_units, property_key)
+    )
+
+
+def _expected_value(units_manager, material_property, expression, property_key, unitless_value=None):
     units = str(getattr(material_property, "units", "") or "")
     if not units:
         if unitless_value is None:
@@ -164,18 +232,12 @@ def _expected_value(units_manager, material_property, expression, unitless_value
                 .format(material_property.name)
             )
         return float(unitless_value)
-    parts = str(expression).split(maxsplit=1)
-    if len(parts) != 2:
-        raise RuntimeError(
-            "La valeur physique '{}' ne contient pas une valeur et une unité."
-            .format(expression)
-        )
-    source_value = float(parts[0])
-    source_units = parts[1]
-    value = float(units_manager.convert(source_value, source_units, units))
+    value = float(
+        _physical_value_in_property_units(property_key, expression, units)
+    )
     if not math.isfinite(value) or value < 0:
         raise RuntimeError(
-            "Fusion ne peut pas convertir '{}' vers l'unité '{}' de la propriété '{}'."
+            "La conversion de '{}' vers l'unité '{}' de la propriété '{}' est invalide."
             .format(expression, units, material_property.name)
         )
     return value
@@ -187,27 +249,32 @@ def _target_values(spec, properties, units_manager):
             units_manager,
             properties["density"],
             spec.density,
+            "density",
         ),
         "young_modulus": _expected_value(
             units_manager,
             properties["young_modulus"],
             spec.young_modulus,
+            "young_modulus",
         ),
         "poisson_ratio": _expected_value(
             units_manager,
             properties["poisson_ratio"],
             str(spec.poisson_ratio),
+            "poisson_ratio",
             spec.poisson_ratio,
         ),
         "yield_strength": _expected_value(
             units_manager,
             properties["yield_strength"],
             spec.yield_strength,
+            "yield_strength",
         ),
         "tensile_strength": _expected_value(
             units_manager,
             properties["tensile_strength"],
             spec.tensile_strength,
+            "tensile_strength",
         ),
     }
 

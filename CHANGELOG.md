@@ -4,6 +4,15 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.1] - En validation
+
+### Corrigé
+
+- suppression de l'appel à `FusionUnitsManager.convert` pour les propriétés de matériau, celui-ci refusant la chaîne d'unité de densité au démarrage de la V1.9.0 ;
+- conversion contrôlée vers l'unité réellement déclarée par chaque propriété Fusion pour la densité et les contraintes mécaniques ;
+- prise en charge explicite des unités usuelles `kg/m³`, `kg/cm³`, `kg/mm³`, `g/cm³`, `g/mm³`, `Pa`, `kPa`, `MPa`, `GPa`, `N/mm²`, `psi` et `ksi` ;
+- tests ajoutés pour la densité en `kg/m³` et `kg/mm³`, le module de Young en `Pa` et la limite d'élasticité en `N/mm²`.
+
 ## [1.9.0] - En validation
 
 ### Ajouté

@@ -42,6 +42,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-009 — Conversion de densité refusée au démarrage de la V1.9.0
+
+- **Symptôme :** `FusionUnitsManager.convert` renvoyait `The units parameter is not a valid unit string` pendant la création du S235JR.
+- **Cause :** le convertisseur général de la conception Fusion n'accepte pas la chaîne d'unité exposée par la propriété physique de densité dans ce contexte.
+- **Correction :** la V1.9.1 convertit directement les valeurs SI vers l'unité déclarée par chaque propriété de matériau, sans dépendre du convertisseur Fusion défaillant.
+- **Prévention :** tests couvrant plusieurs écritures usuelles de densité et de pression avant toute installation.
+
 ### ISSUE-007 — Planification DXF refusée depuis le bouton
 
 - **Cause :** le premier essai appelait `fireCustomEvent` directement depuis l'événement `Execute` de la commande.
