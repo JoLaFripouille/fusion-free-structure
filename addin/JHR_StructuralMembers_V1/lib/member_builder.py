@@ -5,7 +5,7 @@ import math
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, member_metadata, profile_catalog, rotation
+from . import addin_info, member_metadata, path_frames, profile_catalog, rotation
 
 
 ATTRIBUTE_GROUP = member_metadata.ATTRIBUTE_GROUP
@@ -30,6 +30,7 @@ def _next_component_name(root_component, profile):
 def _import_profile_sketch(
     component,
     section_plane,
+    source_curve,
     profile,
     anchor_code,
     rotation_radians,
@@ -76,7 +77,13 @@ def _import_profile_sketch(
         anchor_code,
     )
     _validate_profile_sketch(sketch, profile, anchor_code)
-    _orient_profile_sketch(sketch, rotation_radians, flip_x, flip_y)
+    _orient_profile_sketch(
+        sketch,
+        source_curve,
+        rotation_radians,
+        flip_x,
+        flip_y,
+    )
     return sketch, _select_material_profile(sketch, profile)
 
 
@@ -138,11 +145,14 @@ def _validate_profile_sketch(sketch, profile, anchor_code):
         )
 
 
-def _orient_profile_sketch(sketch, rotation_radians, flip_x, flip_y):
-    """Applique miroirs puis rotation autour de l'ancrage placé à l'origine."""
-    if not flip_x and not flip_y and rotation.is_effectively_zero(rotation_radians):
-        return
-
+def _orient_profile_sketch(
+    sketch,
+    source_curve,
+    rotation_radians,
+    flip_x,
+    flip_y,
+):
+    """Aligne l'esquisse sur l'aperçu, puis applique miroirs et rotation."""
     entities = adsk.core.ObjectCollection.create()
     for collection in (
         sketch.sketchCurves.sketchLines,
@@ -154,20 +164,34 @@ def _orient_profile_sketch(sketch, rotation_radians, flip_x, flip_y):
     if entities.count < 1:
         raise RuntimeError("L'esquisse DXF ne contient aucune courbe à orienter.")
 
-    xx, xy, yx, yy = rotation.orientation_matrix_2d(
-        rotation_radians,
-        flip_x,
-        flip_y,
+    _, target_x, target_y = path_frames.frame_at_fraction(source_curve, 0.5)
+    plane_alignment = path_frames.basis_change_2d(
+        sketch.xDirection,
+        sketch.yDirection,
+        target_x,
+        target_y,
     )
+    user_orientation = rotation.orientation_matrix_2d(
+        rotation_radians, flip_x, flip_y
+    )
+    oriented_matrix = rotation.multiply_matrices_2d(
+        plane_alignment,
+        user_orientation,
+    )
+    if rotation.is_identity_matrix_2d(oriented_matrix):
+        return
+
+    xx, xy, yx, yy = oriented_matrix
+    determinant = rotation.determinant_2d(oriented_matrix)
     transform = adsk.core.Matrix3D.create()
     cells = (
         (0, 0, xx),
         (0, 1, xy),
         (1, 0, yx),
         (1, 1, yy),
-        # Conserve une matrice 3D de déterminant positif. Dans le plan de
-        # l'esquisse, le résultat reste exactement le miroir 2D demandé.
-        (2, 2, (-1.0 if flip_x else 1.0) * (-1.0 if flip_y else 1.0)),
+        # Conserve une matrice 3D de déterminant positif, y compris lorsque
+        # les axes automatiques du plan Fusion exigent une réflexion 2D.
+        (2, 2, -1.0 if determinant < 0.0 else 1.0),
     )
     if not all(transform.setCell(row, column, value) for row, column, value in cells):
         raise RuntimeError("Fusion n'a pas pu préparer l'orientation du profil.")
@@ -230,6 +254,7 @@ def create_member(
         section_sketch, section_profile = _import_profile_sketch(
             component,
             section_plane,
+            source_curve,
             profile,
             anchor_code,
             rotation_radians,

@@ -54,12 +54,19 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
-### ISSUE-016 — Nouvelle barre invisible après un aperçu jaune correct
+### ISSUE-017 — Ancrage opposé entre l'aperçu et la barre finale selon le document
 
-- **Symptôme :** sur le document `implantation`, l'aperçu d'un IPE 100 est visible, puis le nouveau composant apparaît dans l'arborescence sans que son corps soit visible dans la scène.
-- **Cause :** la ligne sélectionnée était déjà liée à une ou plusieurs barres IPE 200. La commande créait un second corps au même endroit ; l'aperçu graphique translucide restait visible à travers l'ancien profil, alors que le corps final était masqué à l'intérieur.
+- **Symptôme :** dans le document `implantation`, un coin placé en bas à gauche dans l'aperçu jaune se retrouve en haut à droite après la création, alors que d'autres dessins ne présentent aucun saut.
+- **Cause :** l'aperçu définissait son repère transversal depuis le squelette, tandis que les axes du plan perpendiculaire étaient choisis automatiquement par Fusion. Selon le repère et le sens de l'esquisse du document, les deux axes pouvaient être opposés.
+- **Correction V1.11.2 :** lecture des axes réels de l'esquisse importée, calcul du changement de base vers le repère commun du chemin, puis composition avec la rotation et les miroirs demandés. Un repère déjà correct reste inchangé.
+- **Validation attendue :** le même point d'ancrage doit rester sur la ligne dans `implantation` et dans un second document qui fonctionnait déjà avant la correction.
+
+### ISSUE-016 — Chemin déjà occupé non signalé
+
+- **Symptôme :** la commande autorisait plusieurs barres créées par l'extension sur une même ligne ou un même arc sans avertissement.
+- **Cause :** les jetons de liaison au squelette étaient enregistrés mais pas consultés avant une nouvelle création.
 - **Correction V1.11.1 :** détection des liaisons existantes, blocage des doublons par défaut et remplacement explicite avec création de la nouvelle barre avant retrait de l'ancienne.
-- **Validation attendue :** sélectionner la même ligne, cocher le remplacement, vérifier que l'IPE 100 devient visible et que les anciennes barres liées à cette ligne disparaissent seulement après la réussite.
+- **Validation attendue :** sélectionner un chemin déjà utilisé, vérifier le blocage puis remplacer volontairement la barre sans toucher aux autres chemins.
 
 ### ISSUE-013 — Copies masquées derrière le matériau générique « Acier »
 

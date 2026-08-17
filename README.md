@@ -50,7 +50,7 @@ Les chemins utilisés par le projet sont relatifs au dépôt. Aucun chemin propr
 
 ## Profils personnalisés
 
-La commande **Gérer les profils personnalisés V1.11.1** accepte un DXF ASCII R12 dessiné en millimètres. Avant la copie, elle contrôle notamment la taille du fichier, les entités prises en charge, la fermeture des contours et les dimensions. Le DXF est copié sans modification dans les données locales de l'utilisateur, sous `%APPDATA%\EI_JHR\fusion-free-structure`, puis apparaît dans la catégorie `Personnalisés` à la prochaine ouverture de **Profil acier**.
+La commande **Gérer les profils personnalisés** accepte un DXF ASCII R12 dessiné en millimètres. Avant la copie, elle contrôle notamment la taille du fichier, les entités prises en charge, la fermeture des contours et les dimensions. Le DXF est copié sans modification dans les données locales de l'utilisateur, sous `%APPDATA%\EI_JHR\fusion-free-structure`, puis apparaît dans la catégorie `Personnalisés` à la prochaine ouverture de **Profil acier**.
 
 Seuls les profils personnels peuvent être supprimés par cette commande. Une suppression déplace le DXF et ses métadonnées dans `corbeille_profils` au lieu de les effacer définitivement. Les barres déjà créées restent dans le document, mais l'inspecteur indiquera que le DXF source n'est plus disponible tant que le profil n'est pas restauré.
 

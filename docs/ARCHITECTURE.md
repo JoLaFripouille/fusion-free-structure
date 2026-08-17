@@ -15,7 +15,7 @@ Composant racine
     └── CORPS_HEA160
 ```
 
-Le plan de section est normal au chemin et placé à la distance normalisée `0.5`. Le vrai DXF sélectionné est importé sur ce plan dans une esquisse unique. Son contour n'est ni redessiné ni simplifié. Un décalage d'import place le point d'ancrage choisi sur l'origine de l'esquisse. Après contrôle des dimensions et de cet ancrage, les courbes importées sont pivotées autour de l'axe Z local passant par l'origine. Le balayage utilise le chemin complet : la section se trouve donc au milieu de sa longueur et se développe vers ses deux extrémités.
+Le plan de section est normal au chemin et placé à la distance normalisée `0.5`. Le vrai DXF sélectionné est importé sur ce plan dans une esquisse unique. Son contour n'est ni redessiné ni simplifié. Un décalage d'import place le point d'ancrage choisi sur l'origine de l'esquisse. Après contrôle des dimensions et de cet ancrage, les axes réels de l'esquisse sont comparés au repère transversal du chemin utilisé par l'aperçu. Le changement de base nécessaire est composé avec la rotation et les miroirs, puis appliqué autour de l'axe Z local passant par l'origine. Le balayage utilise le chemin complet : la section se trouve donc au milieu de sa longueur et se développe vers ses deux extrémités.
 
 L'API Fusion interdit l'import DXF depuis les événements d'une commande. La commande enregistre donc les chemins, le profil et l'ancrage choisis, puis déclenche un événement personnalisé mis en file. Fusion exécute l'import lorsque l'interface redevient disponible. Avant le balayage, l'extension compare les dimensions importées aux limites calculées dans le DXF, contrôle la position de l'ancrage et exige au moins une région fermée.
 
@@ -31,13 +31,13 @@ Le résultat final reste exclusivement créé par l'import direct du DXF, puis p
 
 Les neuf points sont calculés sur la boîte géométrique exacte du DXF : trois colonnes `gauche`, `centre`, `droite` et trois lignes `haut`, `milieu`, `bas`. La grille Fusion utilise neuf boutons à icône ; les huit positions disponibles sont bleues et la position active est rouge. Le centre `C` reste sélectionné au démarrage pour conserver le comportement des versions précédentes.
 
-Le même point source est soustrait aux coordonnées de l'aperçu et utilisé comme décalage de l'import DXF final. La rotation de l'aperçu puis celle de l'esquisse finale utilisent toutes deux cette origine. L'aperçu et le corps ne peuvent donc pas employer deux conventions de pivot différentes.
+Le même point source est soustrait aux coordonnées de l'aperçu et utilisé comme décalage de l'import DXF final. La rotation de l'aperçu puis celle de l'esquisse finale utilisent toutes deux cette origine. Le changement de base entre le plan choisi automatiquement par Fusion et le repère du chemin ne contient aucune translation : le point d'ancrage reste donc exactement sur l'origine.
 
 ## Rotation
 
 L'interface accepte un angle affiché en degrés ; l'API Fusion le fournit en radians. Deux boutons permettent aussi d'inverser séparément les coordonnées locales X et Y. Les miroirs sont toujours calculés avant la rotation, autour de `(0, 0)` après application de l'ancrage.
 
-Une seule matrice 2D est calculée pour l'aperçu et pour le résultat final. Dans l'esquisse DXF importée, elle est étendue en matrice 3D de déterminant positif puis appliquée en une fois à toutes les lignes, tous les arcs et tous les cercles. Les courbes exactes du DXF sont donc conservées : seule leur orientation change.
+La matrice 2D de rotation et de miroirs est commune à l'aperçu et au résultat final. Pour l'esquisse DXF importée, elle est précédée du changement de base calculé depuis `Sketch.xDirection` et `Sketch.yDirection`, puis étendue en matrice 3D de déterminant positif. La matrice composée est appliquée en une fois à toutes les lignes, tous les arcs et tous les cercles. Les courbes exactes du DXF sont donc conservées : seule leur orientation change.
 
 ## Paramétrage actuel
 

@@ -4,12 +4,25 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.11.2] - En validation
+
+### Corrigé
+
+- adaptation automatique au repère du plan perpendiculaire créé par Fusion : si ses axes sont opposés ou tournés par rapport au squelette, l'esquisse finale est réalignée sur le repère exact de l'aperçu ;
+- suppression du saut d'un coin d'ancrage au coin opposé observé dans certains documents, tout en conservant le comportement des dessins où les deux repères correspondaient déjà ;
+- repère du chemin calculé par un module commun à l'aperçu et à la création finale pour les lignes et les arcs.
+
+### Testé
+
+- changement de base identité, inversion des deux axes et composition avec les miroirs couverts par des tests isolés ;
+- refus d'un plan dont les axes ne formeraient pas un repère compatible avec le chemin.
+
 ## [1.11.1] - En validation
 
 ### Corrigé
 
 - détection des lignes et arcs déjà utilisés par une barre créée avec l'extension, y compris les liaisons enregistrées par les anciennes versions ;
-- suppression du cas trompeur où l'aperçu jaune restait visible par transparence alors que le nouveau corps, créé en doublon sur le même chemin, était ensuite caché dans l'ancienne barre ;
+- prévention des corps superposés lorsqu'un chemin est déjà lié à une barre créée par l'extension ;
 - validation désactivée lorsqu'un chemin est déjà occupé et que le remplacement n'est pas explicitement demandé.
 
 ### Ajouté

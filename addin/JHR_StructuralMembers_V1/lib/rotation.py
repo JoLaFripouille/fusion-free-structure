@@ -31,6 +31,30 @@ def orientation_matrix_2d(angle_radians, flip_x=False, flip_y=False):
     )
 
 
+def multiply_matrices_2d(first, second):
+    """Compose deux matrices 2D, la seconde étant appliquée en premier."""
+    axx, axy, ayx, ayy = first
+    bxx, bxy, byx, byy = second
+    return (
+        axx * bxx + axy * byx,
+        axx * bxy + axy * byy,
+        ayx * bxx + ayy * byx,
+        ayx * bxy + ayy * byy,
+    )
+
+
+def determinant_2d(matrix):
+    xx, xy, yx, yy = matrix
+    return xx * yy - xy * yx
+
+
+def is_identity_matrix_2d(matrix, tolerance=1e-12):
+    return all(
+        math.isclose(value, expected, abs_tol=tolerance)
+        for value, expected in zip(matrix, (1.0, 0.0, 0.0, 1.0))
+    )
+
+
 def orient_point(point, angle_radians, flip_x=False, flip_y=False):
     """Applique les miroirs locaux puis la rotation autour de l'origine."""
     x, y = point

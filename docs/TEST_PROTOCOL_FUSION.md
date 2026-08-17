@@ -190,11 +190,11 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 
 ### Phase A — Ajout contrôlé
 
-1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.11.1`, `Inspecter un profil acier V1.11.1` et `Gérer les profils personnalisés V1.11.1`.
+1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.11.2`, `Inspecter un profil acier V1.11.2` et `Gérer les profils personnalisés V1.11.2`.
 2. Ouvrir le gestionnaire, conserver l'action `Ajouter un profil DXF`, saisir la famille `Essais` et la désignation `IPE test 100`.
 3. Cocher la confirmation des millimètres, puis choisir la copie de `IPE_100.dxf`.
 4. Vérifier le rapport avant validation : `55 × 100 mm`, un contour fermé et un nombre d'entités strictement positif.
-5. Valider l'ajout, fermer le gestionnaire puis ouvrir `Profil acier V1.11.1`.
+5. Valider l'ajout, fermer le gestionnaire puis ouvrir `Profil acier V1.11.2`.
 6. Choisir `Catégorie : Personnalisés` et vérifier que le champ `Zone géographique` disparaît.
 7. Choisir `Essais / IPE test 100`, sélectionner une ligne et contrôler l'aperçu jaune.
 8. Créer la barre, mesurer `55 × 100 mm`, puis l'inspecter et vérifier `Catégorie : Personnalisés` et `DXF disponible : Oui`.
@@ -211,7 +211,7 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 
 ## Test 14 — Remplacer une barre déjà présente
 
-1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.1`.
+1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.2`.
 2. Dans le document `implantation`, sélectionner une ligne déjà utilisée par une `BARRE_IPE200`.
 3. Vérifier que le rapport `Utilisation des chemins` indique le nom de la barre existante et que le bouton `OK` reste désactivé.
 4. Choisir `IPE / 100`, conserver l'ancrage souhaité et vérifier l'aperçu jaune.
@@ -220,6 +220,15 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 7. Vérifier que la nouvelle barre IPE 100 est visible au même emplacement que l'aperçu.
 8. Vérifier que l'ancienne barre liée à cette ligne a disparu et que les autres IPE 200 du document sont toujours présents.
 9. Annuler la dernière opération avec l'historique Fusion et vérifier que l'état précédent peut être récupéré.
+
+## Test 15 — Même ancrage dans des documents aux repères différents
+
+1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.2`.
+2. Dans le document `implantation`, choisir `IPE / 100`, une rotation de `0°`, aucun miroir et le même coin d'ancrage que lors du défaut.
+3. Sélectionner une ligne libre et repérer précisément le coin du profil jaune posé sur cette ligne.
+4. Valider puis vérifier que le même coin du corps final reste sur la ligne, sans passage au coin opposé.
+5. Refaire le même essai dans un document où l'aperçu et le corps correspondaient déjà avant la V1.11.2.
+6. Vérifier que ce second document reste inchangé et que les deux créations ont conservé leurs dimensions.
 
 ## Critères de validation
 

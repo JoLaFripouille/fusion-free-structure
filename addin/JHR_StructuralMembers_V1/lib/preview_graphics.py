@@ -3,7 +3,7 @@ from __future__ import annotations
 import adsk.core
 import adsk.fusion
 
-from . import preview_geometry, rotation
+from . import path_frames, preview_geometry, rotation
 
 
 PREVIEW_YELLOW = (255, 205, 0)
@@ -18,36 +18,16 @@ def _point_tuple(point):
 
 
 def _frames_for_curve(curve):
-    geometry = curve.worldGeometry
-    evaluator = geometry.evaluator
-    success, minimum, maximum = evaluator.getParameterExtents()
-    if not success:
-        raise RuntimeError("Impossible de lire les limites du chemin pour l'aperçu.")
-
     sample_count = 2
     if adsk.fusion.SketchArc.cast(curve):
         sample_count = max(12, min(64, int(curve.length / 5.0) + 2))
-    parameters = [
-        minimum + (maximum - minimum) * index / (sample_count - 1)
-        for index in range(sample_count)
+    return [
+        (_point_tuple(point), _vector_tuple(x_axis), _vector_tuple(y_axis))
+        for point, x_axis, y_axis in path_frames.frames_for_curve(
+            curve,
+            sample_count,
+        )
     ]
-
-    sketch = curve.parentSketch
-    normal = sketch.xDirection.crossProduct(sketch.yDirection)
-    if not normal.normalize():
-        raise RuntimeError("Impossible de calculer la normale de l'esquisse pour l'aperçu.")
-
-    frames = []
-    for parameter in parameters:
-        point_ok, point = evaluator.getPointAtParameter(parameter)
-        tangent_ok, tangent = evaluator.getTangent(parameter)
-        if not point_ok or not tangent_ok or not tangent.normalize():
-            raise RuntimeError("Impossible d'évaluer le chemin pour l'aperçu.")
-        x_axis = normal.crossProduct(tangent)
-        if not x_axis.normalize():
-            raise RuntimeError("Impossible d'orienter la section de l'aperçu.")
-        frames.append((_point_tuple(point), _vector_tuple(x_axis), _vector_tuple(normal)))
-    return frames
 
 
 class PreviewManager:

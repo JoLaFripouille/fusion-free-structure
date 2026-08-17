@@ -241,6 +241,18 @@ class RepositoryTests(unittest.TestCase):
         source = (ADDIN / "lib" / "preview_graphics.py").read_text(encoding="utf-8")
         self.assertIn("PREVIEW_YELLOW = (255, 205, 0)", source)
 
+    def test_preview_and_final_member_share_the_path_frame(self):
+        preview_source = (ADDIN / "lib" / "preview_graphics.py").read_text(
+            encoding="utf-8"
+        )
+        builder_source = (ADDIN / "lib" / "member_builder.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("path_frames.frames_for_curve", preview_source)
+        self.assertIn("path_frames.frame_at_fraction", builder_source)
+        self.assertIn("path_frames.basis_change_2d", builder_source)
+        self.assertIn("rotation.multiply_matrices_2d", builder_source)
+
 
 if __name__ == "__main__":
     unittest.main()
