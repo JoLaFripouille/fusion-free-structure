@@ -42,6 +42,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-012 — Nuances EI_JHR invisibles dans la longue liste Fusion
+
+- **Symptôme :** après un démarrage réussi, le menu semblait ne contenir que les matériaux Autodesk.
+- **Cause :** le tri alphabétique plaçait les nuances S235/S355 après les nombreuses entrées `Acier`, et le matériau générique restait sélectionné.
+- **Correction :** la V1.9.4 place les matériaux du document en tête et sélectionne le S235JR par défaut.
+- **Validation attendue :** les deux premières lignes visibles sont S235JR et S355J2 avec la source `Document actif`.
+
 ### ISSUE-011 — Coefficient de Poisson traité comme une grandeur avec unité
 
 - **Symptôme :** la V1.9.2 refusait `0.3` car Fusion associait une chaîne d'unité interne non vide au coefficient de Poisson.

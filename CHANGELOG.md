@@ -4,6 +4,15 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.4] - En validation
+
+### Corrigé
+
+- matériaux du document actif placés avant la longue liste des bibliothèques Autodesk ;
+- `S235JR EN 10025-2 - t<=16 mm` sélectionné par défaut lorsqu'il existe dans le document ;
+- S235JR et S355J2 immédiatement visibles à l'ouverture du menu, chacun avec la source `Document actif` ;
+- test de priorité d'affichage et de sélection par défaut ajouté.
+
 ## [1.9.3] - En validation
 
 ### Corrigé

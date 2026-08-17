@@ -105,6 +105,11 @@ class PhysicalMaterialsTests(unittest.TestCase):
             self.libraries,
             document_materials,
         )
+        self.assertEqual(choices[0].material_id, "doc-s235")
+        self.assertEqual(
+            physical_materials.default_choice(choices).material_id,
+            "doc-s235",
+        )
         selected = next(
             choice for choice in choices if choice.material_id == "doc-s235"
         )

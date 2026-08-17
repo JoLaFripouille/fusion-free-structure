@@ -113,6 +113,7 @@ def discover_steel_materials(material_libraries, document_materials=None):
 
     choices.sort(
         key=lambda choice: (
+            choice.library_id != DOCUMENT_MATERIAL_SOURCE_ID,
             _normalized(choice.material_name),
             _normalized(choice.library_name),
             choice.material_id,
@@ -126,6 +127,12 @@ def default_choice(choices):
         raise ValueError(
             "Aucun matériau acier n'est disponible dans les bibliothèques chargées par Fusion."
         )
+    for choice in choices:
+        if (
+            choice.library_id == DOCUMENT_MATERIAL_SOURCE_ID
+            and _normalized(choice.material_name).startswith("s235jr")
+        ):
+            return choice
     for expected_name in _GENERIC_DEFAULT_NAMES:
         for choice in choices:
             if _normalized(choice.material_name) == expected_name:
