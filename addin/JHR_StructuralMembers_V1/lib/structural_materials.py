@@ -183,17 +183,23 @@ def _physical_value_in_property_units(property_key, expression, property_units):
         density_factors = {
             "kg/m^3": 1.0,
             "kg/m3": 1.0,
+            "kilogrampercubicmeter": 1.0,
             "kg/cm^3": 1e-6,
             "kg/cm3": 1e-6,
+            "kilogrampercubiccentimeter": 1e-6,
             "kg/mm^3": 1e-9,
             "kg/mm3": 1e-9,
+            "kilogrampercubicmillimeter": 1e-9,
             "g/cm^3": 1e-3,
             "g/cm3": 1e-3,
+            "grampercubiccentimeter": 1e-3,
             "g/mm^3": 1e-6,
             "g/mm3": 1e-6,
+            "grampercubicmillimeter": 1e-6,
             "lbm/in^3": 3.6127292000084e-5,
             "lbmass/in^3": 3.6127292000084e-5,
             "lb/in^3": 3.6127292000084e-5,
+            "poundmasspercubicinch": 3.6127292000084e-5,
         }
         if target_units in density_factors:
             return source_value * density_factors[target_units]
@@ -201,15 +207,23 @@ def _physical_value_in_property_units(property_key, expression, property_units):
     if property_key in ("young_modulus", "yield_strength", "tensile_strength"):
         pressure_to_mpa = {
             "pa": 1e-6,
+            "pascal": 1e-6,
             "kpa": 1e-3,
+            "kilopascal": 1e-3,
             "mpa": 1.0,
+            "megapascal": 1.0,
             "gpa": 1e3,
+            "gigapascal": 1e3,
             "n/m^2": 1e-6,
             "n/m2": 1e-6,
+            "newtonpersquaremeter": 1e-6,
             "n/mm^2": 1.0,
             "n/mm2": 1.0,
+            "newtonpersquaremillimeter": 1.0,
             "psi": 0.006894757293168,
+            "poundforcepersquareinch": 0.006894757293168,
             "ksi": 6.894757293168,
+            "kilopoundforcepersquareinch": 6.894757293168,
         }
         if source_units not in pressure_to_mpa:
             raise RuntimeError("La pression source '{}' n'est pas prise en charge.".format(expression))

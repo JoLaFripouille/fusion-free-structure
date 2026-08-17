@@ -246,6 +246,14 @@ class StructuralMaterialTests(unittest.TestCase):
             ),
             7850.0,
         )
+        self.assertEqual(
+            structural_materials._physical_value_in_property_units(
+                "density",
+                "7850 kg/m^3",
+                "KilogramPerCubicMeter",
+            ),
+            7850.0,
+        )
         self.assertAlmostEqual(
             structural_materials._physical_value_in_property_units(
                 "density",
@@ -265,9 +273,25 @@ class StructuralMaterialTests(unittest.TestCase):
         )
         self.assertEqual(
             structural_materials._physical_value_in_property_units(
+                "young_modulus",
+                "210 GPa",
+                "Pascal",
+            ),
+            210e9,
+        )
+        self.assertEqual(
+            structural_materials._physical_value_in_property_units(
                 "yield_strength",
                 "355 MPa",
                 "N / mm^2",
+            ),
+            355.0,
+        )
+        self.assertEqual(
+            structural_materials._physical_value_in_property_units(
+                "yield_strength",
+                "355 MPa",
+                "Megapascal",
             ),
             355.0,
         )

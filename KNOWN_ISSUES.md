@@ -42,6 +42,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-010 — Nom interne d'unité non reconnu dans la V1.9.1
+
+- **Symptôme :** la densité expose `KilogramPerCubicMeter` au lieu du symbole `kg/m³` attendu par la première correction.
+- **Cause :** selon la propriété et la version de Fusion, `FloatProperty.units` peut renvoyer un identifiant Autodesk interne.
+- **Correction :** la V1.9.2 reconnaît les identifiants internes Autodesk et leurs équivalents symboliques pour la densité et les pressions.
+- **Validation attendue :** démarrage sans erreur, puis présence unique des deux nuances dans le document actif.
+
 ### ISSUE-009 — Conversion de densité refusée au démarrage de la V1.9.0
 
 - **Symptôme :** `FusionUnitsManager.convert` renvoyait `The units parameter is not a valid unit string` pendant la création du S235JR.

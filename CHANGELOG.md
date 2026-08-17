@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.2] - En validation
+
+### Corrigé
+
+- prise en charge des noms internes d'unités renvoyés par Fusion, notamment `KilogramPerCubicMeter`, `Pascal`, `Megapascal` et leurs variantes usuelles ;
+- conservation de la prise en charge des symboles métriques et impériaux déjà ajoutée en V1.9.1 ;
+- tests reproduisant exactement l'unité de densité observée sur la machine Fusion de validation.
+
 ## [1.9.1] - En validation
 
 ### Corrigé
