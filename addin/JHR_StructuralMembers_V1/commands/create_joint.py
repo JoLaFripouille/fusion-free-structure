@@ -13,7 +13,7 @@ from ..lib.joint_preview import JointPreviewManager
 COMMAND_ID = "EI_JHR_CreateStraightJointV1"
 COMMAND_NAME = "Jonction droite V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Coupe une barre secondaire à l'enveloppe d'une barre principale, avec un jeu réglable."
+    "Coupe une barre secondaire droite ou cintrée à l'enveloppe d'une barre principale droite."
 )
 PRIMARY_SELECTION_ID = "primaryMember"
 SECONDARY_SELECTION_ID = "secondaryMember"
@@ -76,6 +76,10 @@ def _success_report(evaluation):
         ("Profil principal", evaluation.primary_metadata.profile),
         ("Barre secondaire", evaluation.secondary_occurrence.component.name),
         ("Profil secondaire", evaluation.secondary_metadata.profile),
+        (
+            "Chemin secondaire",
+            "Arc cintré" if evaluation.secondary_metadata.source_curve_type == "arc" else "Ligne droite",
+        ),
         ("Angle entre axes", "{:.1f}°".format(evaluation.geometry.angle_degrees)),
         ("Jeu", "{:.3f} mm".format(evaluation.gap_cm * 10.0)),
         ("Longueur retirée estimée", "{:.3f} mm".format(evaluation.removed_length_cm * 10.0)),
@@ -123,7 +127,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             secondary = inputs.addSelectionInput(
                 SECONDARY_SELECTION_ID,
                 "Barre secondaire",
-                "Sélectionner la barre dont l'extrémité sera coupée.",
+                "Sélectionner la barre droite ou cintrée dont l'extrémité sera coupée.",
             )
             secondary.addSelectionFilter("Occurrences")
             secondary.setSelectionLimits(0, 1)

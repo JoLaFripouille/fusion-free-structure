@@ -4,6 +4,28 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.14.0] - En validation
+
+### Ajouté
+
+- prise en charge d'une barre secondaire créée sur un arc dans la commande `Jonction droite` ;
+- lecture de la tangente exacte de l'arc à l'extrémité raccordée ;
+- plan paramétrique normal au chemin secondaire placé à la bonne extrémité, puis décalé jusqu'à l'enveloppe de la barre principale ;
+- affichage du type de chemin secondaire dans le rapport de la commande.
+
+### Sécurisé
+
+- barre principale encore limitée à un chemin droit pour que la recherche de son enveloppe reste fiable ;
+- coupe droite limitée aux jonctions perpendiculaires à `1°` près ; les angles obliques sont refusés et orientés vers la future coupe d'onglet ;
+- les arcs restent exclus du mode principal tant que la localisation exacte de leur enveloppe au point de contact n'est pas validée.
+
+### À valider dans Fusion
+
+- arc secondaire dont l'extrémité et la tangente rejoignent perpendiculairement une barre principale droite ;
+- aperçu orange normal à la tangente, puis coupe réelle au même emplacement ;
+- jeu nul et jeu de `2 mm` ;
+- conservation du balayage cintré sur toute la partie restante.
+
 ## [1.13.0] - En validation
 
 ### Modifié

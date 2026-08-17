@@ -33,6 +33,20 @@ class JointGeometryTests(unittest.TestCase):
         )
         self.assertAlmostEqual(result.endpoint_distance_cm, 0.05)
 
+    def test_curved_secondary_uses_its_endpoint_tangent_not_its_chord(self):
+        result = joint_geometry.endpoint_joint_geometry(
+            main_point=(0.0, 0.0, 0.0),
+            main_parameter=0.5,
+            joint_endpoint=(0.0, 0.0, 0.0),
+            inner_endpoint=(-5.0, -5.0, 0.0),
+            endpoint_index=1,
+            approach_direction=(0.0, 1.0, 0.0),
+            main_direction=(1.0, 0.0, 0.0),
+            endpoint_distance_cm=0.0,
+        )
+        self.assertEqual(result.approach_direction, (0.0, 1.0, 0.0))
+        self.assertAlmostEqual(result.angle_degrees, 90.0)
+
     def test_disconnected_or_parallel_members_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "extrémité"):
             joint_geometry.analyze_straight_joint(
@@ -46,6 +60,13 @@ class JointGeometryTests(unittest.TestCase):
                 (-10.0, 0.0, 0.0),
                 (10.0, 0.0, 0.0),
                 (-5.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+            )
+        with self.assertRaisesRegex(ValueError, "onglet"):
+            joint_geometry.analyze_straight_joint(
+                (-10.0, 0.0, 0.0),
+                (10.0, 0.0, 0.0),
+                (-5.0, -8.660254, 0.0),
                 (0.0, 0.0, 0.0),
             )
 

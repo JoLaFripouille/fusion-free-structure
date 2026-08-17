@@ -47,9 +47,11 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [ ] gérer une orientation de référence contrôlable ;
 - [ ] ajouter des décalages ;
 - [x] ajouter une première jonction droite : principale intacte, secondaire coupée à l'enveloppe et jeu réglable.
+- [x] accepter une barre secondaire cintrée en coupant normalement à sa tangente d'extrémité.
 - [ ] permettre la suppression contrôlée d'une jonction depuis une commande dédiée.
 - [ ] prendre en charge une seconde jonction sur l'autre extrémité d'une même barre.
-- [ ] ajouter séparément les coupes d'onglet, grugeages, platines, boulons et assemblages composés.
+- [ ] ajouter un mode de coupe d'onglet qui coupe explicitement les deux barres suivant un plan commun.
+- [ ] ajouter séparément les grugeages, platines, boulons et assemblages composés.
 
 ## Qualité
 

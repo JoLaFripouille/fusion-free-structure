@@ -276,6 +276,21 @@ Cette première validation ne porte pas encore sur les coupes d'onglet, grugeage
 6. Ouvrir puis annuler chaque commande afin de confirmer que le déplacement des boutons n'a changé aucun dialogue.
 7. Arrêter puis exécuter une seconde fois le complément et vérifier qu'aucun onglet ni bouton en double n'apparaît.
 
+## Test 19 — Jonction avec une barre secondaire cintrée
+
+1. Dans une esquisse du composant racine, tracer une ligne droite principale et un arc secondaire.
+2. Contraindre une extrémité de l'arc sur le milieu de la ligne et rendre la tangente de l'arc perpendiculaire à cette ligne au point de raccord.
+3. Créer une barre droite sur la ligne puis une barre cintrée sur l'arc.
+4. Arrêter puis exécuter le complément et vérifier `Jonction droite V1.14.0` dans `STRUCTURE JHR > MODIFIER`.
+5. Choisir la barre droite comme principale et la barre cintrée comme secondaire.
+6. Vérifier que le rapport indique `Chemin secondaire : Arc cintré` et un angle proche de `90°`.
+7. Vérifier que le plan orange est normal à la tangente de l'arc au raccord et situé sur l'enveloppe extérieure de la principale.
+8. Valider avec `Jeu : 0 mm` puis vérifier que la barre cintrée est coupée au même emplacement sans perdre sa courbure restante.
+9. Annuler avec l'historique ou recréer les barres, puis refaire l'essai avec `Jeu : 2 mm` et mesurer l'espace.
+10. Essayer un arc dont la tangente n'est pas perpendiculaire et vérifier le refus annonçant la future coupe d'onglet.
+
+Ne pas encore tester une barre principale cintrée ni un onglet : ces deux cas restent volontairement séparés de cette validation.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;

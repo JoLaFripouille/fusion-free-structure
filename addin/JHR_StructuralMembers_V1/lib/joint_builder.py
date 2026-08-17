@@ -10,7 +10,7 @@ from . import addin_info, joint_geometry, member_metadata
 
 JOINT_ATTRIBUTE_GROUP = "EI_JHR_StructuralJoint"
 JOINT_TYPE = "straight_trim"
-SECTION_PLANE_NAME = "PLAN_PROFIL_MILIEU"
+TANGENT_PLANE_NAME = "PLAN_JONCTION_TANGENTE"
 REFERENCE_PLANE_NAME = "PLAN_JONCTION_APPUI"
 CUT_PLANE_NAME = "PLAN_JONCTION_JEU"
 SPLIT_FEATURE_NAME = "COUPE_JONCTION_DROITE"
@@ -26,6 +26,7 @@ class JointEvaluation:
     secondary_metadata: member_metadata.MemberMetadata
     primary_body: object
     secondary_body: object
+    secondary_curve: object
     support_vertex: object
     geometry: joint_geometry.StraightJointGeometry
     support_point: tuple
@@ -67,19 +68,22 @@ def _member_metadata(occurrence, role):
         ) from error
 
 
-def _linked_straight_line(design, metadata, role):
-    if metadata.source_curve_type != "line":
+def _linked_curve(design, metadata, role, allow_arc):
+    accepted_types = ("line", "arc") if allow_arc else ("line",)
+    if metadata.source_curve_type not in accepted_types:
         raise ValueError(
-            "La première jonction accepte uniquement une barre {} créée sur une ligne droite."
-            .format(role)
+            "La barre {} doit être créée sur {}."
+            .format(role, "une ligne ou un arc" if allow_arc else "une ligne droite")
         )
     entities = design.findEntityByToken(metadata.source_curve_token)
     for entity in entities:
-        line = adsk.fusion.SketchLine.cast(entity)
-        if line and line.isValid:
-            return line.nativeObject if line.nativeObject else line
+        curve = adsk.fusion.SketchLine.cast(entity)
+        if allow_arc and not curve:
+            curve = adsk.fusion.SketchArc.cast(entity)
+        if curve and curve.isValid:
+            return curve.nativeObject if curve.nativeObject else curve
     raise ValueError(
-        "La ligne de squelette liée à la barre {} est introuvable.".format(role)
+        "Le chemin de squelette lié à la barre {} est introuvable.".format(role)
     )
 
 
@@ -111,6 +115,80 @@ def _vertex_points(body):
 def _line_endpoints(line):
     geometry = line.worldGeometry
     return _point_tuple(geometry.startPoint), _point_tuple(geometry.endPoint)
+
+
+def _curve_end_data(curve):
+    line = adsk.fusion.SketchLine.cast(curve)
+    if line:
+        start, end = _line_endpoints(line)
+        direction = joint_geometry.normalize(joint_geometry.subtract(end, start))
+        return (start, end), (
+            joint_geometry.scale(direction, -1.0),
+            direction,
+        )
+
+    arc = adsk.fusion.SketchArc.cast(curve)
+    if not arc:
+        raise ValueError("Le chemin secondaire n'est ni une ligne ni un arc pris en charge.")
+    evaluator = arc.worldGeometry.evaluator
+    success, minimum, maximum = evaluator.getParameterExtents()
+    if not success:
+        raise RuntimeError("Fusion n'a pas pu lire les paramètres de l'arc secondaire.")
+    success, start_point, end_point = evaluator.getEndPoints()
+    if not success:
+        raise RuntimeError("Fusion n'a pas pu lire les extrémités de l'arc secondaire.")
+    success_start, start_tangent = evaluator.getTangent(minimum)
+    success_end, end_tangent = evaluator.getTangent(maximum)
+    if not success_start or not success_end:
+        raise RuntimeError("Fusion n'a pas pu lire les tangentes de l'arc secondaire.")
+    return (
+        (_point_tuple(start_point), _point_tuple(end_point)),
+        (
+            joint_geometry.scale(
+                joint_geometry.normalize(_vector_tuple(start_tangent)),
+                -1.0,
+            ),
+            joint_geometry.normalize(_vector_tuple(end_tangent)),
+        ),
+    )
+
+
+def _analyze_secondary_curve(primary_line, secondary_curve):
+    primary_start, primary_end = _line_endpoints(primary_line)
+    secondary_endpoints, approaches = _curve_end_data(secondary_curve)
+    candidates = []
+    for index, endpoint in enumerate(secondary_endpoints):
+        main_point, parameter = joint_geometry.closest_point_on_segment(
+            endpoint,
+            primary_start,
+            primary_end,
+        )
+        candidates.append(
+            (
+                joint_geometry.length(joint_geometry.subtract(endpoint, main_point)),
+                index,
+                main_point,
+                parameter,
+            )
+        )
+    distance_cm, endpoint_index, main_point, main_parameter = min(candidates)
+    if distance_cm > joint_geometry.JOINT_ENDPOINT_TOLERANCE_CM:
+        raise ValueError(
+            "Une extrémité de la barre secondaire doit rejoindre l'axe de la barre principale."
+        )
+    main_direction = joint_geometry.normalize(
+        joint_geometry.subtract(primary_end, primary_start)
+    )
+    return joint_geometry.endpoint_joint_geometry(
+        main_point,
+        main_parameter,
+        secondary_endpoints[endpoint_index],
+        secondary_endpoints[1 - endpoint_index],
+        endpoint_index,
+        approaches[endpoint_index],
+        main_direction,
+        distance_cm,
+    )
 
 
 def _existing_joint(occurrence):
@@ -152,16 +230,19 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
             "La barre secondaire possède déjà une jonction créée par cette première version."
         )
 
-    primary_line = _linked_straight_line(design, primary_metadata, "principale")
-    secondary_line = _linked_straight_line(design, secondary_metadata, "secondaire")
-    primary_start, primary_end = _line_endpoints(primary_line)
-    secondary_start, secondary_end = _line_endpoints(secondary_line)
-    geometry = joint_geometry.analyze_straight_joint(
-        primary_start,
-        primary_end,
-        secondary_start,
-        secondary_end,
+    primary_line = _linked_curve(
+        design,
+        primary_metadata,
+        "principale",
+        allow_arc=False,
     )
+    secondary_curve = _linked_curve(
+        design,
+        secondary_metadata,
+        "secondaire",
+        allow_arc=True,
+    )
+    geometry = _analyze_secondary_curve(primary_line, secondary_curve)
 
     primary_body = _single_body(primary_occurrence, "principale")
     secondary_body = _single_body(secondary_occurrence, "secondaire")
@@ -182,17 +263,13 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
         gap_cm,
     )
 
-    inner_projection = joint_geometry.dot(
-        geometry.secondary_inner_endpoint,
-        geometry.approach_direction,
-    )
     joint_projection = joint_geometry.dot(
         geometry.secondary_joint_endpoint,
         geometry.approach_direction,
     )
     cut_projection = joint_geometry.dot(cut_point, geometry.approach_direction)
-    remaining_length_cm = cut_projection - inner_projection
     removed_length_cm = joint_projection - cut_projection
+    remaining_length_cm = float(secondary_curve.length) - removed_length_cm
     if remaining_length_cm <= MINIMUM_REMAINING_LENGTH_CM:
         raise ValueError(
             "Le profil principal et le jeu demandé supprimeraient toute la barre secondaire."
@@ -209,6 +286,7 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
         secondary_metadata=secondary_metadata,
         primary_body=primary_body,
         secondary_body=secondary_body,
+        secondary_curve=secondary_curve,
         support_vertex=support_vertex,
         geometry=geometry,
         support_point=support_point,
@@ -229,17 +307,35 @@ def _world_plane_system(plane, occurrence):
     return _point_tuple(origin), _vector_tuple(normal)
 
 
-def _add_reference_plane(evaluation):
+def _add_tangent_plane(evaluation):
     component = evaluation.secondary_occurrence.component
-    base_plane = component.constructionPlanes.itemByName(SECTION_PLANE_NAME)
-    if not base_plane or not base_plane.isValid:
-        raise RuntimeError(
-            "Le plan de profil paramétrique de la barre secondaire est introuvable."
-        )
     plane_input = component.constructionPlanes.createInput(
         evaluation.secondary_occurrence
     )
-    if not plane_input.setByOffsetThroughPoint(base_plane, evaluation.support_vertex):
+    fraction = adsk.core.ValueInput.createByReal(
+        float(evaluation.geometry.secondary_joint_endpoint_index)
+    )
+    if not plane_input.setByDistanceOnPath(evaluation.secondary_curve, fraction):
+        raise RuntimeError(
+            "Fusion n'a pas pu créer le plan normal à la tangente de la barre secondaire."
+        )
+    plane = component.constructionPlanes.add(plane_input)
+    if not plane:
+        raise RuntimeError("Fusion n'a pas pu créer le plan tangent de la jonction.")
+    plane.name = TANGENT_PLANE_NAME
+    plane.isLightBulbOn = False
+    return plane
+
+
+def _add_reference_plane(evaluation, tangent_plane):
+    component = evaluation.secondary_occurrence.component
+    plane_input = component.constructionPlanes.createInput(
+        evaluation.secondary_occurrence
+    )
+    if not plane_input.setByOffsetThroughPoint(
+        tangent_plane,
+        evaluation.support_vertex,
+    ):
         raise RuntimeError(
             "Fusion n'a pas pu lier le plan de jonction au sommet de la barre principale."
         )
@@ -303,7 +399,9 @@ def create_straight_joint(evaluation):
     created_entities = []
     component = evaluation.secondary_occurrence.component
     try:
-        reference_plane = _add_reference_plane(evaluation)
+        tangent_plane = _add_tangent_plane(evaluation)
+        created_entities.append(tangent_plane)
+        reference_plane = _add_reference_plane(evaluation, tangent_plane)
         created_entities.append(reference_plane)
         cut_plane = _add_cut_plane(evaluation, reference_plane)
         created_entities.append(cut_plane)

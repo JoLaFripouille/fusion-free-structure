@@ -7,6 +7,7 @@ from dataclasses import dataclass
 GEOMETRY_TOLERANCE_CM = 1e-6
 JOINT_ENDPOINT_TOLERANCE_CM = 0.1
 MINIMUM_JOIN_ANGLE_DEGREES = 5.0
+MAXIMUM_RIGHT_ANGLE_DEVIATION_DEGREES = 1.0
 
 
 def add(first, second):
@@ -95,11 +96,40 @@ def analyze_straight_joint(
     inner_endpoint = secondary_endpoints[1 - endpoint_index]
     approach = normalize(subtract(joint_endpoint, inner_endpoint))
     main_direction = normalize(subtract(main_end, main_start))
+    return endpoint_joint_geometry(
+        main_point,
+        main_parameter,
+        joint_endpoint,
+        inner_endpoint,
+        endpoint_index,
+        approach,
+        main_direction,
+        distance_cm,
+    )
+
+
+def endpoint_joint_geometry(
+    main_point,
+    main_parameter,
+    joint_endpoint,
+    inner_endpoint,
+    endpoint_index,
+    approach_direction,
+    main_direction,
+    endpoint_distance_cm,
+):
+    """Finalise une coupe droite à partir des tangentes locales des deux chemins."""
+    approach = normalize(approach_direction)
+    main_direction = normalize(main_direction)
     cosine = min(1.0, max(-1.0, abs(dot(main_direction, approach))))
     angle_degrees = math.degrees(math.acos(cosine))
     if angle_degrees < MINIMUM_JOIN_ANGLE_DEGREES:
         raise ValueError(
             "Les deux barres sont presque parallèles ; la première jonction droite ne prend pas ce cas en charge."
+        )
+    if abs(90.0 - angle_degrees) > MAXIMUM_RIGHT_ANGLE_DEVIATION_DEGREES:
+        raise ValueError(
+            "La coupe droite actuelle exige des axes perpendiculaires. Utiliser la future coupe d'onglet pour cet angle."
         )
     return StraightJointGeometry(
         main_point=main_point,
@@ -108,7 +138,7 @@ def analyze_straight_joint(
         secondary_inner_endpoint=inner_endpoint,
         secondary_joint_endpoint_index=endpoint_index,
         approach_direction=approach,
-        endpoint_distance_cm=distance_cm,
+        endpoint_distance_cm=endpoint_distance_cm,
         angle_degrees=angle_degrees,
     )
 

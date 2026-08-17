@@ -26,7 +26,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - un composant indépendant par barre ;
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
-- première commande `Jonction droite` : barre principale intacte, coupe de la barre secondaire à l'enveloppe extérieure, jeu réglable et aperçu orange du plan de coupe.
+- première commande `Jonction droite` : barre principale droite intacte, coupe d'une barre secondaire droite ou cintrée à l'enveloppe extérieure, jeu réglable et aperçu orange du plan de coupe.
 
 Dans l'onglet dédié, `CRÉER` contient **Profil acier** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonction droite** et **Inspecter un profil acier**. Les commandes ne sont plus ajoutées aux panneaux généraux de Fusion.
 
