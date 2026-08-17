@@ -4,6 +4,30 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.11.0] - En validation
+
+### Ajouté
+
+- nouvelle commande `Gérer les profils personnalisés V1.11.0` pour ajouter ou supprimer un profil personnel sans toucher aux 341 profils normalisés ;
+- validation préalable des DXF personnalisés : fichier ASCII R12, taille limitée, géométrie 2D prise en charge, contours fermés, dimensions non nulles et confirmation explicite des millimètres ;
+- catégorie `Personnalisés`, avec familles et désignations choisies par l'utilisateur, intégrée au même aperçu et au même processus de création que les profils européens ;
+- stockage local hors du dépôt et hors du dossier du complément, avec chemins logiques relatifs enregistrés dans les barres ;
+- suppression récupérable par déplacement du DXF et de ses métadonnées dans une corbeille locale horodatée ;
+- avertissement avant suppression lorsqu'une ou plusieurs barres du document actif utilisent encore le profil.
+
+### Sécurisé
+
+- copie du DXF contrôlée par empreinte afin de conserver exactement le fichier source ;
+- refus des doublons sans écrasement silencieux ;
+- noms de dossiers et de fichiers neutralisés et résolus uniquement à l'intérieur de la bibliothèque personnelle ;
+- refus de supprimer un profil appartenant à la bibliothèque normalisée.
+
+### Limites de cette première phase
+
+- seuls les DXF ASCII R12 dessinés en millimètres et compatibles avec le lecteur géométrique actuel sont acceptés ;
+- la corbeille est récupérable sur disque, mais aucune commande de restauration n'est encore exposée dans Fusion ;
+- l'aperçu visuel détaillé dans le gestionnaire sera ajouté dans une étape séparée ; l'aperçu jaune de création reste disponible après l'import.
+
 ## [1.10.0] - En validation
 
 ### Ajouté

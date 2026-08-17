@@ -56,6 +56,23 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("Lecture seule", inspection_source)
         self.assertNotIn("deleteMe()", inspection_source.split("def _update_report", 1)[0])
 
+    def test_custom_profile_manager_is_registered_and_keeps_user_data_local(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(encoding="utf-8")
+        manager_source = (
+            ADDIN / "commands" / "manage_custom_profiles.py"
+        ).read_text(encoding="utf-8")
+        custom_source = (ADDIN / "lib" / "custom_profiles.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("manage_custom_profiles.start()", entry_source)
+        self.assertIn("manage_custom_profiles.stop()", entry_source)
+        self.assertIn("ui.createFileDialog()", manager_source)
+        self.assertIn("YesNoButtonType", manager_source)
+        self.assertIn("custom_profiles.delete_profile", manager_source)
+        self.assertIn('CATEGORY_ID = "Personnalises"', custom_source)
+        self.assertIn('os.environ.get("APPDATA"', custom_source)
+        self.assertFalse((PROFILES / "Personnalises").exists())
+
     def test_expected_profile_inventory(self):
         expected = {
             "Corniere_Egale": 28,
@@ -121,6 +138,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("_populate_section_input", source)
         self.assertIn("profile_catalog.category_options", source)
         self.assertIn("profile_catalog.region_options", source)
+        self.assertIn("region_input.isVisible", source)
         self.assertIn('"profile": profile', source)
         builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
         self.assertIn('"profile_category", profile.category_id', builder_source)

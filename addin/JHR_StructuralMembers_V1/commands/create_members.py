@@ -112,6 +112,10 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 "Zone géographique",
                 adsk.core.DropDownStyles.TextListDropDownStyle,
             )
+            region_input.isVisible = (
+                default_profile.category_id
+                == profile_catalog.GEOGRAPHIC_CATEGORY_ID
+            )
             for region_id, region_label in profile_catalog.region_options(
                 profiles,
                 default_profile.category_id,
@@ -473,6 +477,9 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
                         self._profiles
                     )
                     if category_label == selected_category.name
+                )
+                self._region_input.isVisible = (
+                    category_id == profile_catalog.GEOGRAPHIC_CATEGORY_ID
                 )
                 self._region_input.listItems.clear()
                 for index, (_, region_label) in enumerate(

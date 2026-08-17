@@ -14,7 +14,7 @@ from lib import preview_geometry, profile_catalog, rotation
 class RotationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        profiles = profile_catalog.discover_profiles(ADDIN)
+        profiles = profile_catalog.discover_profiles(ADDIN, include_custom=False)
         cls.ipe100 = next(
             profile for profile in profiles
             if profile.dxf_path.name == "IPE_100.dxf"

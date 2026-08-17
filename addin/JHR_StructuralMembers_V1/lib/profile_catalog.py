@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import anchors, dxf_geometry
+from . import anchors, custom_profiles, dxf_geometry
 
 
 MM_TO_CM = 0.1
@@ -22,6 +22,11 @@ REGION_LABELS = {
 REGION_ORDER = {
     region_id: index
     for index, region_id in enumerate(("Europe",))
+}
+
+CATEGORY_ORDER = {
+    GEOGRAPHIC_CATEGORY_ID: 0,
+    custom_profiles.CATEGORY_ID: 1,
 }
 
 FAMILY_LABELS = {
@@ -148,7 +153,7 @@ def resolve_library_root(addin_root=None):
     )
 
 
-def discover_profiles(addin_root=None):
+def discover_profiles(addin_root=None, custom_data_root=None, include_custom=True):
     library_root = resolve_library_root(addin_root)
     profiles = []
     catalog_directories = []
@@ -189,7 +194,21 @@ def discover_profiles(addin_root=None):
                     Path("profiles") / dxf_path.relative_to(library_root)
                 ).as_posix(),
             ))
+    if include_custom:
+        for record in custom_profiles.discover_records(custom_data_root):
+            profiles.append(ProfileDefinition(
+                category_id=custom_profiles.CATEGORY_ID,
+                category_label=custom_profiles.CATEGORY_LABEL,
+                region_id=custom_profiles.REGION_ID,
+                region_label=custom_profiles.REGION_LABEL,
+                family_id=record.family_id,
+                family_label=record.family_label,
+                section_label=record.section_label,
+                dxf_path=record.dxf_path,
+                relative_path=record.relative_path,
+            ))
     profiles.sort(key=lambda profile: (
+        CATEGORY_ORDER.get(profile.category_id, len(CATEGORY_ORDER)),
         profile.category_label.casefold(),
         REGION_ORDER.get(profile.region_id, len(REGION_ORDER)),
         profile.region_label.casefold(),
@@ -215,6 +234,8 @@ def category_options(profiles):
 def category_label(category_id):
     if category_id == GEOGRAPHIC_CATEGORY_ID:
         return GEOGRAPHIC_CATEGORY_LABEL
+    if category_id == custom_profiles.CATEGORY_ID:
+        return custom_profiles.CATEGORY_LABEL
     return str(category_id).replace("_", " ")
 
 
@@ -257,7 +278,8 @@ def profiles_for_family(profiles, family_id, region_id=None, category_id=None):
 def default_profile(profiles):
     for profile in profiles:
         if (
-            profile.region_id == DEFAULT_REGION_ID
+            profile.category_id == GEOGRAPHIC_CATEGORY_ID
+            and profile.region_id == DEFAULT_REGION_ID
             and profile.family_id == DEFAULT_FAMILY_ID
             and profile.dxf_path.name == DEFAULT_DXF_FILENAME
         ):
@@ -291,10 +313,19 @@ def profile_from_labels(
     )
 
 
-def resolve_profile_source(profile_source, addin_root=None):
+def resolve_profile_source(profile_source, addin_root=None, custom_data_root=None):
     """Résout un chemin actuel ou antérieur sans sortir de la bibliothèque."""
     root = Path(addin_root) if addin_root else Path(__file__).resolve().parents[1]
     relative_path = Path(str(profile_source).replace("\\", "/"))
+    if (
+        len(relative_path.parts) >= 2
+        and relative_path.parts[0] == "profiles"
+        and relative_path.parts[1] == custom_profiles.CATEGORY_ID
+    ):
+        return custom_profiles.resolve_relative_path(
+            relative_path.as_posix(),
+            custom_data_root,
+        )
     relative_candidates = [relative_path]
     parts = relative_path.parts
     if len(parts) == 3 and parts[0] == "profiles":

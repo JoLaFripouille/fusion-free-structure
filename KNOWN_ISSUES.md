@@ -40,6 +40,18 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 - **Impact :** les nuances S235JR, S275JR et S355J2 sont vérifiées ou créées séparément dans chaque document utilisé avec le complément.
 - **Prévention :** nouvelle vérification à chaque démarrage avec un document actif et à chaque ouverture de la commande de création.
 
+### ISSUE-014 — Import personnalisé limité au DXF ASCII R12 en millimètres
+
+- **État :** limitation acceptée pour la V1.11.0.
+- **Impact :** un fichier binaire, une version DXF plus récente, une autre unité ou une entité non prise en charge est refusé au lieu d'être converti silencieusement.
+- **Suite :** élargir les formats seulement après des essais garantissant les dimensions, les courbes et les contours fermés.
+
+### ISSUE-015 — Restauration sans interface Fusion
+
+- **État :** limitation acceptée pour la V1.11.0.
+- **Impact :** une suppression conserve bien le DXF et ses métadonnées dans la corbeille locale, mais aucune commande de restauration n'est encore disponible dans l'extension.
+- **Suite :** ajouter une restauration contrôlée après validation de l'ajout et de la suppression.
+
 ## Résolus pendant la préparation de la V1
 
 ### ISSUE-013 — Copies masquées derrière le matériau générique « Acier »

@@ -43,7 +43,7 @@ Une seule matrice 2D est calculée pour l'aperçu et pour le résultat final. Da
 
 | Paramètre | V1 |
 |---|---|
-| Profil | catégorie, zone géographique, famille puis section parmi 341 DXF |
+| Profil | 341 DXF normalisés par catégorie/zone, plus les profils personnels locaux |
 | Dimensions | celles du DXF sélectionné |
 | Ancrage | 9 points sur l'enveloppe, `C` par défaut |
 | Rotation | angle réglable autour de l'ancrage, `0°` par défaut |
@@ -86,4 +86,14 @@ La portée est volontairement limitée au document : l'API publique `Materials.a
 
 La V1 cherche le dossier `profiles` par deux chemins relatifs seulement : d'abord dans une installation autonome du complément, puis dans le dépôt de développement. Aucun chemin propre à une machine n'est codé. Les profils normalisés suivent `profiles/Zones_geographiques/<zone>/<famille>/<profil>.dxf`. Les zones, familles et sections proposées sont découvertes dans cette bibliothèque au moment où la commande s'ouvre ; une installation autonome doit donc embarquer le dossier `profiles` complet.
 
-Les anciens chemins `profiles/<famille>/<profil>.dxf` et le chemin transitoire `profiles/<zone>/<famille>/<profil>.dxf` restent résolus vers la zone Europe. La future catégorie `Personnalisés` restera une branche sœur de `Zones_geographiques` et ne sera pas assimilée à une région.
+Les anciens chemins `profiles/<famille>/<profil>.dxf` et le chemin transitoire `profiles/<zone>/<famille>/<profil>.dxf` restent résolus vers la zone Europe. La catégorie `Personnalisés` est une branche logique sœur de `Zones_geographiques` et n'est pas assimilée à une région.
+
+### Bibliothèque personnelle locale
+
+La catégorie `Personnalisés` n'est pas une zone géographique. Son pseudo-emplacement interne `Local` permet de réutiliser le filtrage catégorie/famille/section, mais le champ de zone est masqué dans l'interface. Les fichiers sont conservés hors de l'installation du complément dans `%APPDATA%\EI_JHR\fusion-free-structure\profiles\Personnalises` afin qu'une mise à jour du code ne les remplace pas et qu'ils ne soient jamais publiés avec le dépôt.
+
+Chaque DXF possède un fichier JSON voisin contenant uniquement son nom de famille, sa désignation, son unité déclarée, son empreinte et sa date d'import. Fusion enregistre dans la barre un chemin logique relatif `profiles/Personnalises/<famille>/<profil>.dxf` ; ce chemin est résolu vers le dossier local uniquement après contrôle de sa portée.
+
+L'ajout valide le DXF avant de le copier et vérifie que la copie est identique à la source. L'origine du fichier n'est pas déplacée : comme pour les profils normalisés, les neuf ancrages sont calculés à partir de l'enveloppe géométrique exacte, puis l'ancrage choisi est placé sur le chemin lors de la création.
+
+La suppression est limitée à cette branche locale. Le DXF, son JSON et un enregistrement de suppression sont déplacés ensemble dans `corbeille_profils/<horodatage>-<profil>`. Les composants Fusion existants ne sont pas effacés ; leur attribut `profile_source` permet d'avertir l'utilisateur avant le retrait du fichier.

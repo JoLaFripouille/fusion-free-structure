@@ -3,7 +3,7 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from .commands import create_members, inspect_member
+from .commands import create_members, inspect_member, manage_custom_profiles
 from .lib import addin_info, structural_materials
 
 
@@ -28,6 +28,7 @@ def run(context):
             )
         create_members.start()
         inspect_member.start()
+        manage_custom_profiles.start()
     except Exception:
         if ui:
             ui.messageBox(
@@ -41,6 +42,7 @@ def stop(context):
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
+        manage_custom_profiles.stop()
         inspect_member.stop()
         create_members.stop()
     except Exception:

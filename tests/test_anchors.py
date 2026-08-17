@@ -13,7 +13,7 @@ from lib import anchors, preview_geometry, profile_catalog
 class AnchorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.profiles = profile_catalog.discover_profiles(ADDIN)
+        cls.profiles = profile_catalog.discover_profiles(ADDIN, include_custom=False)
         cls.ipe100 = next(
             profile for profile in cls.profiles
             if profile.dxf_path.name == "IPE_100.dxf"

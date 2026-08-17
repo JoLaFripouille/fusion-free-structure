@@ -16,9 +16,12 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] afficher les profils par famille puis par dimension ;
 - [x] organiser les profils normalisés par catégorie puis par zone géographique ;
 - [x] exposer la zone Europe sans modifier les 341 DXF existants ;
-- [ ] ajouter une catégorie séparée `Personnalisés` ;
-- [ ] permettre à l'utilisateur d'importer ses propres profils DXF dans cette catégorie ;
-- [ ] contrôler avant import personnalisé les unités, les contours fermés, l'origine et le nommage ;
+- [x] ajouter une catégorie séparée `Personnalisés` ;
+- [x] permettre à l'utilisateur d'importer ses propres profils DXF dans cette catégorie ;
+- [x] contrôler avant import personnalisé les unités, les contours fermés, l'origine logique par enveloppe et le nommage ;
+- [x] permettre la suppression récupérable des profils personnels sans toucher aux profils normalisés ;
+- [ ] ajouter une commande de restauration depuis la corbeille locale ;
+- [ ] accepter d'autres versions de DXF ou d'autres unités uniquement après une conversion explicitement validée ;
 - [ ] afficher un aperçu visuel du profil ;
 - [x] proposer neuf points d'ancrage cliquables ;
 - [x] afficher les ancrages en bleu et l'ancrage actif en rouge ;

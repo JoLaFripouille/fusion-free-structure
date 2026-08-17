@@ -15,7 +15,7 @@ from lib import dxf_geometry, profile_catalog
 class ProfileCatalogTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.profiles = profile_catalog.discover_profiles(ADDIN)
+        cls.profiles = profile_catalog.discover_profiles(ADDIN, include_custom=False)
 
     def test_catalog_contains_the_341_profiles_in_12_detected_families(self):
         expected = {
@@ -92,7 +92,10 @@ class ProfileCatalogTests(unittest.TestCase):
                 path = profiles_root / region_id / "IPE" / filename
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("DXF TEST", encoding="ascii")
-            profiles = profile_catalog.discover_profiles(Path(temp_dir))
+            profiles = profile_catalog.discover_profiles(
+                Path(temp_dir),
+                include_custom=False,
+            )
             self.assertEqual(
                 profile_catalog.region_options(profiles, "Zones_geographiques"),
                 (

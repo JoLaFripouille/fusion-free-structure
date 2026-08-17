@@ -184,12 +184,40 @@ Utiliser un nouveau document de conception paramétrique pour isoler ce test.
 7. Vérifier `Catégorie : Zones géographiques`, `Zone géographique : Europe` et `DXF disponible : Oui`.
 8. Inspecter si possible une barre créée avec une version antérieure et vérifier que son ancien chemin DXF reste disponible.
 
+## Test 13 — Ajouter et supprimer un profil personnalisé
+
+Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `IPE_100.dxf`, afin de tester le gestionnaire indépendamment de la qualité d'un nouveau dessin.
+
+### Phase A — Ajout contrôlé
+
+1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.11.0`, `Inspecter un profil acier V1.11.0` et `Gérer les profils personnalisés V1.11.0`.
+2. Ouvrir le gestionnaire, conserver l'action `Ajouter un profil DXF`, saisir la famille `Essais` et la désignation `IPE test 100`.
+3. Cocher la confirmation des millimètres, puis choisir la copie de `IPE_100.dxf`.
+4. Vérifier le rapport avant validation : `55 × 100 mm`, un contour fermé et un nombre d'entités strictement positif.
+5. Valider l'ajout, fermer le gestionnaire puis ouvrir `Profil acier V1.11.0`.
+6. Choisir `Catégorie : Personnalisés` et vérifier que le champ `Zone géographique` disparaît.
+7. Choisir `Essais / IPE test 100`, sélectionner une ligne et contrôler l'aperçu jaune.
+8. Créer la barre, mesurer `55 × 100 mm`, puis l'inspecter et vérifier `Catégorie : Personnalisés` et `DXF disponible : Oui`.
+
+### Phase B — Suppression récupérable
+
+1. Rouvrir le gestionnaire et choisir l'action `Supprimer un profil`.
+2. Sélectionner `Essais IPE test 100` et vérifier que le rapport indique au moins une barre utilisatrice dans le document actif.
+3. Valider et vérifier la présence de l'avertissement avant de confirmer.
+4. Rouvrir `Profil acier` et vérifier que le profil supprimé n'est plus proposé.
+5. Vérifier que la barre existante et son corps sont toujours présents et inchangés.
+6. Inspecter cette barre et vérifier que son DXF source est maintenant signalé indisponible.
+7. Vérifier sur disque que le DXF, ses métadonnées et `suppression.json` existent dans la corbeille locale ; ne pas les restaurer pendant ce premier test.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
 - aperçu temporaire visible avant validation et absent de l'historique ;
 - famille et section sélectionnables uniquement parmi les DXF présents ;
 - catégorie `Zones géographiques` et zone `Europe` affichées avant la famille ;
+- catégorie `Personnalisés` distincte, sans zone géographique visible ;
+- ajout d'un DXF personnel sans modification du fichier source ;
+- suppression limitée aux profils personnels, précédée d'un avertissement et conservée dans la corbeille locale ;
 - neuf ancrages cliquables avec centre sélectionné par défaut ;
 - un seul point rouge et huit points bleus ;
 - aperçu et corps final placés sur le même ancrage ;
