@@ -203,6 +203,24 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('"flip_x", str(bool(flip_x)).lower()', builder_source)
         self.assertIn('"flip_y", str(bool(flip_y)).lower()', builder_source)
 
+    def test_existing_member_replacement_is_explicit_and_create_first(self):
+        source = (ADDIN / "commands" / "create_members.py").read_text(
+            encoding="utf-8"
+        )
+        links_source = (ADDIN / "lib" / "member_links.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('REPLACE_EXISTING_INPUT_ID = "replaceExistingMembers"', source)
+        self.assertIn("Remplacer les barres déjà présentes", source)
+        self.assertIn("member_links.curve_usages", source)
+        self.assertIn("source_curve_token", links_source)
+        self.assertIn("source_line_token", links_source)
+        deferred = source.split("class DeferredCreateHandler", 1)[1]
+        self.assertLess(
+            deferred.index("created_occurrences.append(occurrence)"),
+            deferred.index("occurrence.deleteMe()"),
+        )
+
     def test_anchor_icon_resources_are_packaged(self):
         resources = ADDIN / "resources"
         for color in ("anchor_blue", "anchor_red"):

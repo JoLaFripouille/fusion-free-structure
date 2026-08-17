@@ -54,6 +54,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-016 — Nouvelle barre invisible après un aperçu jaune correct
+
+- **Symptôme :** sur le document `implantation`, l'aperçu d'un IPE 100 est visible, puis le nouveau composant apparaît dans l'arborescence sans que son corps soit visible dans la scène.
+- **Cause :** la ligne sélectionnée était déjà liée à une ou plusieurs barres IPE 200. La commande créait un second corps au même endroit ; l'aperçu graphique translucide restait visible à travers l'ancien profil, alors que le corps final était masqué à l'intérieur.
+- **Correction V1.11.1 :** détection des liaisons existantes, blocage des doublons par défaut et remplacement explicite avec création de la nouvelle barre avant retrait de l'ancienne.
+- **Validation attendue :** sélectionner la même ligne, cocher le remplacement, vérifier que l'IPE 100 devient visible et que les anciennes barres liées à cette ligne disparaissent seulement après la réussite.
+
 ### ISSUE-013 — Copies masquées derrière le matériau générique « Acier »
 
 - **Symptôme :** le menu de la V1.9.5 affiche seulement `Acier — Document actif` au lieu des nuances S235JR, S275JR et S355J2 attendues.

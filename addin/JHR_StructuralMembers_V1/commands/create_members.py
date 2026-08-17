@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import threading
 import time
 import traceback
@@ -11,6 +12,7 @@ from ..lib.member_builder import create_member
 from ..lib.preview_graphics import PreviewManager
 from ..lib import addin_info
 from ..lib import anchors
+from ..lib import member_links
 from ..lib import physical_materials
 from ..lib import profile_catalog
 from ..lib import rotation
@@ -32,6 +34,8 @@ MIRROR_TABLE_ID = "mirrorControls"
 FLIP_X_INPUT_ID = "flipX"
 FLIP_Y_INPUT_ID = "flipY"
 SELECTION_ID = "skeletonLines"
+REPLACE_EXISTING_INPUT_ID = "replaceExistingMembers"
+PATH_USAGE_REPORT_ID = "pathUsageReport"
 PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
 CUSTOM_EVENT_ID = "EI_JHR_CreateStructuralMembersV1_Deferred"
 
@@ -253,6 +257,24 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             )
             selection.addSelectionFilter("SketchCurves")
             selection.setSelectionLimits(1, 0)
+            replace_input = inputs.addBoolValueInput(
+                REPLACE_EXISTING_INPUT_ID,
+                "Remplacer les barres déjà présentes",
+                True,
+                "",
+                False,
+            )
+            replace_input.tooltip = (
+                "Si un chemin possède déjà une barre créée par l'extension, "
+                "la nouvelle barre est créée et contrôlée avant le retrait de l'ancienne."
+            )
+            inputs.addTextBoxCommandInput(
+                PATH_USAGE_REPORT_ID,
+                "Utilisation des chemins",
+                "Sélectionner une ligne ou un arc du squelette.",
+                3,
+                True,
+            )
             inputs.addTextBoxCommandInput(
                 "v1Info",
                 "Version chargée",
@@ -307,11 +329,30 @@ class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         event_args = adsk.core.ValidateInputsEventArgs.cast(args)
         selection = event_args.inputs.itemById(SELECTION_ID)
         material_input = event_args.inputs.itemById(PHYSICAL_MATERIAL_INPUT_ID)
+        app, _ = _app_and_ui()
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        has_existing = False
+        if design and selection:
+            curves = _supported_curves_from_selection(
+                selection,
+                design.rootComponent,
+                strict=False,
+            )
+            has_existing = any(
+                usage.occurrences
+                for usage in member_links.curve_usages(
+                    design,
+                    design.rootComponent,
+                    curves,
+                )
+            )
+        replace_existing = _replace_existing_selected(event_args.inputs)
         event_args.areInputsValid = bool(
             selection
             and selection.selectionCount >= 1
             and material_input
             and material_input.selectedItem
+            and (not has_existing or replace_existing)
         )
 
 
@@ -413,6 +454,57 @@ def _selected_flip_state(inputs):
     return flip_x_input.value, flip_y_input.value
 
 
+def _replace_existing_selected(inputs):
+    replace_input = adsk.core.BoolValueCommandInput.cast(
+        inputs.itemById(REPLACE_EXISTING_INPUT_ID)
+    )
+    return bool(replace_input and replace_input.value)
+
+
+def _update_path_usage_report(inputs):
+    report = inputs.itemById(PATH_USAGE_REPORT_ID)
+    if not report:
+        return
+    app, _ = _app_and_ui()
+    design = adsk.fusion.Design.cast(app.activeProduct)
+    selection = inputs.itemById(SELECTION_ID)
+    if not design or not selection:
+        report.formattedText = "Ouvrir une conception Fusion."
+        return
+    curves = _supported_curves_from_selection(
+        selection,
+        design.rootComponent,
+        strict=False,
+    )
+    if not curves:
+        report.formattedText = "Sélectionner une ligne ou un arc du squelette."
+        return
+    usages = member_links.curve_usages(design, design.rootComponent, curves)
+    used = member_links.unique_used_occurrences(usages)
+    if not used:
+        report.formattedText = (
+            "<b>{} chemin(s) libre(s).</b><br>Une nouvelle barre sera créée."
+            .format(len(curves))
+        )
+        return
+    names = ", ".join(
+        html.escape(occurrence.component.name, quote=True)
+        for occurrence in used
+    )
+    if _replace_existing_selected(inputs):
+        report.formattedText = (
+            "<b>Remplacement activé pour {} barre(s).</b><br>{}<br>"
+            "Les anciennes barres resteront présentes jusqu'à la création complète des nouvelles."
+            .format(len(used), names)
+        )
+    else:
+        report.formattedText = (
+            "<b>Attention : {} barre(s) utilisent déjà la sélection.</b><br>{}<br>"
+            "Cocher « Remplacer les barres déjà présentes » pour éviter un doublon caché."
+            .format(len(used), names)
+        )
+
+
 class AnchorInputState:
     def __init__(self, buttons):
         self._buttons = buttons
@@ -468,6 +560,8 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             return
         if self._anchor_state.is_updating:
             return
+        if changed_input.id in (SELECTION_ID, REPLACE_EXISTING_INPUT_ID):
+            _update_path_usage_report(event_args.inputs)
         if changed_input.id == CATEGORY_INPUT_ID:
             selected_category = self._category_input.selectedItem
             if selected_category:
@@ -718,6 +812,17 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             anchor_code = self._anchor_state.selected_code
             rotation_radians = _selected_rotation_radians(event_args.command.commandInputs)
             flip_x, flip_y = _selected_flip_state(event_args.command.commandInputs)
+            replace_existing = _replace_existing_selected(
+                event_args.command.commandInputs
+            )
+            usages = member_links.curve_usages(design, root_component, curves)
+            used_occurrences = member_links.unique_used_occurrences(usages)
+            if used_occurrences and not replace_existing:
+                raise RuntimeError(
+                    "{} barre(s) utilisent déjà les chemins sélectionnés. "
+                    "Activer « Remplacer les barres déjà présentes » ou choisir des chemins libres."
+                    .format(len(used_occurrences))
+                )
 
             # L'API Fusion interdit l'import DXF depuis un événement de
             # commande. Le travail est donc mis en file puis exécuté par un
@@ -733,6 +838,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "rotation_radians": rotation_radians,
                 "flip_x": flip_x,
                 "flip_y": flip_y,
+                "replace_existing": replace_existing,
             }
             _pending_jobs.append(job)
             worker = threading.Thread(
@@ -742,7 +848,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             )
             worker.start()
             _log(
-                "Import DXF {} avec le matériau Fusion {}, ancrage {}, rotation {} deg et miroirs X={} Y={} planifié pour {} chemin(s)"
+                "Import DXF {} avec le matériau Fusion {}, ancrage {}, rotation {} deg, miroirs X={} Y={} et remplacement={} planifié pour {} chemin(s)"
                 .format(
                     profile.designation,
                     material_choice.material_name,
@@ -750,6 +856,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                     rotation.format_degrees(rotation_radians),
                     flip_x,
                     flip_y,
+                    replace_existing,
                     len(curves),
                 )
             )
@@ -767,6 +874,7 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
 
         job = _pending_jobs.pop(0)
         created_occurrences = []
+        creation_completed = False
         try:
             app, ui = _app_and_ui()
             if app.activeDocument != job["document"]:
@@ -781,6 +889,17 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                 material_choice,
                 design.materials,
             )
+            usages = member_links.curve_usages(
+                design,
+                job["root_component"],
+                job["curves"],
+            )
+            old_occurrences = member_links.unique_used_occurrences(usages)
+            if old_occurrences and not job["replace_existing"]:
+                raise RuntimeError(
+                    "Une barre a été ajoutée sur un chemin avant l'exécution différée. "
+                    "La création est annulée pour éviter un doublon."
+                )
 
             for curve in job["curves"]:
                 if not curve or not curve.isValid:
@@ -799,8 +918,22 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                 created_occurrences.append(occurrence)
                 _log("Composant créé depuis le DXF: {}".format(occurrence.component.name))
 
+            creation_completed = True
+            replaced_count = 0
+            if job["replace_existing"]:
+                for occurrence in old_occurrences:
+                    if occurrence and occurrence.isValid:
+                        old_name = occurrence.component.name
+                        if not occurrence.deleteMe():
+                            raise RuntimeError(
+                                "Fusion n'a pas pu retirer l'ancienne barre {}."
+                                .format(old_name)
+                            )
+                        replaced_count += 1
+                        _log("Ancienne barre remplacée: {}".format(old_name))
+
             ui.messageBox(
-                "{} barre(s) {} en {} créée(s) depuis le DXF avec l'ancrage {}, une rotation de {}° et les miroirs X={} Y={}."
+                "{} barre(s) {} en {} créée(s) depuis le DXF avec l'ancrage {}, une rotation de {}° et les miroirs X={} Y={}.\n{} ancienne(s) barre(s) remplacée(s)."
                 .format(
                     len(created_occurrences),
                     job["profile"].designation,
@@ -809,15 +942,24 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                     rotation.format_degrees(job["rotation_radians"]),
                     job["flip_x"],
                     job["flip_y"],
+                    replaced_count,
                 )
             )
         except Exception as error:
-            for occurrence in reversed(created_occurrences):
-                if occurrence and occurrence.isValid:
-                    occurrence.deleteMe()
-            _log("ÉCHEC IMPORT DXF: {}\n{}".format(error, traceback.format_exc()))
-            _, ui = _app_and_ui()
-            ui.messageBox("La création depuis le DXF a été annulée:\n{}".format(error))
+            if not creation_completed:
+                for occurrence in reversed(created_occurrences):
+                    if occurrence and occurrence.isValid:
+                        occurrence.deleteMe()
+                _log("ÉCHEC IMPORT DXF: {}\n{}".format(error, traceback.format_exc()))
+                _, ui = _app_and_ui()
+                ui.messageBox("La création depuis le DXF a été annulée:\n{}".format(error))
+            else:
+                _log("ÉCHEC REMPLACEMENT: {}\n{}".format(error, traceback.format_exc()))
+                _, ui = _app_and_ui()
+                ui.messageBox(
+                    "La nouvelle barre a été créée, mais le retrait d'une ancienne barre a échoué:\n{}"
+                    .format(error)
+                )
         finally:
             if _pending_jobs:
                 app, _ = _app_and_ui()

@@ -56,6 +56,8 @@ Une seule matrice 2D est calculée pour l'aperçu et pour le résultat final. Da
 
 Chaque nouveau composant reçoit les attributs `profile`, `profile_category`, `profile_region`, `profile_family`, `profile_source`, `anchor`, `rotation_deg`, `flip_x`, `flip_y`, `source_curve_token`, `source_curve_type` et `extension_version`. Les attributs `material_name`, `material_id`, `material_library_name`, `material_library_id`, `material_source_id` et `material_property_count` tracent le matériau physique. L'ancien attribut `source_line_token` est aussi conservé pour les lignes afin de maintenir la compatibilité avec la V1.0.1. Pour une barre ancienne, l'absence de catégorie et de zone est interprétée comme `Zones_geographiques` et `Europe`.
 
+Avant une création, ces jetons permettent aussi de retrouver les barres déjà liées aux chemins sélectionnés. Sans demande explicite de remplacement, la validation est bloquée afin d'éviter deux corps superposés. Avec remplacement, la commande mémorise les anciennes occurrences, crée d'abord toutes les nouvelles barres, puis retire les anciennes seulement lorsque la phase de création est terminée. Un échec d'import ou de balayage laisse donc les anciennes barres en place.
+
 ## Inspection des barres existantes
 
 Une seconde commande sélectionne uniquement une occurrence de composant. Elle lit les attributs du groupe `EI_JHR_StructuralMember`, les valide dans un module indépendant de l'API Fusion et refuse les composants qui ne possèdent pas les informations minimales attendues. Le chemin du DXF est accepté uniquement s'il reste relatif à la bibliothèque.

@@ -4,6 +4,20 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.11.1] - En validation
+
+### Corrigé
+
+- détection des lignes et arcs déjà utilisés par une barre créée avec l'extension, y compris les liaisons enregistrées par les anciennes versions ;
+- suppression du cas trompeur où l'aperçu jaune restait visible par transparence alors que le nouveau corps, créé en doublon sur le même chemin, était ensuite caché dans l'ancienne barre ;
+- validation désactivée lorsqu'un chemin est déjà occupé et que le remplacement n'est pas explicitement demandé.
+
+### Ajouté
+
+- case `Remplacer les barres déjà présentes`, désactivée par défaut ;
+- rapport dynamique indiquant si les chemins sont libres ou listant les composants qui seront remplacés ;
+- remplacement sécurisé : toutes les nouvelles barres sont créées et contrôlées avant le retrait des anciennes ; en cas d'échec de création, les anciennes restent intactes.
+
 ## [1.11.0] - En validation
 
 ### Ajouté

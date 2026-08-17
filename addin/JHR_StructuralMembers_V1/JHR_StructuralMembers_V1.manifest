@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.11.0 : ajout et suppression récupérable de profils DXF personnalisés."
+    "": "Profil acier V1.11.1 : remplacement contrôlé des barres déjà présentes sur un chemin."
   },
-  "version": "1.11.0",
+  "version": "1.11.1",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

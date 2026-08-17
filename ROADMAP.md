@@ -41,6 +41,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 ## Géométrie et structure
 
 - [x] généraliser aux 341 profils l'import DXF relatif d'abord validé sur l'IPE 100 ;
+- [x] détecter une barre déjà liée au chemin et permettre son remplacement contrôlé ;
 - [ ] prendre en charge les lignes appartenant à des sous-composants ;
 - [ ] gérer une orientation de référence contrôlable ;
 - [ ] ajouter des décalages ;

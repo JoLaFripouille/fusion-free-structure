@@ -190,11 +190,11 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 
 ### Phase A — Ajout contrôlé
 
-1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.11.0`, `Inspecter un profil acier V1.11.0` et `Gérer les profils personnalisés V1.11.0`.
+1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.11.1`, `Inspecter un profil acier V1.11.1` et `Gérer les profils personnalisés V1.11.1`.
 2. Ouvrir le gestionnaire, conserver l'action `Ajouter un profil DXF`, saisir la famille `Essais` et la désignation `IPE test 100`.
 3. Cocher la confirmation des millimètres, puis choisir la copie de `IPE_100.dxf`.
 4. Vérifier le rapport avant validation : `55 × 100 mm`, un contour fermé et un nombre d'entités strictement positif.
-5. Valider l'ajout, fermer le gestionnaire puis ouvrir `Profil acier V1.11.0`.
+5. Valider l'ajout, fermer le gestionnaire puis ouvrir `Profil acier V1.11.1`.
 6. Choisir `Catégorie : Personnalisés` et vérifier que le champ `Zone géographique` disparaît.
 7. Choisir `Essais / IPE test 100`, sélectionner une ligne et contrôler l'aperçu jaune.
 8. Créer la barre, mesurer `55 × 100 mm`, puis l'inspecter et vérifier `Catégorie : Personnalisés` et `DXF disponible : Oui`.
@@ -209,6 +209,18 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 6. Inspecter cette barre et vérifier que son DXF source est maintenant signalé indisponible.
 7. Vérifier sur disque que le DXF, ses métadonnées et `suppression.json` existent dans la corbeille locale ; ne pas les restaurer pendant ce premier test.
 
+## Test 14 — Remplacer une barre déjà présente
+
+1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.1`.
+2. Dans le document `implantation`, sélectionner une ligne déjà utilisée par une `BARRE_IPE200`.
+3. Vérifier que le rapport `Utilisation des chemins` indique le nom de la barre existante et que le bouton `OK` reste désactivé.
+4. Choisir `IPE / 100`, conserver l'ancrage souhaité et vérifier l'aperçu jaune.
+5. Cocher `Remplacer les barres déjà présentes` et vérifier que le rapport annonce le remplacement.
+6. Valider puis attendre la fin de la création différée.
+7. Vérifier que la nouvelle barre IPE 100 est visible au même emplacement que l'aperçu.
+8. Vérifier que l'ancienne barre liée à cette ligne a disparu et que les autres IPE 200 du document sont toujours présents.
+9. Annuler la dernière opération avec l'historique Fusion et vérifier que l'état précédent peut être récupéré.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -218,6 +230,8 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 - catégorie `Personnalisés` distincte, sans zone géographique visible ;
 - ajout d'un DXF personnel sans modification du fichier source ;
 - suppression limitée aux profils personnels, précédée d'un avertissement et conservée dans la corbeille locale ;
+- aucun doublon de barre silencieux sur un chemin déjà utilisé ;
+- remplacement explicite créant la nouvelle barre avant de retirer l'ancienne ;
 - neuf ancrages cliquables avec centre sélectionné par défaut ;
 - un seul point rouge et huit points bleus ;
 - aperçu et corps final placés sur le même ancrage ;
