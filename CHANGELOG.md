@@ -4,6 +4,13 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.3] - En validation
+
+### Corrigé
+
+- traitement direct du coefficient de Poisson comme valeur sans dimension, même lorsque Fusion lui associe un identifiant d'unité interne non vide ;
+- test reproduisant une propriété de Poisson déclarée `Unitless` par Fusion.
+
 ## [1.9.2] - En validation
 
 ### Corrigé

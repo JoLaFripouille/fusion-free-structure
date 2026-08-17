@@ -42,6 +42,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-011 — Coefficient de Poisson traité comme une grandeur avec unité
+
+- **Symptôme :** la V1.9.2 refusait `0.3` car Fusion associait une chaîne d'unité interne non vide au coefficient de Poisson.
+- **Cause :** la détection reposait à tort sur une chaîne d'unité vide pour reconnaître une valeur sans dimension.
+- **Correction :** la V1.9.3 traite toujours `poisson_ratio` comme un nombre pur et ignore l'identifiant d'unité associé.
+- **Validation attendue :** création complète des deux matériaux puis démarrage du complément.
+
 ### ISSUE-010 — Nom interne d'unité non reconnu dans la V1.9.1
 
 - **Symptôme :** la densité expose `KilogramPerCubicMeter` au lieu du symbole `kg/m³` attendu par la première correction.

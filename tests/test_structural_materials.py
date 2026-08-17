@@ -47,7 +47,7 @@ def steel_properties(yield_strength=235.0, tensile_strength=360.0):
             FakeProperty(
                 "PrismMaterialPoissonsRatio",
                 "Coefficient de Poisson",
-                "",
+                "Unitless",
                 0.30,
             ),
             FakeProperty(
@@ -238,6 +238,22 @@ class StructuralMaterialTests(unittest.TestCase):
         self.assertEqual(document_materials.count, 0)
 
     def test_material_values_are_converted_to_declared_property_units(self):
+        poisson_property = FakeProperty(
+            "PrismMaterialPoissonsRatio",
+            "Coefficient de Poisson",
+            "Unitless",
+            0.30,
+        )
+        self.assertEqual(
+            structural_materials._expected_value(
+                FakeUnitsManager(),
+                poisson_property,
+                "0.3",
+                "poisson_ratio",
+                0.3,
+            ),
+            0.3,
+        )
         self.assertEqual(
             structural_materials._physical_value_in_property_units(
                 "density",

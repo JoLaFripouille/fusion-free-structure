@@ -238,6 +238,8 @@ def _physical_value_in_property_units(property_key, expression, property_units):
 
 
 def _expected_value(units_manager, material_property, expression, property_key, unitless_value=None):
+    if property_key == "poisson_ratio" and unitless_value is not None:
+        return float(unitless_value)
     units = str(getattr(material_property, "units", "") or "")
     if not units:
         if unitless_value is None:
