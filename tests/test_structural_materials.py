@@ -114,6 +114,13 @@ class FakeMaterials:
         return copied
 
 
+class FakeMaterialsIgnoringCopyName(FakeMaterials):
+    def addByCopy(self, material, name):
+        copied = super().addByCopy(material, name)
+        copied.name = material.name
+        return copied
+
+
 class FakeLibrary:
     def __init__(self, library_id, name, materials):
         self.id = library_id
@@ -195,6 +202,26 @@ class StructuralMaterialTests(unittest.TestCase):
         self.assertEqual(s275_spec.maximum_thickness_mm, 16)
         self.assertEqual(s275_spec.yield_strength, "275 MPa")
         self.assertEqual(s275_spec.tensile_strength, "410 MPa")
+
+    def test_copy_is_explicitly_renamed_when_fusion_keeps_the_base_name(self):
+        document_materials = FakeMaterialsIgnoringCopyName([])
+
+        result = structural_materials.ensure_required_materials(
+            FakeDesign(document_materials),
+            self.libraries,
+        )
+
+        expected_names = tuple(
+            spec.name for spec in structural_materials.REQUIRED_MATERIALS
+        )
+        self.assertEqual(result.created_names, expected_names)
+        self.assertEqual(
+            tuple(
+                document_materials.item(index).name
+                for index in range(document_materials.count)
+            ),
+            expected_names,
+        )
 
     def test_existing_conforming_material_is_not_modified(self):
         s235_spec = structural_materials.REQUIRED_MATERIALS[0]

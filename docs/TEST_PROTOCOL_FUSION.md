@@ -153,9 +153,9 @@ Utiliser un nouveau document de conception paramétrique pour isoler ce test.
 
 ### Phase A — Création unique
 
-1. Arrêter puis exécuter le complément et vérifier que les deux commandes indiquent la V1.9.5.
+1. Arrêter puis exécuter le complément et vérifier que les deux commandes indiquent la V1.9.6.
 2. Vérifier qu'aucun message d'erreur concernant les propriétés physiques n'apparaît.
-3. Ouvrir `Profil acier V1.9.5`, puis vérifier que le champ `Matériau physique Fusion` affiche déjà le S235JR du document actif.
+3. Ouvrir `Profil acier V1.9.6`, puis vérifier que le champ `Matériau physique Fusion` affiche déjà le S235JR du document actif.
 4. Vérifier la présence exacte de `S235JR EN 10025-2 - t<=16 mm — Document actif`.
 5. Vérifier la présence exacte de `S275JR EN 10025-2 - t<=16 mm — Document actif`.
 6. Vérifier la présence exacte de `S355J2 EN 10025-2 - t<=16 mm — Document actif`.

@@ -42,6 +42,14 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-013 — Copies affichées sous le nom générique « Acier »
+
+- **Symptôme :** le menu de la V1.9.5 affiche seulement `Acier — Document actif` au lieu des nuances S235JR, S275JR et S355J2 attendues.
+- **Cause observée :** Fusion peut conserver le nom du matériau modèle malgré le nom transmis à `Materials.addByCopy`.
+- **Correction :** la V1.9.6 réapplique explicitement chaque nom au matériau du document et vérifie immédiatement la valeur relue.
+- **Sécurité :** si le nom exact n'est toujours pas conservé, les copies inutilisées créées pendant l'opération sont supprimées et la commande affiche une erreur claire.
+- **Validation attendue :** les trois nuances apparaissent en tête du menu sous la source `Document actif`.
+
 ### ISSUE-012 — Nuances EI_JHR invisibles dans la longue liste Fusion
 
 - **Symptôme :** après un démarrage réussi, le menu semblait ne contenir que les matériaux Autodesk.

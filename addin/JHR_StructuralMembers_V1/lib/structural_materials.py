@@ -358,6 +358,16 @@ def _configure_material(material, spec, units_manager):
     _validate_material(material, spec, units_manager)
 
 
+def _set_and_validate_material_name(material, expected_name):
+    material.name = expected_name
+    actual_name = str(material.name)
+    if actual_name != expected_name:
+        raise RuntimeError(
+            "Fusion a conservé le nom '{}' au lieu de '{}'."
+            .format(actual_name, expected_name)
+        )
+
+
 def _base_material(material_libraries):
     choices = physical_materials.discover_steel_materials(material_libraries)
     choice = physical_materials.default_choice(choices)
@@ -398,6 +408,7 @@ def ensure_required_materials(design, material_libraries):
                     "Fusion n'a pas pu créer le matériau '{}'.".format(spec.name)
                 )
             created_materials.append(material)
+            _set_and_validate_material_name(material, spec.name)
             _configure_material(material, spec, design.unitsManager)
     except Exception:
         for material in reversed(created_materials):

@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.6] - En validation
+
+### Corrigé
+
+- renommage explicite de chaque matériau après `Materials.addByCopy`, car Fusion pouvait conserver visuellement le nom du matériau modèle `Acier` ;
+- relecture immédiate du nom réellement enregistré et annulation des copies créées si Fusion refuse le nom attendu ;
+- test reproduisant une copie qui ignore son nom demandé et vérifiant les trois noms S235JR, S275JR et S355J2.
+
 ## [1.9.5] - En validation
 
 ### Ajouté
