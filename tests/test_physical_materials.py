@@ -126,6 +126,71 @@ class PhysicalMaterialsTests(unittest.TestCase):
             document_s235,
         )
 
+    def test_document_copies_with_the_same_fusion_id_remain_distinct(self):
+        shared_id = "shared-fusion-steel-asset"
+        document_steel = FakeMaterial(shared_id, "Acier", "Acier générique")
+        document_s235 = FakeMaterial(
+            shared_id,
+            "S235JR EN 10025-2 - t<=16 mm",
+            "Acier de construction européen",
+        )
+        document_s275 = FakeMaterial(
+            shared_id,
+            "S275JR EN 10025-2 - t<=16 mm",
+            "Acier de construction européen",
+        )
+        document_s355 = FakeMaterial(
+            shared_id,
+            "S355J2 EN 10025-2 - t<=16 mm",
+            "Acier de construction européen",
+        )
+        document_materials = FakeMaterials(
+            [document_steel, document_s235, document_s275, document_s355]
+        )
+
+        choices = physical_materials.discover_steel_materials(
+            self.libraries,
+            document_materials,
+        )
+        document_choices = tuple(
+            choice
+            for choice in choices
+            if choice.library_id
+            == physical_materials.DOCUMENT_MATERIAL_SOURCE_ID
+        )
+
+        self.assertEqual(len(document_choices), 4)
+        self.assertEqual(
+            {choice.material_name for choice in document_choices},
+            {
+                "Acier",
+                "S235JR EN 10025-2 - t<=16 mm",
+                "S275JR EN 10025-2 - t<=16 mm",
+                "S355J2 EN 10025-2 - t<=16 mm",
+            },
+        )
+        selected_s275 = next(
+            choice
+            for choice in document_choices
+            if choice.material_name.startswith("S275JR")
+        )
+        self.assertIs(
+            physical_materials.resolve_material(
+                self.libraries,
+                selected_s275,
+                document_materials,
+            ),
+            document_s275,
+        )
+        self.assertIs(
+            physical_materials.default_choice(choices),
+            next(
+                choice
+                for choice in document_choices
+                if choice.material_name.startswith("S235JR")
+            ),
+        )
+
     def test_document_material_resolution_requires_active_document(self):
         choice = physical_materials.MaterialChoice(
             physical_materials.DOCUMENT_MATERIAL_SOURCE_ID,

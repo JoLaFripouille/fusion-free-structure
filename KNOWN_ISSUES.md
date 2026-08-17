@@ -42,12 +42,14 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
-### ISSUE-013 — Copies affichées sous le nom générique « Acier »
+### ISSUE-013 — Copies masquées derrière le matériau générique « Acier »
 
 - **Symptôme :** le menu de la V1.9.5 affiche seulement `Acier — Document actif` au lieu des nuances S235JR, S275JR et S355J2 attendues.
-- **Cause observée :** Fusion peut conserver le nom du matériau modèle malgré le nom transmis à `Materials.addByCopy`.
-- **Correction :** la V1.9.6 réapplique explicitement chaque nom au matériau du document et vérifie immédiatement la valeur relue.
-- **Sécurité :** si le nom exact n'est toujours pas conservé, les copies inutilisées créées pendant l'opération sont supprimées et la commande affiche une erreur claire.
+- **Diagnostic réel :** le journal de la V1.9.6 confirme `3 existant(s), 0 créé(s)` ; les trois nuances portent donc les bons noms, mais leurs copies partagent le même identifiant interne Autodesk que `Acier`.
+- **Tentative V1.9.6 :** le renommage explicite n'a pas corrigé l'affichage puisque les noms étaient déjà enregistrés correctement.
+- **Cause :** l'inventaire dédupliquait à tort tous les matériaux du document uniquement avec cet identifiant partagé, puis la résolution par identifiant pouvait également retrouver `Acier`.
+- **Correction :** la V1.9.7 distingue les entrées du document par leur position et leur nom exact, tout en conservant l'identifiant réel pour la traçabilité.
+- **Sécurité :** si l'ordre change avant la création, la résolution retombe sur un nom unique et refuse explicitement toute ambiguïté.
 - **Validation attendue :** les trois nuances apparaissent en tête du menu sous la source `Document actif`.
 
 ### ISSUE-012 — Nuances EI_JHR invisibles dans la longue liste Fusion

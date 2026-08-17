@@ -35,6 +35,7 @@ class MaterialChoice:
     material_name: str
     property_count: int
     display_label: str = ""
+    document_index: int | None = None
 
 
 def _normalized(value):
@@ -72,7 +73,11 @@ def _append_material_choices(choices, seen, materials, library_id, library_name)
         property_count = int(properties.count) if properties else 0
         if property_count == 0:
             continue
-        identity = (str(library_id), str(material.id))
+        is_document_material = library_id == DOCUMENT_MATERIAL_SOURCE_ID
+        identity = (
+            str(library_id),
+            material_index if is_document_material else str(material.id),
+        )
         if identity in seen:
             continue
         seen.add(identity)
@@ -83,6 +88,7 @@ def _append_material_choices(choices, seen, materials, library_id, library_name)
                 material_id=str(material.id),
                 material_name=str(material.name),
                 property_count=property_count,
+                document_index=(material_index if is_document_material else None),
             )
         )
 
@@ -152,13 +158,38 @@ def resolve_material(material_libraries, choice, document_materials=None):
     if choice.library_id == DOCUMENT_MATERIAL_SOURCE_ID:
         if document_materials is None:
             raise RuntimeError("Les matériaux du document actif ne sont plus disponibles.")
-        material = document_materials.itemById(choice.material_id)
-        if not material or not material.isValid:
+        if choice.document_index is not None:
+            index = int(choice.document_index)
+            if 0 <= index < document_materials.count:
+                material = document_materials.item(index)
+                if (
+                    material
+                    and material.isValid
+                    and str(material.id) == choice.material_id
+                    and str(material.name) == choice.material_name
+                ):
+                    return material
+
+        matches = []
+        for material_index in range(document_materials.count):
+            material = document_materials.item(material_index)
+            if (
+                material
+                and material.isValid
+                and str(material.name) == choice.material_name
+            ):
+                matches.append(material)
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
             raise RuntimeError(
-                "Le matériau Fusion '{}' n'est plus disponible dans le document actif."
+                "Plusieurs matériaux Fusion portent le nom '{}' dans le document actif."
                 .format(choice.material_name)
             )
-        return material
+        raise RuntimeError(
+            "Le matériau Fusion '{}' n'est plus disponible dans le document actif."
+            .format(choice.material_name)
+        )
 
     library = material_libraries.itemById(choice.library_id)
     if not library or not library.isValid:

@@ -4,6 +4,15 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.7] - En validation
+
+### Corrigé
+
+- conservation de chaque matériau du document dans le menu même lorsque plusieurs copies Autodesk partagent le même identifiant interne ;
+- résolution des matériaux du document par leur entrée de collection et leur nom exact, avec repli sûr lorsque l'ordre de la collection change ;
+- sélection du S235JR par défaut désormais effective lorsque `Acier`, S235JR, S275JR et S355J2 partagent le même identifiant Fusion ;
+- test reproduisant l'identifiant partagé observé dans Fusion et vérifiant l'affichage ainsi que la résolution exacte du S275JR.
+
 ## [1.9.6] - En validation
 
 ### Corrigé
