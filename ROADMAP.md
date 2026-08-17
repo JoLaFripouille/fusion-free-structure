@@ -25,9 +25,9 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [ ] valider dans Fusion le menu dynamique et l'affectation physique de la V1.8.0 candidate ;
 - [ ] vérifier sur une barre test que Fusion relit le même matériau dans l'inspecteur et dans l'interface de matériau physique ;
 - [ ] vérifier séparément la disponibilité des propriétés nécessaires au type de simulation envisagé.
-- [x] créer automatiquement dans le document actif les nuances S235JR et S355J2 de la première phase.
+- [x] créer automatiquement dans le document actif les nuances S235JR, S275JR et S355J2 de la première phase.
 - [ ] valider dans Fusion la création unique et les valeurs physiques de la V1.9.0.
-- [ ] comparer deux IPE 100 identiques, l'un en S235JR et l'autre en S355J2, dans une étude linéaire.
+- [ ] comparer trois IPE 100 identiques en S235JR, S275JR et S355J2 dans une étude linéaire.
 - [ ] ajouter les autres plages d'épaisseur et les nuances de tubes uniquement après cette validation.
 
 ## Géométrie et structure

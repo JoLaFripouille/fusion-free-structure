@@ -153,23 +153,25 @@ Utiliser un nouveau document de conception paramétrique pour isoler ce test.
 
 ### Phase A — Création unique
 
-1. Arrêter puis exécuter le complément et vérifier que les deux commandes indiquent la V1.9.4.
+1. Arrêter puis exécuter le complément et vérifier que les deux commandes indiquent la V1.9.5.
 2. Vérifier qu'aucun message d'erreur concernant les propriétés physiques n'apparaît.
-3. Ouvrir `Profil acier V1.9.4`, puis vérifier que le champ `Matériau physique Fusion` affiche déjà le S235JR du document actif.
+3. Ouvrir `Profil acier V1.9.5`, puis vérifier que le champ `Matériau physique Fusion` affiche déjà le S235JR du document actif.
 4. Vérifier la présence exacte de `S235JR EN 10025-2 - t<=16 mm — Document actif`.
-5. Vérifier la présence exacte de `S355J2 EN 10025-2 - t<=16 mm — Document actif`.
-6. Annuler, arrêter puis exécuter une seconde fois le complément dans le même document.
-7. Rouvrir le menu et vérifier qu'il existe toujours exactement une ligne pour chaque nuance.
+5. Vérifier la présence exacte de `S275JR EN 10025-2 - t<=16 mm — Document actif`.
+6. Vérifier la présence exacte de `S355J2 EN 10025-2 - t<=16 mm — Document actif`.
+7. Annuler, arrêter puis exécuter une seconde fois le complément dans le même document.
+8. Rouvrir le menu et vérifier qu'il existe toujours exactement une ligne pour chaque nuance.
 
-### Phase B — Deux profils comparables
+### Phase B — Trois profils comparables
 
-1. Préparer deux lignes parallèles de même longueur.
+1. Préparer trois lignes parallèles de même longueur.
 2. Créer un `IPE 100` sur la première avec le matériau S235JR du document actif.
-3. Créer un second `IPE 100` sur la deuxième avec le matériau S355J2 du document actif.
-4. Inspecter chaque barre et vérifier que le matériau enregistré correspond à celui lu sur le corps avec `Affectation physique : OK`.
-5. Ouvrir les propriétés des matériaux et contrôler `E = 210 GPa` et `nu = 0,30` pour les deux.
-6. Contrôler les limites d'élasticité : `235 MPa` pour S235JR et `355 MPa` pour S355J2.
-7. Si l'espace Simulation est disponible, ouvrir `Matériaux de l'étude` et vérifier que les deux matériaux sont acceptés sans avertissement jaune avant tout calcul.
+3. Créer un second `IPE 100` sur la deuxième avec le matériau S275JR du document actif.
+4. Créer un troisième `IPE 100` sur la troisième avec le matériau S355J2 du document actif.
+5. Inspecter chaque barre et vérifier que le matériau enregistré correspond à celui lu sur le corps avec `Affectation physique : OK`.
+6. Ouvrir les propriétés des matériaux et contrôler `E = 210 GPa` et `nu = 0,30` pour les trois.
+7. Contrôler les limites d'élasticité : `235 MPa` pour S235JR, `275 MPa` pour S275JR et `355 MPa` pour S355J2.
+8. Si l'espace Simulation est disponible, ouvrir `Matériaux de l'étude` et vérifier que les trois matériaux sont acceptés sans avertissement jaune avant tout calcul.
 
 ## Critères de validation
 
@@ -191,6 +193,6 @@ Utiliser un nouveau document de conception paramétrique pour isoler ce test.
 - composants indépendants et noms prévisibles.
 - inspection des barres sans modification de la géométrie ni de l'historique.
 - matériau choisi dans une bibliothèque Fusion, réellement affecté au corps et relu avec le même identifiant.
-- exactement une occurrence de chacune des deux nuances européennes dans le document actif après plusieurs lancements.
+- exactement une occurrence de chacune des trois nuances européennes dans le document actif après plusieurs lancements.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

@@ -166,7 +166,7 @@ class StructuralMaterialTests(unittest.TestCase):
             ]
         )
 
-    def test_creates_both_required_materials_once(self):
+    def test_creates_all_required_materials_once(self):
         document_materials = FakeMaterials([])
         design = FakeDesign(document_materials)
 
@@ -185,11 +185,19 @@ class StructuralMaterialTests(unittest.TestCase):
             tuple(spec.name for spec in structural_materials.REQUIRED_MATERIALS),
         )
         self.assertEqual(second.created_names, ())
-        self.assertEqual(document_materials.add_count, 2)
-        self.assertEqual(document_materials.count, 2)
+        self.assertEqual(document_materials.add_count, 3)
+        self.assertEqual(document_materials.count, 3)
+
+    def test_s275jr_uses_the_expected_first_thickness_range_values(self):
+        s275_spec = structural_materials.REQUIRED_MATERIALS[1]
+
+        self.assertEqual(s275_spec.grade, "S275JR")
+        self.assertEqual(s275_spec.maximum_thickness_mm, 16)
+        self.assertEqual(s275_spec.yield_strength, "275 MPa")
+        self.assertEqual(s275_spec.tensile_strength, "410 MPa")
 
     def test_existing_conforming_material_is_not_modified(self):
-        s235_spec, _ = structural_materials.REQUIRED_MATERIALS
+        s235_spec = structural_materials.REQUIRED_MATERIALS[0]
         existing = material_for_spec(s235_spec, "existing-s235")
         original_description = existing.description
         document_materials = FakeMaterials([existing])
@@ -200,11 +208,11 @@ class StructuralMaterialTests(unittest.TestCase):
         )
 
         self.assertEqual(result.existing_names, (s235_spec.name,))
-        self.assertEqual(document_materials.add_count, 1)
+        self.assertEqual(document_materials.add_count, 2)
         self.assertEqual(existing.description, original_description)
 
     def test_existing_material_with_wrong_strength_is_rejected_without_change(self):
-        s235_spec, _ = structural_materials.REQUIRED_MATERIALS
+        s235_spec = structural_materials.REQUIRED_MATERIALS[0]
         conflicting = FakeMaterial(
             "conflict",
             s235_spec.name,

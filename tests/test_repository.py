@@ -122,13 +122,14 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('("Affectation physique", material_status)', inspection_source)
         self.assertNotIn("addStringValueInput", command_source)
 
-    def test_startup_ensures_two_document_materials_idempotently(self):
+    def test_startup_ensures_three_document_materials_idempotently(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(encoding="utf-8")
         command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
         material_source = (ADDIN / "lib" / "structural_materials.py").read_text(encoding="utf-8")
         self.assertIn("structural_materials.ensure_required_materials", entry_source)
         self.assertIn("structural_materials.ensure_required_materials", command_source)
         self.assertIn("S235JR EN 10025-2 - t<=16 mm", material_source)
+        self.assertIn("S275JR EN 10025-2 - t<=16 mm", material_source)
         self.assertIn("S355J2 EN 10025-2 - t<=16 mm", material_source)
         self.assertIn("design.materials.addByCopy", material_source)
         self.assertIn("Il n'a pas été modifié", material_source)

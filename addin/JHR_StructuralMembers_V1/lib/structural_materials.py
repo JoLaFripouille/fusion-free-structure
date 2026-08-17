@@ -39,6 +39,17 @@ REQUIRED_MATERIALS = (
         tensile_strength="360 MPa",
     ),
     StructuralMaterialSpec(
+        name="S275JR EN 10025-2 - t<=16 mm",
+        grade="S275JR",
+        standard="EN 10025-2:2019",
+        maximum_thickness_mm=16,
+        density="7850 kg/m^3",
+        young_modulus="210 GPa",
+        poisson_ratio=0.30,
+        yield_strength="275 MPa",
+        tensile_strength="410 MPa",
+    ),
+    StructuralMaterialSpec(
         name="S355J2 EN 10025-2 - t<=16 mm",
         grade="S355J2",
         standard="EN 10025-2:2019",
@@ -354,7 +365,7 @@ def _base_material(material_libraries):
 
 
 def ensure_required_materials(design, material_libraries):
-    """Crée les deux nuances EI_JHR dans le document actif, de façon idempotente."""
+    """Crée les nuances EI_JHR requises dans le document actif, sans doublon."""
     if not design or not getattr(design, "materials", None):
         raise RuntimeError("Aucune conception Fusion active ne peut recevoir les matériaux EI_JHR.")
 

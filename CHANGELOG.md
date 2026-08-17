@@ -4,6 +4,19 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.5] - En validation
+
+### Ajouté
+
+- création automatique et idempotente de `S275JR EN 10025-2 - t<=16 mm` dans le document actif ;
+- propriétés physiques de première phase : `rho = 7 850 kg/m³`, `E = 210 GPa`, `nu = 0,30`, `ReH min = 275 MPa` et `Rm min = 410 MPa` ;
+- présence du S275JR entre le S235JR et le S355J2 dans le menu des matériaux du document ;
+- test dédié des valeurs de la nuance S275JR et adaptation des contrôles aux trois nuances.
+
+### Inchangé
+
+- le S235JR reste le matériau sélectionné par défaut.
+
 ## [1.9.4] - En validation
 
 ### Corrigé

@@ -18,7 +18,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - boutons `Miroir X` et `Miroir Y`, indépendants et cumulables autour du même ancrage ;
 - inspection en lecture seule des paramètres enregistrés dans une barre existante et de sa liaison au squelette ;
 - choix d'un matériau acier réellement disponible dans les bibliothèques chargées par Fusion, puis affectation physique au corps ;
-- création contrôlée dans le document actif des nuances européennes `S235JR` et `S355J2` pour la première comparaison de simulation ;
+- création contrôlée dans le document actif des nuances européennes `S235JR`, `S275JR` et `S355J2` pour la première comparaison de simulation ;
 - un composant indépendant par barre ;
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
