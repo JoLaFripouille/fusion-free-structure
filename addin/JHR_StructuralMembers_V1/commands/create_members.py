@@ -17,6 +17,7 @@ from ..lib import physical_materials
 from ..lib import profile_catalog
 from ..lib import rotation
 from ..lib import structural_materials
+from ..lib import ui_layout
 
 
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
@@ -36,7 +37,7 @@ FLIP_Y_INPUT_ID = "flipY"
 SELECTION_ID = "skeletonLines"
 REPLACE_EXISTING_INPUT_ID = "replaceExistingMembers"
 PATH_USAGE_REPORT_ID = "pathUsageReport"
-PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
+PANEL_IDS = (ui_layout.CREATE_PANEL_ID,)
 CUSTOM_EVENT_ID = "EI_JHR_CreateStructuralMembersV1_Deferred"
 
 _handlers = []
@@ -1023,7 +1024,7 @@ def start():
     _handlers.append(created_handler)
 
     for panel_id in PANEL_IDS:
-        panel = ui.allToolbarPanels.itemById(panel_id)
+        panel = ui_layout.panel(ui, panel_id)
         if panel:
             control = panel.controls.itemById(COMMAND_ID)
             if not control:
@@ -1040,7 +1041,7 @@ def stop():
     global _panel_id, _custom_event, _custom_event_handler
     app, ui = _app_and_ui()
     for panel_id in PANEL_IDS:
-        panel = ui.allToolbarPanels.itemById(panel_id)
+        panel = ui_layout.panel(ui, panel_id)
         if panel:
             control = panel.controls.itemById(COMMAND_ID)
             if control:

@@ -6,6 +6,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 
 ## Fonction de la V1
 
+- onglet Fusion dédié `STRUCTURE JHR`, divisé en groupes `CRÉER` et `MODIFIER` ;
 - sélection d'une ou plusieurs lignes ou arcs d'esquisse dans le composant racine ;
 - choix de la catégorie, de la zone géographique, de la famille puis de la section parmi les 341 DXF disponibles ;
 - ajout de profils DXF personnels dans une catégorie `Personnalisés` séparée des zones géographiques ;
@@ -26,6 +27,8 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
 - première commande `Jonction droite` : barre principale intacte, coupe de la barre secondaire à l'enveloppe extérieure, jeu réglable et aperçu orange du plan de coupe.
+
+Dans l'onglet dédié, `CRÉER` contient **Profil acier** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonction droite** et **Inspecter un profil acier**. Les commandes ne sont plus ajoutées aux panneaux généraux de Fusion.
 
 ## Bibliothèque incluse
 

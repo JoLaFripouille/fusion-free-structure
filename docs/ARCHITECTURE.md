@@ -1,5 +1,11 @@
 # Architecture de la V1
 
+## Interface Fusion dédiée
+
+Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit la jonction droite et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
+
+L'onglet et les panneaux utilisent des identifiants stables et sont réutilisés s'ils existent déjà. À l'arrêt, les commandes retirent d'abord leurs boutons et leurs définitions, puis l'extension supprime ses panneaux et son onglet. Aucun panneau natif de Fusion n'est supprimé.
+
 ## Principe
 
 Le squelette reste dans le composant racine. Pour chaque ligne ou arc sélectionné, la commande crée un nouveau composant contenant sa propre section et son propre corps.

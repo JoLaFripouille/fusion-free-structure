@@ -4,6 +4,22 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.13.0] - En validation
+
+### Modifié
+
+- création d'un onglet Fusion dédié `STRUCTURE JHR` dans l'espace de travail Conception ;
+- regroupement de `Profil acier` et `Gérer les profils personnalisés` dans le panneau `CRÉER` ;
+- regroupement de `Jonction droite` et `Inspecter un profil acier` dans le panneau `MODIFIER` ;
+- retrait des quatre boutons des panneaux généraux de Fusion afin d'éviter les doublons et de rendre l'extension plus facile à retrouver ;
+- suppression propre des deux panneaux puis de l'onglet lorsque le complément est arrêté.
+
+### À valider dans Fusion
+
+- présence d'un seul onglet `STRUCTURE JHR` après l'arrêt puis l'exécution du complément ;
+- présence des quatre boutons dans leur groupe respectif et absence dans les anciens menus généraux ;
+- disparition complète de l'onglet à l'arrêt, puis recréation unique à l'exécution suivante.
+
 ## [1.12.0] - En validation
 
 ### Ajouté

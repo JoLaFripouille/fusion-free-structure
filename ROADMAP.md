@@ -13,6 +13,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 
 ## Interface profils
 
+- [x] regrouper toutes les commandes dans un onglet Fusion dédié avec panneaux Créer et Modifier ;
 - [x] afficher les profils par famille puis par dimension ;
 - [x] organiser les profils normalisés par catégorie puis par zone géographique ;
 - [x] exposer la zone Europe sans modifier les 341 DXF existants ;

@@ -6,7 +6,7 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from ..lib import addin_info, joint_builder
+from ..lib import addin_info, joint_builder, ui_layout
 from ..lib.joint_preview import JointPreviewManager
 
 
@@ -19,7 +19,7 @@ PRIMARY_SELECTION_ID = "primaryMember"
 SECONDARY_SELECTION_ID = "secondaryMember"
 GAP_INPUT_ID = "jointGap"
 REPORT_ID = "jointReport"
-PANEL_IDS = ("SolidModifyPanel", "SolidCreatePanel", "SolidScriptsAddinsPanel")
+PANEL_IDS = (ui_layout.MODIFY_PANEL_ID,)
 
 
 _handlers = []
@@ -271,7 +271,7 @@ def start():
     _handlers.append(created_handler)
 
     for panel_id in PANEL_IDS:
-        panel = ui.allToolbarPanels.itemById(panel_id)
+        panel = ui_layout.panel(ui, panel_id)
         if panel:
             control = panel.controls.itemById(COMMAND_ID)
             if not control:
@@ -288,7 +288,7 @@ def stop():
     global _panel_id
     _, ui = _app_and_ui()
     for panel_id in PANEL_IDS:
-        panel = ui.allToolbarPanels.itemById(panel_id)
+        panel = ui_layout.panel(ui, panel_id)
         if panel:
             control = panel.controls.itemById(COMMAND_ID)
             if control:

@@ -6,7 +6,7 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from ..lib import addin_info, anchors, member_metadata, profile_catalog
+from ..lib import addin_info, anchors, member_metadata, profile_catalog, ui_layout
 
 
 COMMAND_ID = "EI_JHR_InspectStructuralMemberV1"
@@ -14,7 +14,7 @@ COMMAND_NAME = "Inspecter un profil acier V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = "Affiche les réglages enregistrés dans une barre créée par l'extension."
 SELECTION_ID = "memberOccurrence"
 REPORT_ID = "memberReport"
-PANEL_IDS = ("SolidCreatePanel", "SolidScriptsAddinsPanel")
+PANEL_IDS = (ui_layout.MODIFY_PANEL_ID,)
 
 _handlers = []
 _panel_id = None
@@ -272,7 +272,7 @@ def start():
     _handlers.append(created_handler)
 
     for panel_id in PANEL_IDS:
-        panel = ui.allToolbarPanels.itemById(panel_id)
+        panel = ui_layout.panel(ui, panel_id)
         if panel:
             control = panel.controls.itemById(COMMAND_ID)
             if not control:
@@ -289,7 +289,7 @@ def stop():
     global _panel_id
     _, ui = _app_and_ui()
     for panel_id in PANEL_IDS:
-        panel = ui.allToolbarPanels.itemById(panel_id)
+        panel = ui_layout.panel(ui, panel_id)
         if panel:
             control = panel.controls.itemById(COMMAND_ID)
             if control:

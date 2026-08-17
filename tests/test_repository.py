@@ -73,6 +73,34 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("CustomGraphicsCoordinates.create", preview_source)
         self.assertIn("CUT_PREVIEW_ORANGE", preview_source)
 
+    def test_all_commands_use_the_dedicated_structural_tab(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
+            encoding="utf-8"
+        )
+        layout_source = (ADDIN / "lib" / "ui_layout.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('TAB_NAME = "STRUCTURE JHR"', layout_source)
+        self.assertIn('CREATE_PANEL_NAME = "CRÉER"', layout_source)
+        self.assertIn('MODIFY_PANEL_NAME = "MODIFIER"', layout_source)
+        self.assertIn("workspace.toolbarTabs.add", layout_source)
+        self.assertIn("tab.toolbarPanels.add", layout_source)
+        self.assertIn("ui_layout.start(ui)", entry_source)
+        self.assertIn("ui_layout.stop(ui)", entry_source)
+
+        expected_panels = {
+            "create_members.py": "ui_layout.CREATE_PANEL_ID",
+            "manage_custom_profiles.py": "ui_layout.CREATE_PANEL_ID",
+            "create_joint.py": "ui_layout.MODIFY_PANEL_ID",
+            "inspect_member.py": "ui_layout.MODIFY_PANEL_ID",
+        }
+        for filename, panel_id in expected_panels.items():
+            source = (ADDIN / "commands" / filename).read_text(encoding="utf-8")
+            self.assertIn("PANEL_IDS = ({},)".format(panel_id), source)
+            self.assertNotIn("SolidCreatePanel", source)
+            self.assertNotIn("SolidModifyPanel", source)
+            self.assertNotIn("SolidScriptsAddinsPanel", source)
+
     def test_github_installation_guide_covers_profiles_and_updates(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         guide = (ROOT / "docs" / "INSTALLATION_FUSION.md").read_text(

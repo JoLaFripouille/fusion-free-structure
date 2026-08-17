@@ -15,7 +15,7 @@ Ce guide concerne Windows et l'installation du complément publié sur GitHub. A
 
 5. Sélectionner `JHR_StructuralMembers_V1` dans la liste et cliquer sur **Exécuter**.
 6. Facultatif : activer **Exécuter au démarrage** pour charger automatiquement le complément lors des prochaines ouvertures de Fusion.
-7. Dans l'espace **Conception > Solide**, vérifier que le bouton principal affiche la version courante, par exemple `Profil acier V1.12.0`.
+7. Dans l'espace **Conception**, ouvrir l'onglet **STRUCTURE JHR** et vérifier que le bouton principal affiche la version courante, par exemple `Profil acier V1.13.0`.
 
 Il faut conserver le dossier `profiles` à la racine du dépôt. Le complément le recherche par un chemin relatif et doit trouver les 341 profils normalisés.
 

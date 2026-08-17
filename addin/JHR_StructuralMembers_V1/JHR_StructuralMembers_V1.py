@@ -4,7 +4,7 @@ import adsk.core
 import adsk.fusion
 
 from .commands import create_joint, create_members, inspect_member, manage_custom_profiles
-from .lib import addin_info, structural_materials
+from .lib import addin_info, structural_materials, ui_layout
 
 
 def run(context):
@@ -26,6 +26,7 @@ def run(context):
                     len(result.created_names),
                 )
             )
+        ui_layout.start(ui)
         create_members.start()
         create_joint.start()
         inspect_member.start()
@@ -47,6 +48,7 @@ def stop(context):
         inspect_member.stop()
         create_joint.stop()
         create_members.stop()
+        ui_layout.stop(ui)
     except Exception:
         if ui:
             ui.messageBox(

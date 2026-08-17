@@ -266,6 +266,16 @@ Utiliser d'abord deux lignes perpendiculaires dans une même esquisse : une prin
 
 Cette première validation ne porte pas encore sur les coupes d'onglet, grugeages, platines, boulons ni sur deux jonctions aux deux extrémités de la même barre.
 
+## Test 18 — Onglet STRUCTURE JHR
+
+1. Arrêter le complément et vérifier que l'ancien onglet `STRUCTURE JHR`, s'il existe, disparaît.
+2. Exécuter le complément V1.13.0 et vérifier qu'un seul onglet `STRUCTURE JHR` apparaît dans l'espace Conception.
+3. Ouvrir cet onglet et vérifier le groupe `CRÉER` avec `Profil acier V1.13.0` et `Gérer les profils personnalisés V1.13.0`.
+4. Vérifier le groupe `MODIFIER` avec `Jonction droite V1.13.0` et `Inspecter un profil acier V1.13.0`.
+5. Vérifier que ces quatre commandes ne sont plus ajoutées au bas des menus généraux `Créer` ou `Modifier`.
+6. Ouvrir puis annuler chaque commande afin de confirmer que le déplacement des boutons n'a changé aucun dialogue.
+7. Arrêter puis exécuter une seconde fois le complément et vérifier qu'aucun onglet ni bouton en double n'apparaît.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
