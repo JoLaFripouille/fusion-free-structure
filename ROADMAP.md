@@ -50,7 +50,8 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] accepter une barre secondaire cintrée en coupant normalement à sa tangente d'extrémité.
 - [ ] permettre la suppression contrôlée d'une jonction depuis une commande dédiée.
 - [ ] prendre en charge une seconde jonction sur l'autre extrémité d'une même barre.
-- [ ] ajouter un mode de coupe d'onglet qui coupe explicitement les deux barres suivant un plan commun.
+- [x] ajouter un premier mode de coupe d'onglet qui coupe explicitement deux barres droites suivant un plan commun.
+- [ ] étendre la coupe d'onglet aux cas cintrés après validation du mode droit.
 - [ ] ajouter séparément les grugeages, platines, boulons et assemblages composés.
 
 ## Qualité

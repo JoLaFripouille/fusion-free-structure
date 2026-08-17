@@ -291,6 +291,22 @@ Cette première validation ne porte pas encore sur les coupes d'onglet, grugeage
 
 Ne pas encore tester une barre principale cintrée ni un onglet : ces deux cas restent volontairement séparés de cette validation.
 
+## Test 20 — Coupe d'onglet entre deux barres droites
+
+1. Utiliser le dessin du problème signalé avec deux tubes rectangulaires obliques dont les lignes de squelette partagent exactement une extrémité.
+2. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.15.0` dans `STRUCTURE JHR > MODIFIER`.
+3. Ouvrir la commande et choisir `Coupe d'onglet symétrique` ; vérifier que le champ `Jeu` disparaît.
+4. Sélectionner les deux tubes dans n'importe quel ordre.
+5. Vérifier que le rapport indique que les deux barres seront coupées, que le plan orange partage leur angle et que le bouton `OK` devient actif.
+6. Valider puis contrôler que les deux corps se terminent sans chevauchement sur le même plan.
+7. Dans chaque composant, vérifier la présence des plans d'axe, de l'axe d'intersection, du plan d'onglet, de la séparation et du retrait.
+8. Modifier légèrement le point commun des deux lignes et vérifier que les deux coupes suivent le nouvel angle.
+9. Annuler dans l'historique, inverser l'ordre de sélection et vérifier le même résultat.
+10. Tester ensuite un angle aigu, un angle obtus, puis deux lignes dessinées en sens inverse.
+11. Vérifier qu'une barre cintrée, deux extrémités distantes de plus de `1 mm` ou deux barres presque alignées sont refusées avant activation de `OK`.
+
+Pour ce premier test, ne pas ajouter de jeu et ne pas réutiliser une barre qui possède déjà une jonction.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;

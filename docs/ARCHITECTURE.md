@@ -2,7 +2,7 @@
 
 ## Interface Fusion dédiée
 
-Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit la jonction droite et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
+Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
 
 L'onglet et les panneaux utilisent des identifiants stables et sont réutilisés s'ils existent déjà. À l'arrêt, les commandes retirent d'abord leurs boutons et leurs définitions, puis l'extension supprime ses panneaux et son onglet. Aucun panneau natif de Fusion n'est supprimé.
 
@@ -114,4 +114,12 @@ Pour une ligne, la direction d'approche est son axe. Pour un arc, elle est obten
 
 Le corps secondaire est séparé par ce plan étendu. Le morceau situé du côté de la barre principale est identifié par sa projection puis retiré avec une fonction Fusion `Retirer`, au lieu d'être simplement masqué. Les plans sont masqués mais restent dans l'historique. Le groupe d'attributs `EI_JHR_StructuralJoint` conserve le type, la barre principale, sa ligne source, le jeu et la version.
 
-Avant validation, seul un carré graphique orange représente le plan de coupe. Il ne crée aucune entité CAO. Une barre principale cintrée, les angles obliques, les jonctions multiples sur une secondaire et les assemblages avec platines ou boulons restent exclus. Les angles obliques seront traités par le futur mode de coupe d'onglet.
+Avant validation, seul un carré graphique orange représente le plan de coupe. Il ne crée aucune entité CAO. Une barre principale cintrée, les jonctions multiples sur une secondaire et les assemblages avec platines ou boulons restent exclus du mode droit.
+
+## Première coupe d'onglet
+
+Le second choix de la même commande accepte deux barres créées sur des lignes droites dont deux extrémités coïncident à `1 mm` près. Les directions sont toujours orientées depuis l'intérieur de chaque barre vers le raccord : le calcul ne dépend donc pas du sens dans lequel les lignes ont été dessinées. La normale du plan commun est la différence normalisée de ces deux directions, ce qui place les intérieurs des deux barres de part et d'autre du plan.
+
+Dans chacun des deux composants, Fusion crée un plan normal à l'extrémité de chaque ligne avec `setByDistanceOnPath`, puis un axe paramétrique à leur intersection avec `ConstructionAxisInput.setByTwoPlanes`. Le plan d'onglet est créé autour de cet axe avec `ConstructionPlaneInput.setByAngle` et son orientation mondiale est contrôlée avant toute coupe. Chaque corps est ensuite séparé sur son plan local et le petit excédent côté raccord est retiré. Les deux composants conservent des attributs réciproques `EI_JHR_StructuralJoint`.
+
+L'aperçu orange montre le plan bissecteur avant exécution et le rapport avertit que les deux corps seront modifiés. Le premier périmètre exclut les arcs, le jeu d'onglet, les lignes sans extrémité commune et les barres possédant déjà une jonction.

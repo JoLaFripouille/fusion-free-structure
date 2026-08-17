@@ -81,6 +81,58 @@ class JointGeometryTests(unittest.TestCase):
         )
         self.assertAlmostEqual(cut[1], -3.2)
 
+    def test_miter_uses_the_common_angle_bisector(self):
+        result = joint_geometry.analyze_miter_joint(
+            (-10.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (0.0, -10.0, 0.0),
+            (0.0, 0.0, 0.0),
+        )
+        expected = 1.0 / math.sqrt(2.0)
+        self.assertEqual(result.primary_joint_endpoint_index, 1)
+        self.assertEqual(result.secondary_joint_endpoint_index, 1)
+        self.assertAlmostEqual(result.angle_degrees, 90.0)
+        self.assertAlmostEqual(result.plane_normal[0], expected)
+        self.assertAlmostEqual(result.plane_normal[1], -expected)
+        primary_inner_side = joint_geometry.dot(
+            joint_geometry.subtract(result.primary_inner_endpoint, result.joint_point),
+            result.plane_normal,
+        )
+        secondary_inner_side = joint_geometry.dot(
+            joint_geometry.subtract(result.secondary_inner_endpoint, result.joint_point),
+            result.plane_normal,
+        )
+        self.assertLess(primary_inner_side, 0.0)
+        self.assertGreater(secondary_inner_side, 0.0)
+
+    def test_miter_is_independent_of_line_endpoint_order(self):
+        result = joint_geometry.analyze_miter_joint(
+            (0.0, 0.0, 0.0),
+            (-10.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (4.0, 8.0, 0.0),
+        )
+        self.assertEqual(result.primary_joint_endpoint_index, 0)
+        self.assertEqual(result.secondary_joint_endpoint_index, 0)
+        self.assertAlmostEqual(result.endpoint_distance_cm, 0.0)
+        self.assertGreater(result.angle_degrees, 5.0)
+
+    def test_miter_rejects_disconnected_and_aligned_members(self):
+        with self.assertRaisesRegex(ValueError, "extrémités"):
+            joint_geometry.analyze_miter_joint(
+                (-10.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+                (1.0, 0.0, 0.0),
+                (1.0, 10.0, 0.0),
+            )
+        with self.assertRaisesRegex(ValueError, "alignées"):
+            joint_geometry.analyze_miter_joint(
+                (-10.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+                (10.0, 0.0, 0.0),
+            )
+
     def test_plane_square_is_perpendicular_and_centered(self):
         center = (2.0, 3.0, 4.0)
         normal = joint_geometry.normalize((1.0, 2.0, 3.0))

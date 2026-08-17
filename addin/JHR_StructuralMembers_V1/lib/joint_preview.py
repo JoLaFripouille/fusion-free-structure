@@ -28,7 +28,7 @@ class JointPreviewManager:
         self.clear()
         points = joint_geometry.plane_square(
             evaluation.cut_point,
-            evaluation.geometry.approach_direction,
+            evaluation.preview_normal,
             evaluation.preview_half_size_cm,
         )
         coordinates = [value for point in points for value in point]

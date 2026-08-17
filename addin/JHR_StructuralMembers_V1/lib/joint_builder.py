@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import adsk.core
@@ -9,12 +10,19 @@ from . import addin_info, joint_geometry, member_metadata
 
 
 JOINT_ATTRIBUTE_GROUP = "EI_JHR_StructuralJoint"
-JOINT_TYPE = "straight_trim"
+STRAIGHT_JOINT_TYPE = "straight_trim"
+MITER_JOINT_TYPE = "miter_trim"
 TANGENT_PLANE_NAME = "PLAN_JONCTION_TANGENTE"
 REFERENCE_PLANE_NAME = "PLAN_JONCTION_APPUI"
 CUT_PLANE_NAME = "PLAN_JONCTION_JEU"
 SPLIT_FEATURE_NAME = "COUPE_JONCTION_DROITE"
 REMOVE_FEATURE_NAME = "RETRAIT_EXCEDENT_JONCTION"
+MITER_PRIMARY_PATH_PLANE_NAME = "PLAN_ONGLET_AXE_PRIMAIRE"
+MITER_SECONDARY_PATH_PLANE_NAME = "PLAN_ONGLET_AXE_SECONDAIRE"
+MITER_AXIS_NAME = "AXE_INTERSECTION_ONGLET"
+MITER_PLANE_NAME = "PLAN_COUPE_ONGLET"
+MITER_SPLIT_FEATURE_NAME = "COUPE_ONGLET"
+MITER_REMOVE_FEATURE_NAME = "RETRAIT_EXCEDENT_ONGLET"
 MINIMUM_REMAINING_LENGTH_CM = 0.1
 
 
@@ -35,6 +43,29 @@ class JointEvaluation:
     removed_length_cm: float
     remaining_length_cm: float
     preview_half_size_cm: float
+
+    @property
+    def preview_normal(self):
+        return self.geometry.approach_direction
+
+
+@dataclass(frozen=True)
+class MiterEvaluation:
+    primary_occurrence: object
+    secondary_occurrence: object
+    primary_metadata: member_metadata.MemberMetadata
+    secondary_metadata: member_metadata.MemberMetadata
+    primary_body: object
+    secondary_body: object
+    primary_curve: object
+    secondary_curve: object
+    geometry: joint_geometry.MiterJointGeometry
+    cut_point: tuple
+    preview_half_size_cm: float
+
+    @property
+    def preview_normal(self):
+        return self.geometry.plane_normal
 
 
 def _point_tuple(point):
@@ -301,6 +332,55 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
     )
 
 
+def evaluate_miter_joint(design, primary_occurrence, secondary_occurrence):
+    if primary_occurrence == secondary_occurrence:
+        raise ValueError("Les deux barres de l'onglet doivent être différentes.")
+
+    primary_metadata = _member_metadata(primary_occurrence, "principale")
+    secondary_metadata = _member_metadata(secondary_occurrence, "secondaire")
+    if _existing_joint(primary_occurrence) or _existing_joint(secondary_occurrence):
+        raise ValueError(
+            "Une des deux barres possède déjà une jonction créée par cette version."
+        )
+
+    primary_curve = _linked_curve(
+        design,
+        primary_metadata,
+        "principale",
+        allow_arc=False,
+    )
+    secondary_curve = _linked_curve(
+        design,
+        secondary_metadata,
+        "secondaire",
+        allow_arc=False,
+    )
+    primary_start, primary_end = _line_endpoints(primary_curve)
+    secondary_start, secondary_end = _line_endpoints(secondary_curve)
+    geometry = joint_geometry.analyze_miter_joint(
+        primary_start,
+        primary_end,
+        secondary_start,
+        secondary_end,
+    )
+
+    primary_body = _single_body(primary_occurrence, "principale")
+    secondary_body = _single_body(secondary_occurrence, "secondaire")
+    return MiterEvaluation(
+        primary_occurrence=primary_occurrence,
+        secondary_occurrence=secondary_occurrence,
+        primary_metadata=primary_metadata,
+        secondary_metadata=secondary_metadata,
+        primary_body=primary_body,
+        secondary_body=secondary_body,
+        primary_curve=primary_curve,
+        secondary_curve=secondary_curve,
+        geometry=geometry,
+        cut_point=geometry.joint_point,
+        preview_half_size_cm=50.0,
+    )
+
+
 def _world_plane_system(plane, occurrence):
     proxy = plane.createForAssemblyContext(occurrence) or plane
     origin, _, _, normal = proxy.transform.getAsCoordinateSystem()
@@ -379,19 +459,27 @@ def _projection_center_for_body(body, occurrence, direction):
     return joint_geometry.body_projection_center(_vertex_points(proxy), direction)
 
 
-def _add_attributes(evaluation):
+def _add_straight_attributes(evaluation):
     component = evaluation.secondary_occurrence.component
     attributes = component.attributes
     values = {
-        "joint_type": JOINT_TYPE,
+        "joint_type": STRAIGHT_JOINT_TYPE,
         "primary_component": evaluation.primary_occurrence.component.name,
         "primary_occurrence_token": evaluation.primary_occurrence.entityToken,
         "primary_source_curve_token": evaluation.primary_metadata.source_curve_token,
         "gap_mm": "{:.9f}".format(evaluation.gap_cm * 10.0).rstrip("0").rstrip("."),
         "extension_version": addin_info.VERSION,
     }
-    for key, value in values.items():
-        attributes.add(JOINT_ATTRIBUTE_GROUP, key, str(value))
+    created = []
+    try:
+        for key, value in values.items():
+            created.append(attributes.add(JOINT_ATTRIBUTE_GROUP, key, str(value)))
+        return created
+    except Exception:
+        for attribute in reversed(created):
+            if attribute and attribute.isValid:
+                attribute.deleteMe()
+        raise
 
 
 def create_straight_joint(evaluation):
@@ -440,9 +528,273 @@ def create_straight_joint(evaluation):
         remove_feature.name = REMOVE_FEATURE_NAME
         created_entities.append(remove_feature)
 
-        _add_attributes(evaluation)
+        _add_straight_attributes(evaluation)
         return remove_feature
     except Exception:
+        for entity in reversed(created_entities):
+            if entity and entity.isValid:
+                entity.deleteMe()
+        raise
+
+
+def _add_path_endpoint_plane(component, occurrence, curve, endpoint_index, name):
+    plane_input = component.constructionPlanes.createInput(occurrence)
+    fraction = adsk.core.ValueInput.createByReal(float(endpoint_index))
+    if not plane_input.setByDistanceOnPath(curve, fraction):
+        raise RuntimeError(
+            "Fusion n'a pas pu créer un plan normal à l'extrémité d'un axe d'onglet."
+        )
+    plane = component.constructionPlanes.add(plane_input)
+    if not plane:
+        raise RuntimeError("Fusion n'a pas pu créer un plan d'axe pour l'onglet.")
+    plane.name = name
+    plane.isLightBulbOn = False
+    return plane
+
+
+def _add_miter_axis(component, occurrence, primary_plane, secondary_plane):
+    axis_input = component.constructionAxes.createInput(occurrence)
+    if not axis_input.setByTwoPlanes(primary_plane, secondary_plane):
+        raise RuntimeError(
+            "Fusion n'a pas pu définir l'axe d'intersection des deux plans d'onglet."
+        )
+    axis = component.constructionAxes.add(axis_input)
+    if not axis:
+        raise RuntimeError("Fusion n'a pas pu créer l'axe du plan d'onglet.")
+    axis.name = MITER_AXIS_NAME
+    axis.isLightBulbOn = False
+    return axis
+
+
+def _world_axis_direction(axis, occurrence):
+    proxy = axis.createForAssemblyContext(occurrence) or axis
+    return _vector_tuple(proxy.geometry.direction)
+
+
+def _signed_miter_angle(reference_normal, target_normal, axis_direction):
+    reference = joint_geometry.normalize(reference_normal)
+    axis = joint_geometry.normalize(axis_direction)
+    targets = (
+        joint_geometry.normalize(target_normal),
+        joint_geometry.scale(joint_geometry.normalize(target_normal), -1.0),
+    )
+    candidates = []
+    for target in targets:
+        candidates.append(
+            math.atan2(
+                joint_geometry.dot(axis, joint_geometry.cross(reference, target)),
+                joint_geometry.dot(reference, target),
+            )
+        )
+    return min(candidates, key=abs)
+
+
+def _create_angle_plane(component, occurrence, axis, reference_plane, angle):
+    plane_input = component.constructionPlanes.createInput(occurrence)
+    if not plane_input.setByAngle(
+        axis,
+        adsk.core.ValueInput.createByReal(float(angle)),
+        reference_plane,
+    ):
+        raise RuntimeError("Fusion n'a pas pu définir l'angle du plan d'onglet.")
+    plane = component.constructionPlanes.add(plane_input)
+    if not plane:
+        raise RuntimeError("Fusion n'a pas pu créer le plan de coupe d'onglet.")
+    plane.name = MITER_PLANE_NAME
+    plane.isLightBulbOn = False
+    return plane
+
+
+def _add_miter_tool_plane(evaluation, occurrence, created_entities):
+    component = occurrence.component
+    primary_plane = _add_path_endpoint_plane(
+        component,
+        occurrence,
+        evaluation.primary_curve,
+        evaluation.geometry.primary_joint_endpoint_index,
+        MITER_PRIMARY_PATH_PLANE_NAME,
+    )
+    created_entities.append(primary_plane)
+    secondary_plane = _add_path_endpoint_plane(
+        component,
+        occurrence,
+        evaluation.secondary_curve,
+        evaluation.geometry.secondary_joint_endpoint_index,
+        MITER_SECONDARY_PATH_PLANE_NAME,
+    )
+    created_entities.append(secondary_plane)
+    axis = _add_miter_axis(
+        component,
+        occurrence,
+        primary_plane,
+        secondary_plane,
+    )
+    created_entities.append(axis)
+
+    _, reference_normal = _world_plane_system(primary_plane, occurrence)
+    axis_direction = _world_axis_direction(axis, occurrence)
+    angle = _signed_miter_angle(
+        reference_normal,
+        evaluation.geometry.plane_normal,
+        axis_direction,
+    )
+    plane = _create_angle_plane(
+        component,
+        occurrence,
+        axis,
+        primary_plane,
+        angle,
+    )
+    _, actual_normal = _world_plane_system(plane, occurrence)
+    alignment = abs(
+        joint_geometry.dot(
+            joint_geometry.normalize(actual_normal),
+            evaluation.geometry.plane_normal,
+        )
+    )
+    if alignment < 0.9999:
+        plane.deleteMe()
+        plane = _create_angle_plane(
+            component,
+            occurrence,
+            axis,
+            primary_plane,
+            -angle,
+        )
+        _, actual_normal = _world_plane_system(plane, occurrence)
+        alignment = abs(
+            joint_geometry.dot(
+                joint_geometry.normalize(actual_normal),
+                evaluation.geometry.plane_normal,
+            )
+        )
+    if alignment < 0.9999:
+        plane.deleteMe()
+        raise RuntimeError(
+            "Fusion a créé le plan d'onglet dans une orientation inattendue."
+        )
+    created_entities.append(plane)
+    return plane
+
+
+def _split_and_remove_miter_excess(
+    body,
+    occurrence,
+    cut_plane,
+    approach_direction,
+    created_entities,
+):
+    component = occurrence.component
+    split_features = component.features.splitBodyFeatures
+    split_input = split_features.createInput(body, cut_plane, True)
+    if not split_input:
+        raise RuntimeError("Fusion n'a pas pu préparer une coupe d'onglet.")
+    split_feature = split_features.add(split_input)
+    if not split_feature:
+        raise RuntimeError("Fusion n'a pas pu couper une des deux barres en onglet.")
+    split_feature.name = MITER_SPLIT_FEATURE_NAME
+    created_entities.append(split_feature)
+
+    bodies = [component.bRepBodies.item(index) for index in range(component.bRepBodies.count)]
+    if len(bodies) != 2:
+        raise RuntimeError(
+            "La coupe d'onglet devait produire deux morceaux, mais Fusion en retourne {}."
+            .format(len(bodies))
+        )
+    excess_body = max(
+        bodies,
+        key=lambda candidate: _projection_center_for_body(
+            candidate,
+            occurrence,
+            approach_direction,
+        ),
+    )
+    remove_feature = component.features.removeFeatures.add(excess_body)
+    if not remove_feature:
+        raise RuntimeError("Fusion n'a pas pu retirer l'excédent de l'onglet.")
+    remove_feature.name = MITER_REMOVE_FEATURE_NAME
+    created_entities.append(remove_feature)
+    return remove_feature
+
+
+def _add_miter_attributes(evaluation):
+    created = []
+    members = (
+        (
+            evaluation.primary_occurrence,
+            evaluation.secondary_occurrence,
+            evaluation.secondary_metadata,
+            "principale",
+        ),
+        (
+            evaluation.secondary_occurrence,
+            evaluation.primary_occurrence,
+            evaluation.primary_metadata,
+            "secondaire",
+        ),
+    )
+    try:
+        for occurrence, peer_occurrence, peer_metadata, role in members:
+            values = {
+                "joint_type": MITER_JOINT_TYPE,
+                "joint_role": role,
+                "peer_component": peer_occurrence.component.name,
+                "peer_occurrence_token": peer_occurrence.entityToken,
+                "peer_source_curve_token": peer_metadata.source_curve_token,
+                "angle_deg": "{:.9f}".format(evaluation.geometry.angle_degrees).rstrip("0").rstrip("."),
+                "extension_version": addin_info.VERSION,
+            }
+            for key, value in values.items():
+                created.append(
+                    occurrence.component.attributes.add(
+                        JOINT_ATTRIBUTE_GROUP,
+                        key,
+                        str(value),
+                    )
+                )
+        return created
+    except Exception:
+        for attribute in reversed(created):
+            if attribute and attribute.isValid:
+                attribute.deleteMe()
+        raise
+
+
+def create_miter_joint(evaluation):
+    """Coupe les deux barres droites suivant un même plan bissecteur paramétrique."""
+    created_entities = []
+    created_attributes = []
+    try:
+        primary_plane = _add_miter_tool_plane(
+            evaluation,
+            evaluation.primary_occurrence,
+            created_entities,
+        )
+        primary_remove = _split_and_remove_miter_excess(
+            evaluation.primary_body,
+            evaluation.primary_occurrence,
+            primary_plane,
+            evaluation.geometry.primary_approach_direction,
+            created_entities,
+        )
+        secondary_plane = _add_miter_tool_plane(
+            evaluation,
+            evaluation.secondary_occurrence,
+            created_entities,
+        )
+        secondary_remove = _split_and_remove_miter_excess(
+            evaluation.secondary_body,
+            evaluation.secondary_occurrence,
+            secondary_plane,
+            evaluation.geometry.secondary_approach_direction,
+            created_entities,
+        )
+        created_attributes.extend(_add_miter_attributes(evaluation))
+        return primary_remove, secondary_remove
+    except Exception:
+        for attribute in reversed(created_attributes):
+            if attribute and attribute.isValid:
+                attribute.deleteMe()
         for entity in reversed(created_entities):
             if entity and entity.isValid:
                 entity.deleteMe()

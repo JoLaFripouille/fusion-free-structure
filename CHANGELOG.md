@@ -4,6 +4,35 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.15.0] - En validation
+
+### Ajouté
+
+- menu `Type de jonction` dans la commande renommée `Jonctions acier` ;
+- mode `Coupe d'onglet symétrique` pour deux barres droites jointes par leurs extrémités ;
+- calcul du plan bissecteur commun indépendamment du sens de dessin des deux lignes ;
+- création paramétrique, dans chaque composant, de deux plans normaux aux chemins, de leur axe d'intersection et du plan d'onglet angulaire ;
+- séparation puis retrait de l'excédent sur les deux corps ;
+- aperçu orange et rapport explicite avant de modifier les deux barres ;
+- traçabilité réciproque de l'onglet sur les deux composants.
+
+### Conservé
+
+- le mode `Coupe droite sur la principale` reste sélectionné par défaut et conserve le jeu réglable ;
+- la coupe droite sur une secondaire cintrée reste disponible sans modification de son fonctionnement.
+
+### Limité pour ce premier essai
+
+- l'onglet accepte uniquement deux barres droites dont les extrémités se rejoignent à `1 mm` près ;
+- aucun jeu d'onglet, aucune barre cintrée et aucune jonction déjà existante ne sont acceptés dans ce mode ;
+- si la seconde coupe échoue, les fonctions déjà créées sur la première barre sont supprimées avant d'afficher l'erreur.
+
+### À valider dans Fusion
+
+- les deux tubes rectangulaires obliques du cas signalé : aperçu orange, bouton `OK` actif puis coupe des deux corps sur un même plan ;
+- angles aigus et obtus, ordre de sélection inversé et lignes dessinées en sens inverse ;
+- mise à jour des deux onglets après déplacement raisonnable du point commun du squelette.
+
 ## [1.14.0] - En validation
 
 ### Ajouté

@@ -69,6 +69,81 @@ class StraightJointGeometry:
     angle_degrees: float
 
 
+@dataclass(frozen=True)
+class MiterJointGeometry:
+    joint_point: tuple
+    primary_joint_endpoint: tuple
+    primary_inner_endpoint: tuple
+    primary_joint_endpoint_index: int
+    primary_approach_direction: tuple
+    secondary_joint_endpoint: tuple
+    secondary_inner_endpoint: tuple
+    secondary_joint_endpoint_index: int
+    secondary_approach_direction: tuple
+    endpoint_distance_cm: float
+    angle_degrees: float
+    plane_normal: tuple
+
+
+def analyze_miter_joint(
+    primary_start,
+    primary_end,
+    secondary_start,
+    secondary_end,
+    endpoint_tolerance_cm=JOINT_ENDPOINT_TOLERANCE_CM,
+):
+    """Valide deux lignes jointes par leurs extrémités et calcule leur plan bissecteur."""
+    primary_endpoints = (primary_start, primary_end)
+    secondary_endpoints = (secondary_start, secondary_end)
+    candidates = []
+    for primary_index, primary_endpoint in enumerate(primary_endpoints):
+        for secondary_index, secondary_endpoint in enumerate(secondary_endpoints):
+            candidates.append(
+                (
+                    length(subtract(primary_endpoint, secondary_endpoint)),
+                    primary_index,
+                    secondary_index,
+                )
+            )
+    distance_cm, primary_index, secondary_index = min(candidates)
+    if distance_cm > endpoint_tolerance_cm:
+        raise ValueError(
+            "Les deux barres doivent se rejoindre par leurs extrémités pour une coupe d'onglet."
+        )
+
+    primary_joint = primary_endpoints[primary_index]
+    secondary_joint = secondary_endpoints[secondary_index]
+    primary_inner = primary_endpoints[1 - primary_index]
+    secondary_inner = secondary_endpoints[1 - secondary_index]
+    primary_approach = normalize(subtract(primary_joint, primary_inner))
+    secondary_approach = normalize(subtract(secondary_joint, secondary_inner))
+    cosine = min(1.0, max(-1.0, dot(primary_approach, secondary_approach)))
+    angle_degrees = math.degrees(math.acos(cosine))
+    if min(angle_degrees, 180.0 - angle_degrees) < MINIMUM_JOIN_ANGLE_DEGREES:
+        raise ValueError(
+            "Les deux barres sont presque alignées ; aucun onglet fiable ne peut être créé."
+        )
+
+    # Les deux directions sont orientées depuis l'intérieur de chaque barre vers le raccord.
+    # Leur différence est normale au plan qui laisse chaque barre d'un côté opposé.
+    plane_normal = normalize(subtract(primary_approach, secondary_approach))
+    joint_point = scale(add(primary_joint, secondary_joint), 0.5)
+    return MiterJointGeometry(
+        joint_point=joint_point,
+        primary_joint_endpoint=primary_joint,
+        primary_inner_endpoint=primary_inner,
+        primary_joint_endpoint_index=primary_index,
+        primary_approach_direction=primary_approach,
+        secondary_joint_endpoint=secondary_joint,
+        secondary_inner_endpoint=secondary_inner,
+        secondary_joint_endpoint_index=secondary_index,
+        secondary_approach_direction=secondary_approach,
+        endpoint_distance_cm=distance_cm,
+        angle_degrees=angle_degrees,
+        plane_normal=plane_normal,
+    )
+
+
 def analyze_straight_joint(
     main_start,
     main_end,

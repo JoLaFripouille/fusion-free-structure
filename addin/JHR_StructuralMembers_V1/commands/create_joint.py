@@ -11,15 +11,18 @@ from ..lib.joint_preview import JointPreviewManager
 
 
 COMMAND_ID = "EI_JHR_CreateStraightJointV1"
-COMMAND_NAME = "Jonction droite V{}".format(addin_info.VERSION)
+COMMAND_NAME = "Jonctions acier V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Coupe une barre secondaire droite ou cintrée à l'enveloppe d'une barre principale droite."
+    "Crée une coupe droite ou une coupe d'onglet entre deux barres acier."
 )
+JOINT_TYPE_INPUT_ID = "jointType"
 PRIMARY_SELECTION_ID = "primaryMember"
 SECONDARY_SELECTION_ID = "secondaryMember"
 GAP_INPUT_ID = "jointGap"
 REPORT_ID = "jointReport"
 PANEL_IDS = (ui_layout.MODIFY_PANEL_ID,)
+STRAIGHT_MODE = "Coupe droite sur la principale"
+MITER_MODE = "Coupe d'onglet symétrique"
 
 
 _handlers = []
@@ -50,6 +53,14 @@ def _selected_occurrence(inputs, input_id, role):
     return occurrence
 
 
+def _selected_mode(inputs):
+    mode_input = inputs.itemById(JOINT_TYPE_INPUT_ID)
+    selected = mode_input.selectedItem if mode_input else None
+    if not selected or selected.name not in (STRAIGHT_MODE, MITER_MODE):
+        raise ValueError("Choisir le type de jonction.")
+    return selected.name
+
+
 def _evaluate(inputs):
     app, _ = _app_and_ui()
     design = adsk.fusion.Design.cast(app.activeProduct)
@@ -59,6 +70,13 @@ def _evaluate(inputs):
         raise ValueError("La jonction nécessite l'historique de conception paramétrique activé.")
     primary = _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale")
     secondary = _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire")
+    mode = _selected_mode(inputs)
+    if mode == MITER_MODE:
+        return design, joint_builder.evaluate_miter_joint(
+            design,
+            primary,
+            secondary,
+        ), mode
     gap_input = inputs.itemById(GAP_INPUT_ID)
     if not gap_input or not gap_input.isValidExpression:
         raise ValueError("Le jeu de jonction n'est pas une distance valide.")
@@ -67,10 +85,10 @@ def _evaluate(inputs):
         primary,
         secondary,
         gap_input.value,
-    )
+    ), mode
 
 
-def _success_report(evaluation):
+def _straight_success_report(evaluation):
     rows = (
         ("Barre principale", evaluation.primary_occurrence.component.name),
         ("Profil principal", evaluation.primary_metadata.profile),
@@ -93,10 +111,35 @@ def _success_report(evaluation):
     return "".join(content)
 
 
+def _miter_success_report(evaluation):
+    rows = (
+        ("Première barre", evaluation.primary_occurrence.component.name),
+        ("Premier profil", evaluation.primary_metadata.profile),
+        ("Seconde barre", evaluation.secondary_occurrence.component.name),
+        ("Second profil", evaluation.secondary_metadata.profile),
+        ("Angle entre axes", "{:.1f}°".format(evaluation.geometry.angle_degrees)),
+        (
+            "Écart entre extrémités",
+            "{:.3f} mm".format(evaluation.geometry.endpoint_distance_cm * 10.0),
+        ),
+    )
+    content = [
+        "<b>Prêt — le plan orange montre l'onglet commun.</b><br>",
+        "Les deux barres seront coupées sur ce même plan.<br><br>",
+    ]
+    for label, value in rows:
+        content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
+    return "".join(content)
+
+
 def _refresh(inputs, report_input, preview_manager):
     try:
-        design, evaluation = _evaluate(inputs)
-        report_input.formattedText = _success_report(evaluation)
+        design, evaluation, mode = _evaluate(inputs)
+        report_input.formattedText = (
+            _miter_success_report(evaluation)
+            if mode == MITER_MODE
+            else _straight_success_report(evaluation)
+        )
         preview_manager.update(design.rootComponent, evaluation)
         return evaluation
     except Exception as error:
@@ -116,10 +159,18 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs = command.commandInputs
             preview_manager = JointPreviewManager()
 
+            joint_type = inputs.addDropDownCommandInput(
+                JOINT_TYPE_INPUT_ID,
+                "Type de jonction",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            joint_type.listItems.add(STRAIGHT_MODE, True, "")
+            joint_type.listItems.add(MITER_MODE, False, "")
+
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
                 "Barre principale",
-                "Sélectionner la barre qui doit rester intacte.",
+                "Sélectionner la barre principale, ou la première barre de l'onglet.",
             )
             primary.addSelectionFilter("Occurrences")
             primary.setSelectionLimits(0, 1)
@@ -127,7 +178,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             secondary = inputs.addSelectionInput(
                 SECONDARY_SELECTION_ID,
                 "Barre secondaire",
-                "Sélectionner la barre droite ou cintrée dont l'extrémité sera coupée.",
+                "Sélectionner la barre secondaire, ou la seconde barre de l'onglet.",
             )
             secondary.addSelectionFilter("Occurrences")
             secondary.setSelectionLimits(0, 1)
@@ -186,10 +237,18 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         event_args = adsk.core.InputChangedEventArgs.cast(args)
         changed = event_args.input
         if changed and changed.id in (
+            JOINT_TYPE_INPUT_ID,
             PRIMARY_SELECTION_ID,
             SECONDARY_SELECTION_ID,
             GAP_INPUT_ID,
         ):
+            if changed.id == JOINT_TYPE_INPUT_ID:
+                gap = event_args.inputs.itemById(GAP_INPUT_ID)
+                if gap:
+                    try:
+                        gap.isVisible = _selected_mode(event_args.inputs) == STRAIGHT_MODE
+                    except ValueError:
+                        gap.isVisible = True
             _refresh(event_args.inputs, self._report_input, self._preview_manager)
 
 
@@ -232,16 +291,27 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
         event_args = adsk.core.CommandEventArgs.cast(args)
         try:
             self._preview_manager.clear()
-            _, evaluation = _evaluate(event_args.command.commandInputs)
-            joint_builder.create_straight_joint(evaluation)
-            _log(
-                "Jonction droite créée : principale={}, secondaire={}, jeu={} mm"
-                .format(
-                    evaluation.primary_occurrence.component.name,
-                    evaluation.secondary_occurrence.component.name,
-                    evaluation.gap_cm * 10.0,
+            _, evaluation, mode = _evaluate(event_args.command.commandInputs)
+            if mode == MITER_MODE:
+                joint_builder.create_miter_joint(evaluation)
+                _log(
+                    "Coupe d'onglet créée : première={}, seconde={}, angle={}°"
+                    .format(
+                        evaluation.primary_occurrence.component.name,
+                        evaluation.secondary_occurrence.component.name,
+                        evaluation.geometry.angle_degrees,
+                    )
                 )
-            )
+            else:
+                joint_builder.create_straight_joint(evaluation)
+                _log(
+                    "Jonction droite créée : principale={}, secondaire={}, jeu={} mm"
+                    .format(
+                        evaluation.primary_occurrence.component.name,
+                        evaluation.secondary_occurrence.component.name,
+                        evaluation.gap_cm * 10.0,
+                    )
+                )
         except Exception as error:
             event_args.executeFailed = True
             _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
