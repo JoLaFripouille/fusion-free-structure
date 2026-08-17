@@ -505,6 +505,41 @@ def _update_path_usage_report(inputs):
         )
 
 
+def _refresh_preview(preview_manager, profiles, anchor_state, inputs):
+    """Dessine l'aperçu même lorsque le chemin occupé maintient OK désactivé."""
+    app, _ = _app_and_ui()
+    design = adsk.fusion.Design.cast(app.activeProduct)
+    if not design:
+        preview_manager.clear()
+        return
+    selection = inputs.itemById(SELECTION_ID)
+    curves = _supported_curves_from_selection(
+        selection,
+        design.rootComponent,
+        strict=False,
+    )
+    profile = _selected_profile(inputs, profiles)
+    rotation_radians = _selected_rotation_radians(inputs)
+    flip_x, flip_y = _selected_flip_state(inputs)
+    preview_manager.update(
+        design.rootComponent,
+        curves,
+        profile,
+        anchor_state.selected_code,
+        rotation_radians,
+        flip_x,
+        flip_y,
+    )
+
+
+def _refresh_preview_safely(preview_manager, profiles, anchor_state, inputs):
+    try:
+        _refresh_preview(preview_manager, profiles, anchor_state, inputs)
+    except Exception as error:
+        preview_manager.clear()
+        _log("APERÇU INDISPONIBLE: {}\n{}".format(error, traceback.format_exc()))
+
+
 class AnchorInputState:
     def __init__(self, buttons):
         self._buttons = buttons
@@ -705,10 +740,16 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
                 ROTATION_INPUT_ID,
                 FLIP_X_INPUT_ID,
                 FLIP_Y_INPUT_ID,
+                SELECTION_ID,
             )
             or anchor_changed
         ):
-            self._preview_manager.clear()
+            _refresh_preview_safely(
+                self._preview_manager,
+                self._profiles,
+                self._anchor_state,
+                event_args.inputs,
+            )
 
 
 def _supported_curves_from_selection(selection, root_component, strict):
@@ -748,29 +789,12 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
         event_args.isValidResult = False
-        try:
-            app, _ = _app_and_ui()
-            design = adsk.fusion.Design.cast(app.activeProduct)
-            if not design:
-                self._preview_manager.clear()
-                return
-            selection = event_args.command.commandInputs.itemById(SELECTION_ID)
-            curves = _supported_curves_from_selection(selection, design.rootComponent, strict=False)
-            profile = _selected_profile(event_args.command.commandInputs, self._profiles)
-            rotation_radians = _selected_rotation_radians(event_args.command.commandInputs)
-            flip_x, flip_y = _selected_flip_state(event_args.command.commandInputs)
-            self._preview_manager.update(
-                design.rootComponent,
-                curves,
-                profile,
-                self._anchor_state.selected_code,
-                rotation_radians,
-                flip_x,
-                flip_y,
-            )
-        except Exception as error:
-            self._preview_manager.clear()
-            _log("APERÇU INDISPONIBLE: {}\n{}".format(error, traceback.format_exc()))
+        _refresh_preview_safely(
+            self._preview_manager,
+            self._profiles,
+            self._anchor_state,
+            event_args.command.commandInputs,
+        )
 
 
 class DestroyHandler(adsk.core.CommandEventHandler):

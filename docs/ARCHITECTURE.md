@@ -23,7 +23,7 @@ Pour un tube, Fusion peut exposer le disque intérieur et la matière annulaire 
 
 ## Aperçu dynamique
 
-Pendant que la commande est ouverte, l'événement `executePreview` dessine un maillage graphique jaune semi-transparent dans le composant racine. Tous les contours du DXF choisi sont lus : lignes, arcs, cercles et polylignes, y compris les contours intérieurs. Les arcs sont discrétisés uniquement pour l'affichage. Cet aperçu n'est pas une entité CAO : il ne crée ni composant, ni esquisse, ni corps, ni entrée d'historique. Il est supprimé avant l'exécution finale et lors de l'annulation.
+Pendant que la commande est ouverte, l'événement `executePreview` et les changements d'entrées rafraîchissent un maillage graphique jaune semi-transparent dans le composant racine. Le second chemin garantit l'affichage même si un chemin occupé maintient volontairement le bouton `OK` désactivé. Tous les contours du DXF choisi sont lus : lignes, arcs, cercles et polylignes, y compris les contours intérieurs. Les arcs sont discrétisés uniquement pour l'affichage. Cet aperçu n'est pas une entité CAO : il ne crée ni composant, ni esquisse, ni corps, ni entrée d'historique. Il est supprimé avant l'exécution finale et lors de l'annulation.
 
 Le résultat final reste exclusivement créé par l'import direct du DXF, puis par le balayage Fusion. La discrétisation graphique ne peut donc pas altérer la géométrie réelle.
 

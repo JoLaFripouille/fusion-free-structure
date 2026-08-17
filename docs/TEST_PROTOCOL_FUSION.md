@@ -190,11 +190,11 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 
 ### Phase A — Ajout contrôlé
 
-1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.11.2`, `Inspecter un profil acier V1.11.2` et `Gérer les profils personnalisés V1.11.2`.
+1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.11.3`, `Inspecter un profil acier V1.11.3` et `Gérer les profils personnalisés V1.11.3`.
 2. Ouvrir le gestionnaire, conserver l'action `Ajouter un profil DXF`, saisir la famille `Essais` et la désignation `IPE test 100`.
 3. Cocher la confirmation des millimètres, puis choisir la copie de `IPE_100.dxf`.
 4. Vérifier le rapport avant validation : `55 × 100 mm`, un contour fermé et un nombre d'entités strictement positif.
-5. Valider l'ajout, fermer le gestionnaire puis ouvrir `Profil acier V1.11.2`.
+5. Valider l'ajout, fermer le gestionnaire puis ouvrir `Profil acier V1.11.3`.
 6. Choisir `Catégorie : Personnalisés` et vérifier que le champ `Zone géographique` disparaît.
 7. Choisir `Essais / IPE test 100`, sélectionner une ligne et contrôler l'aperçu jaune.
 8. Créer la barre, mesurer `55 × 100 mm`, puis l'inspecter et vérifier `Catégorie : Personnalisés` et `DXF disponible : Oui`.
@@ -211,7 +211,7 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 
 ## Test 14 — Remplacer une barre déjà présente
 
-1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.2`.
+1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.3`.
 2. Dans le document `implantation`, sélectionner une ligne déjà utilisée par une `BARRE_IPE200`.
 3. Vérifier que le rapport `Utilisation des chemins` indique le nom de la barre existante et que le bouton `OK` reste désactivé.
 4. Choisir `IPE / 100`, conserver l'ancrage souhaité et vérifier l'aperçu jaune.
@@ -223,12 +223,20 @@ Utiliser pour ce premier essai une copie d'un DXF déjà validé, par exemple `I
 
 ## Test 15 — Même ancrage dans des documents aux repères différents
 
-1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.2`.
+1. Arrêter puis exécuter le complément et vérifier que le bouton indique `Profil acier V1.11.3`.
 2. Dans le document `implantation`, choisir `IPE / 100`, une rotation de `0°`, aucun miroir et le même coin d'ancrage que lors du défaut.
 3. Sélectionner une ligne libre et repérer précisément le coin du profil jaune posé sur cette ligne.
 4. Valider puis vérifier que le même coin du corps final reste sur la ligne, sans passage au coin opposé.
-5. Refaire le même essai dans un document où l'aperçu et le corps correspondaient déjà avant la V1.11.2.
-6. Vérifier que ce second document reste inchangé et que les deux créations ont conservé leurs dimensions.
+5. Refaire le même essai sur une esquisse XY vue de dessus, une esquisse XY vue de dessous et une esquisse ZY.
+6. Vérifier que les cas auparavant corrects restent inchangés et que toutes les créations ont conservé leurs dimensions.
+
+## Test 16 — Aperçu sur un chemin occupé
+
+1. Ouvrir `Profil acier V1.11.3` et sélectionner une ligne déjà utilisée par une barre créée avec l'extension.
+2. Laisser `Remplacer les barres déjà présentes` décoché.
+3. Vérifier que le rapport signale la barre existante et que `OK` reste désactivé.
+4. Vérifier simultanément que le nouveau profil jaune apparaît et suit les changements de section, d'ancrage et de rotation.
+5. Cocher le remplacement, vérifier que `OK` devient disponible puis valider.
 
 ## Critères de validation
 

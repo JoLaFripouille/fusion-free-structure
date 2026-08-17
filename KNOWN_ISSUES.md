@@ -54,6 +54,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-018 — Aperçu absent sur un chemin déjà occupé
+
+- **Symptôme :** avec une barre existante signalée dans `Utilisation des chemins`, la sélection reste bleue mais aucun profil jaune n'apparaît tant que le remplacement n'est pas activé.
+- **Cause :** le blocage volontaire du bouton `OK` rendait la commande invalide pour Fusion, qui pouvait alors ne pas rappeler son événement standard d'aperçu.
+- **Correction V1.11.3 :** l'événement de changement des entrées rafraîchit aussi directement l'aperçu ; le contrôle de sécurité du bouton `OK` reste indépendant.
+- **Validation attendue :** sélectionner un chemin occupé, vérifier immédiatement le profil jaune avec `OK` désactivé, puis cocher le remplacement et créer.
+
 ### ISSUE-017 — Ancrage opposé entre l'aperçu et la barre finale selon le document
 
 - **Symptôme :** dans le document `implantation`, un coin placé en bas à gauche dans l'aperçu jaune se retrouve en haut à droite après la création, alors que d'autres dessins ne présentent aucun saut.

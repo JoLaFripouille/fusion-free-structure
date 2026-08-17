@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.11.3] - En validation
+
+### Corrigé
+
+- aperçu jaune rafraîchi directement lors d'un changement de sélection, profil, ancrage, rotation ou miroir, même lorsque Fusion maintient la validation globale de la commande à l'état invalide ;
+- aperçu désormais visible sur un chemin déjà occupé afin de comparer le nouveau profil avant de cocher volontairement son remplacement ;
+- bouton `OK` toujours bloqué tant que le remplacement d'une barre existante n'est pas explicitement activé.
+
 ## [1.11.2] - En validation
 
 ### Corrigé

@@ -221,6 +221,19 @@ class RepositoryTests(unittest.TestCase):
             deferred.index("occurrence.deleteMe()"),
         )
 
+    def test_occupied_path_keeps_preview_visible_while_ok_is_blocked(self):
+        source = (ADDIN / "commands" / "create_members.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("and (not has_existing or replace_existing)", source)
+        self.assertIn("def _refresh_preview", source)
+        input_changed = source.split("class InputChangedHandler", 1)[1].split(
+            "def _supported_curves_from_selection",
+            1,
+        )[0]
+        self.assertIn("SELECTION_ID", input_changed)
+        self.assertIn("_refresh_preview_safely", input_changed)
+
     def test_anchor_icon_resources_are_packaged(self):
         resources = ADDIN / "resources"
         for color in ("anchor_blue", "anchor_red"):

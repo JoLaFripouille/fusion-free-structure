@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.11.2 : repère identique entre l'aperçu et la barre finale."
+    "": "Profil acier V1.11.3 : aperçu conservé sur les chemins déjà occupés."
   },
-  "version": "1.11.2",
+  "version": "1.11.3",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true
