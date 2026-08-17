@@ -5,10 +5,10 @@ import math
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, profile_catalog, rotation
+from . import addin_info, member_metadata, profile_catalog, rotation
 
 
-ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
+ATTRIBUTE_GROUP = member_metadata.ATTRIBUTE_GROUP
 DIMENSION_TOLERANCE_CM = 1e-5
 
 
@@ -206,8 +206,14 @@ def create_member(
     rotation_radians=0.0,
     flip_x=False,
     flip_y=False,
+    physical_material=None,
+    material_choice=None,
 ):
     """Crée un composant du profil choisi, lié à une ligne ou un arc."""
+    if not physical_material or not physical_material.isValid:
+        raise ValueError("Le matériau physique Fusion est invalide.")
+    if material_choice is None:
+        raise ValueError("Les références du matériau physique Fusion sont manquantes.")
     transform = adsk.core.Matrix3D.create()
     occurrence = root_component.occurrences.addNewComponent(transform)
     component = occurrence.component
@@ -255,12 +261,47 @@ def create_member(
             raise RuntimeError("La création n'a pas produit un corps unique.")
         body = sweep.bodies.item(0)
         body.name = "CORPS_{}".format(profile.component_token)
+        body.material = physical_material
+        assigned_material = body.material
+        if not assigned_material or not assigned_material.isValid:
+            raise RuntimeError("Fusion n'a pas conservé le matériau physique sur le corps.")
+        assigned_properties = assigned_material.materialProperties
+        assigned_property_count = (
+            int(assigned_properties.count) if assigned_properties else 0
+        )
+        if assigned_property_count == 0:
+            raise RuntimeError(
+                "Le matériau Fusion '{}' ne contient aucune propriété physique."
+                .format(assigned_material.name)
+            )
 
         source_token = source_curve.entityToken
         source_type = "arc" if adsk.fusion.SketchArc.cast(source_curve) else "line"
         component.attributes.add(ATTRIBUTE_GROUP, "profile", profile.designation)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_family", profile.family_id)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_source", profile.relative_path)
+        component.attributes.add(ATTRIBUTE_GROUP, "material_name", assigned_material.name)
+        component.attributes.add(ATTRIBUTE_GROUP, "material_id", assigned_material.id)
+        component.attributes.add(
+            ATTRIBUTE_GROUP,
+            "material_library_name",
+            material_choice.library_name,
+        )
+        component.attributes.add(
+            ATTRIBUTE_GROUP,
+            "material_library_id",
+            material_choice.library_id,
+        )
+        component.attributes.add(
+            ATTRIBUTE_GROUP,
+            "material_source_id",
+            material_choice.material_id,
+        )
+        component.attributes.add(
+            ATTRIBUTE_GROUP,
+            "material_property_count",
+            str(assigned_property_count),
+        )
         component.attributes.add(ATTRIBUTE_GROUP, "anchor", anchor_code)
         component.attributes.add(
             ATTRIBUTE_GROUP,

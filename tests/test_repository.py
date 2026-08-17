@@ -39,9 +39,22 @@ class RepositoryTests(unittest.TestCase):
 
     def test_visible_command_name_uses_the_manifest_version(self):
         command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        inspection_source = (ADDIN / "commands" / "inspect_member.py").read_text(encoding="utf-8")
         builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
         self.assertIn("COMMAND_NAME = addin_info.DISPLAY_NAME", command_source)
+        self.assertIn('COMMAND_NAME = "Inspecter un profil acier V{}".format(addin_info.VERSION)', inspection_source)
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
+
+    def test_read_only_inspection_command_is_registered(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(encoding="utf-8")
+        inspection_source = (ADDIN / "commands" / "inspect_member.py").read_text(encoding="utf-8")
+        self.assertIn("inspect_member.start()", entry_source)
+        self.assertIn("inspect_member.stop()", entry_source)
+        self.assertIn('selection.addSelectionFilter("Occurrences")', inspection_source)
+        self.assertIn("member_metadata.parse_member_attributes", inspection_source)
+        self.assertIn("design.findEntityByToken", inspection_source)
+        self.assertIn("Lecture seule", inspection_source)
+        self.assertNotIn("deleteMe()", inspection_source.split("def _update_report", 1)[0])
 
     def test_expected_profile_inventory(self):
         expected = {
@@ -95,6 +108,30 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("class InputChangedHandler", source)
         self.assertIn("_populate_section_input", source)
         self.assertIn('"profile": profile', source)
+
+    def test_command_exposes_and_persists_real_fusion_material(self):
+        command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
+        inspection_source = (ADDIN / "commands" / "inspect_member.py").read_text(encoding="utf-8")
+        self.assertIn('PHYSICAL_MATERIAL_INPUT_ID = "physicalMaterial"', command_source)
+        self.assertIn("physical_materials.discover_steel_materials", command_source)
+        self.assertIn("physical_materials.resolve_material", command_source)
+        self.assertIn('"material_choice": material_choice', command_source)
+        self.assertIn("body.material = physical_material", builder_source)
+        self.assertIn('"material_id", assigned_material.id', builder_source)
+        self.assertIn('("Affectation physique", material_status)', inspection_source)
+        self.assertNotIn("addStringValueInput", command_source)
+
+    def test_startup_ensures_two_document_materials_idempotently(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(encoding="utf-8")
+        command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
+        material_source = (ADDIN / "lib" / "structural_materials.py").read_text(encoding="utf-8")
+        self.assertIn("structural_materials.ensure_required_materials", entry_source)
+        self.assertIn("structural_materials.ensure_required_materials", command_source)
+        self.assertIn("S235JR EN 10025-2 - t<=16 mm", material_source)
+        self.assertIn("S355J2 EN 10025-2 - t<=16 mm", material_source)
+        self.assertIn("design.materials.addByCopy", material_source)
+        self.assertIn("Il n'a pas été modifié", material_source)
 
     def test_command_exposes_clickable_three_by_three_anchor_grid(self):
         source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")

@@ -111,6 +111,66 @@ Commencer par un profil asymétrique pour que chaque inversion soit visible sans
 3. Vérifier les attributs `flip_x = true`, `flip_y = false` et `rotation_deg = 45`.
 4. Recommencer avec un tube rectangulaire et les deux miroirs afin de vérifier le contour intérieur.
 
+## Test 9 — Inspection d'une barre existante
+
+Cette étape est exclusivement en lecture seule.
+
+1. Arrêter puis exécuter le complément et vérifier la présence de `Profil acier V1.7.0` et `Inspecter un profil acier V1.7.0`.
+2. Créer si nécessaire une cornière inégale avec ancrage `Haut gauche`, rotation `45°`, `Miroir X` activé et `Miroir Y` désactivé.
+3. Ouvrir `Inspecter un profil acier V1.7.0` puis sélectionner le composant de cette barre.
+4. Vérifier que le profil, la famille, le DXF, l'ancrage `TL`, la rotation `45°` et les deux états de miroir correspondent.
+5. Vérifier `DXF disponible : Oui` et `Liaison squelette : OK`.
+6. Fermer la commande et vérifier que l'historique, l'esquisse, le corps et le composant n'ont pas changé.
+7. Recommencer en sélectionnant un composant ordinaire et vérifier qu'il est indiqué comme non reconnu.
+
+## Test 10 — Matériau physique Fusion
+
+Procéder d'abord sans créer de barre.
+
+### Phase A — Menu uniquement
+
+1. Arrêter puis exécuter le complément et vérifier que les deux commandes indiquent la V1.8.0.
+2. Ouvrir `Profil acier V1.8.0` et vérifier la présence du menu `Matériau physique Fusion`.
+3. Ouvrir le menu et vérifier que chaque ligne indique un matériau et sa bibliothèque source.
+4. Vérifier qu'il ne s'agit plus d'un champ de texte libre et qu'aucun S235/S355 n'est inventé à partir de la famille du profil.
+5. Choisir un matériau différent de celui proposé par défaut et noter exactement son libellé.
+6. Sélectionner une ligne et vérifier que l'aperçu jaune fonctionne toujours ; le matériau ne doit pas modifier la géométrie de l'aperçu.
+7. Annuler sans créer de barre et signaler la liste visible si elle paraît vide, incomplète ou ambiguë.
+
+### Phase B — Enregistrement et inspection
+
+1. Après validation de la phase A, créer une seule barre `IPE 100` avec le matériau noté.
+2. Ouvrir la commande d'inspection et sélectionner cette barre.
+3. Vérifier que `Matériau enregistré` et `Matériau lu sur le corps` concordent.
+4. Vérifier `Affectation physique : OK` et un nombre de propriétés physiques strictement supérieur à zéro.
+5. Vérifier également le même matériau par clic droit sur le corps ou le composant, puis `Matériau physique` dans Fusion.
+6. Si l'espace Simulation est disponible, ouvrir `Matériaux de l'étude` et vérifier que la même matière est reconnue avant tout calcul.
+7. Fermer l'inspection et vérifier qu'aucune géométrie n'a été modifiée.
+
+## Test 11 — Nuances européennes créées automatiquement
+
+Utiliser un nouveau document de conception paramétrique pour isoler ce test.
+
+### Phase A — Création unique
+
+1. Arrêter puis exécuter le complément et vérifier que les deux commandes indiquent la V1.9.0.
+2. Vérifier qu'aucun message d'erreur concernant les propriétés physiques n'apparaît.
+3. Ouvrir `Profil acier V1.9.0`, puis le menu `Matériau physique Fusion`.
+4. Vérifier la présence exacte de `S235JR EN 10025-2 - t<=16 mm — Document actif`.
+5. Vérifier la présence exacte de `S355J2 EN 10025-2 - t<=16 mm — Document actif`.
+6. Annuler, arrêter puis exécuter une seconde fois le complément dans le même document.
+7. Rouvrir le menu et vérifier qu'il existe toujours exactement une ligne pour chaque nuance.
+
+### Phase B — Deux profils comparables
+
+1. Préparer deux lignes parallèles de même longueur.
+2. Créer un `IPE 100` sur la première avec le matériau S235JR du document actif.
+3. Créer un second `IPE 100` sur la deuxième avec le matériau S355J2 du document actif.
+4. Inspecter chaque barre et vérifier que le matériau enregistré correspond à celui lu sur le corps avec `Affectation physique : OK`.
+5. Ouvrir les propriétés des matériaux et contrôler `E = 210 GPa` et `nu = 0,30` pour les deux.
+6. Contrôler les limites d'élasticité : `235 MPa` pour S235JR et `355 MPa` pour S355J2.
+7. Si l'espace Simulation est disponible, ouvrir `Matériaux de l'étude` et vérifier que les deux matériaux sont acceptés sans avertissement jaune avant tout calcul.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -129,5 +189,8 @@ Commencer par un profil asymétrique pour que chaque inversion soit visible sans
 - mise à jour après modification du squelette ;
 - lignes droites et arcs traités comme chemins indépendants ;
 - composants indépendants et noms prévisibles.
+- inspection des barres sans modification de la géométrie ni de l'historique.
+- matériau choisi dans une bibliothèque Fusion, réellement affecté au corps et relu avec le même identifiant.
+- exactement une occurrence de chacune des deux nuances européennes dans le document actif après plusieurs lancements.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

@@ -33,6 +33,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 - **Impact :** aucun ; le complément est installé, mais son essai réel n'a pas encore démarré et aucune conclusion fonctionnelle ne doit être tirée de cette erreur externe.
 - **Suite :** lancer manuellement le complément depuis **Scripts et compléments**, puis reprendre le protocole `docs/TEST_PROTOCOL_FUSION.md`.
 
+### ISSUE-008 — Matériaux européens limités au document actif
+
+- **État :** limitation de l'API Fusion acceptée pour la V1.9.0.
+- **Cause :** l'API publique `Materials.addByCopy` copie un matériau vers un document, mais pas vers une bibliothèque globale ou les Favoris.
+- **Impact :** les nuances S235JR et S355J2 sont vérifiées ou créées séparément dans chaque document utilisé avec le complément.
+- **Prévention :** nouvelle vérification à chaque démarrage avec un document actif et à chaque ouverture de la commande de création.
+
 ## Résolus pendant la préparation de la V1
 
 ### ISSUE-007 — Planification DXF refusée depuis le bouton

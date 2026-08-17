@@ -4,6 +4,89 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.9.0] - En validation
+
+### Ajouté
+
+- vérification idempotente, au démarrage du complément, de deux matériaux européens dans le document Fusion actif ;
+- création automatique de `S235JR EN 10025-2 - t<=16 mm` et `S355J2 EN 10025-2 - t<=16 mm` lorsqu'ils sont absents ;
+- propriétés destinées au premier essai linéaire : masse volumique, module de Young, coefficient de Poisson, limite d'élasticité et résistance minimale à la traction ;
+- contrôle des valeurs après écriture et suppression de toute copie incomplète en cas d'échec ;
+- refus sans écrasement lorsqu'un matériau existant porte le nom réservé mais possède des valeurs différentes ;
+- présence des deux matériaux du document actif dans le menu de création des barres ;
+- nouvelle vérification à l'ouverture de la commande pour les documents ouverts après le démarrage du complément ;
+- tests de création unique, de non-duplication, de conservation des matériaux conformes et de refus des conflits.
+
+### Valeurs de cette première phase
+
+- propriétés communes : `rho = 7 850 kg/m³`, `E = 210 GPa`, `nu = 0,30` ;
+- S235JR, `t <= 16 mm` : `ReH min = 235 MPa`, `Rm min = 360 MPa` ;
+- S355J2, `t <= 16 mm` : `ReH min = 355 MPa`, `Rm min = 470 MPa` ;
+- source de nuance : EN 10025-2:2019 ; les certificats matière restent nécessaires pour une justification réelle.
+
+### Limite connue
+
+- l'API publique Fusion permet de copier un matériau dans le document actif mais pas de l'ajouter à une bibliothèque globale ; la V1.9.0 vérifie donc chaque document au démarrage ou à l'ouverture de la commande.
+
+### À valider dans Fusion
+
+- première exécution : deux créations et aucune erreur ;
+- seconde exécution dans le même document : zéro création et aucun doublon ;
+- présence des deux nuances sous la source `Document actif` dans le menu ;
+- création de deux IPE 100 identiques, l'un en S235JR et l'autre en S355J2 ;
+- reconnaissance des deux matériaux sans avertissement dans `Matériaux de l'étude` avant tout calcul.
+
+## [1.8.0] - En validation
+
+### Ajouté
+
+- menu `Matériau physique Fusion` produit directement depuis les bibliothèques chargées dans Fusion ;
+- affichage du nom exact du matériau et de sa bibliothèque source ;
+- inventaire limité aux matériaux acier détectés dans leur nom ou leur description et possédant des propriétés physiques ;
+- sélection par identifiants internes uniques de la bibliothèque et du matériau, sans dépendre d'un nom potentiellement dupliqué ;
+- affectation réelle du matériau choisi au corps créé, puis relecture immédiate par Fusion ;
+- attributs persistants du matériau demandé et du matériau effectivement appliqué ;
+- contrôle dans l'inspection du matériau lu sur le corps, de son identifiant et du nombre de propriétés physiques ;
+- compatibilité de lecture avec une ancienne barre ne possédant aucun attribut matière ou seulement l'ancien texte `steel_grade` ;
+- tests indépendants du catalogue, des doublons de noms, de la résolution par identifiant et de la traçabilité.
+
+### Important
+
+- aucune correspondance S235/S355 n'est déduite de la famille du profil ;
+- une nuance absente des bibliothèques chargées par Fusion n'est ni inventée ni remplacée silencieusement ;
+- la présence d'un matériau dans Fusion et de propriétés physiques ne remplace pas la vérification de sa fiche pour le type exact de simulation envisagé.
+
+### À valider dans Fusion
+
+- contenu réel du menu avec les bibliothèques chargées sur la machine d'essai ;
+- création d'une seule barre avec un matériau choisi dans ce menu ;
+- concordance entre le matériau enregistré et celui réellement relu sur le corps ;
+- état `Affectation physique : OK` dans la commande d'inspection ;
+- visibilité du même matériau dans l'interface de matériau physique et, si disponible, dans une étude de simulation Fusion.
+
+## [1.7.0] - Candidat intermédiaire non publié
+
+### Ajouté
+
+- nouvelle commande distincte `Inspecter un profil acier V1.7.0` ;
+- sélection en lecture seule d'un composant créé par l'extension ;
+- affichage du profil, de la famille, du DXF source, de l'ancrage, de la rotation et des miroirs enregistrés ;
+- contrôle de la présence du DXF dans la bibliothèque relative ;
+- résolution du jeton Fusion afin de vérifier que la ligne ou l'arc du squelette existe toujours ;
+- prise en charge des anciennes barres possédant seulement `source_line_token` et aucun attribut de miroir ;
+- refus explicite des composants ordinaires ou des attributs incohérents ;
+- aucune suppression, reconstruction ou modification de géométrie dans cette première phase.
+
+### À valider dans Fusion
+
+- présence des deux commandes V1.7.0 dans la barre d'outils ;
+- sélection d'une barre depuis le modèle ou l'arborescence ;
+- concordance des informations affichées avec les choix utilisés à la création ;
+- état `OK` de la liaison au squelette ;
+- absence totale de modification après fermeture de la commande.
+
+La fonction d'inspection est reprise sans modification géométrique dans la V1.8.0 candidate.
+
 ## [1.6.0] - 2026-08-16
 
 ### Ajouté

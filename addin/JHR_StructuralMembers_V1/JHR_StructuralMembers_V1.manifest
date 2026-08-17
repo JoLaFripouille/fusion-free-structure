@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.6.0 : rotation et miroirs autour du point d'ancrage sélectionné."
+    "": "Profil acier V1.9.0 : création, nuances européennes et inspection des barres existantes."
   },
-  "version": "1.6.0",
+  "version": "1.9.0",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true
