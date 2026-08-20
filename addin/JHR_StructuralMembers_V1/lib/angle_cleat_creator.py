@@ -164,7 +164,7 @@ def _import_angle_sketch(component, profile):
     return sketch, member_builder._select_material_profile(sketch, profile)
 
 
-def _create_angle_body(component, occurrence, profile, height_cm, material):
+def _create_angle_body(component, profile, height_cm, material):
     sketch, section = _import_angle_sketch(component, profile)
     extrudes = component.features.extrudeFeatures
     extrude_input = extrudes.createInput(
@@ -173,7 +173,6 @@ def _create_angle_body(component, occurrence, profile, height_cm, material):
     )
     if not extrude_input:
         raise RuntimeError("Fusion n'a pas pu préparer l'extrusion de la cornière.")
-    extrude_input.creationOccurrence = occurrence
     extent = adsk.fusion.DistanceExtentDefinition.create(
         adsk.core.ValueInput.createByReal(float(height_cm))
     )
@@ -277,7 +276,6 @@ def _create_hole_group(
             )
             if not hole_input:
                 raise RuntimeError("entrée de perçage indisponible")
-            hole_input.creationOccurrence = occurrence
             if not hole_input.setPositionBySketchPoints(points):
                 raise RuntimeError("centres de perçage refusés")
             if not hole_input.setAllExtent(direction):
@@ -373,7 +371,6 @@ def create_double_angle_assembly(root_component, evaluation):
             )
             body = _create_angle_body(
                 component,
-                occurrence,
                 evaluation.angle_profile,
                 evaluation.cleat_height_cm,
                 material,

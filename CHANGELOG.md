@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.23.2] - En validation
+
+### Corrigé
+
+- la transformation d'occurrence n'est plus réappliquée aux extrusions et perçages créés nativement dans chaque composant de cornière ;
+- les deux corps de cornière et leurs trous utilisent maintenant un seul repère : leurs fonctions restent locales et l'occurrence porte seule leur position dans l'assemblage ;
+- les centres mondiaux des trous dans les âmes et le calcul validé de l'aperçu restent inchangés.
+
 ## [1.23.1] - En validation
 
 ### Corrigé
