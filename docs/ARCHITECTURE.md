@@ -2,7 +2,7 @@
 
 ## Interface Fusion dédiée
 
-Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier, le prototype de grugeage IPE et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
+Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier, le grugeage IPE et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
 
 L'onglet et les panneaux utilisent des identifiants stables et sont réutilisés s'ils existent déjà. À l'arrêt, les commandes retirent d'abord leurs boutons et leurs définitions, puis l'extension supprime ses panneaux et son onglet. Aucun panneau natif de Fusion n'est supprimé.
 
@@ -133,14 +133,18 @@ Pour une jonction ajustée, la principale n'est plus supposée infinie le long d
 
 Le groupe `EI_JHR_StructuralJoint` n'est plus un verrou binaire. Chaque traitement ajoute un JSON indépendant `operation_0001`, `operation_0002`, etc. contenant notamment le type, l'indice d'extrémité `0` ou `1`, l'autre composant, les courbes sources, l'angle, le jeu, l'état initial et le prolongement. Une barre peut donc recevoir une opération à chaque extrémité et d'autres traitements tant que sa géométrie courante permet la fonction demandée. Les anciens attributs fixes sont conservés mais ne bloquent plus les nouvelles opérations.
 
-Une barre de référence cintrée, les onglets sur arcs, la coupe réelle des grugeages, les platines et les boulons restent en dehors de cette étape.
+Une barre de référence cintrée, les onglets sur arcs, les grugeages hors du premier cas IPE droit à `90°`, les platines et les boulons restent en dehors de cette étape.
 
-## Prototype de double grugeage IPE
+## Double grugeage IPE
 
-La V1.17 ajoute une commande séparée de prévisualisation. La principale peut être une IPE, HEA ou HEB et la secondaire doit être une IPE droite dont l'axe rejoint celui de la principale à `90°`.
+La V1.17 a introduit la prévisualisation et la V1.18.0 crée les opérations réelles. La principale peut être une IPE, HEA ou HEB et la secondaire doit être une IPE droite dont l'axe rejoint celui de la principale à `90°`.
 
 Les limites des deux semelles et de l'âme sont déduites du contour fermé du DXF source de la secondaire. La position des deux volumes tient ensuite compte du point d'ancrage enregistré, de la rotation et des miroirs appliqués lors de la création de la barre. La profondeur part de l'axe commun et s'arrête sur la face extérieure réelle de la principale orientée vers la secondaire ; elle ne dépend donc pas de la longueur totale de la principale.
 
 La V1.17.1 localise aussi les deux faces de l'âme principale dans son DXF. Elle choisit celle qui regarde la secondaire, la décale du `Jeu contre l'âme` et obtient ainsi le plan de coupe droite de l'extrémité secondaire. Si la principale se termine trop près du raccord, la face secondaire est projetée sur ce plan et sa portée est comparée au corps principal, comme dans la jonction droite. Chaque manque de couverture fournit le côté et la longueur du prolongement requis.
 
-Deux boîtes rouges semi-transparentes montrent les semelles proposées au retrait, un rectangle orange montre la coupe contre l'âme et une section verte extrudée montre chaque prolongement nécessaire de la principale. Ces éléments sont des graphismes temporaires : ils ne créent ni corps outil, ni fonction, ni entrée d'historique. Le bouton `OK` est masqué dans cette phase. Les opérations réelles ne seront ajoutées qu'après validation visuelle de l'ensemble.
+Deux boîtes rouges semi-transparentes montrent les semelles proposées au retrait, un rectangle orange montre la coupe contre l'âme et une section verte extrudée montre chaque prolongement nécessaire de la principale. Ces graphismes restent temporaires et ne créent aucune entrée d'historique avant la validation.
+
+Après `OK`, la V1.18.0 crée dans la secondaire un plan normal au chemin sur l'extrémité raccordée, puis deux plans décalés sur les positions exactes de la preview : `PLAN_COUPE_AME_PRINCIPALE` et `PLAN_DEBUT_GRUGEAGE`. La principale est d'abord prolongée si sa couverture est insuffisante. La secondaire est ensuite prolongée si nécessaire, séparée sur le plan de l'âme et débarrassée de son excédent. Enfin, une esquisse contient deux rectangles fermés correspondant aux volumes rouges et une extrusion en retrait les coupe uniquement jusqu'au plan de l'âme.
+
+L'extrusion désigne explicitement le corps secondaire participant. La création est acceptée seulement si un corps unique subsiste et si le volume retiré est mesurable. L'opération enregistre son type et l'indice de l'extrémité traitée : un second grugeage reste possible à l'autre extrémité, mais un doublon sur la même extrémité est refusé. Si une étape échoue, l'attribut et toutes les entités créées pendant la tentative sont supprimés dans l'ordre inverse.

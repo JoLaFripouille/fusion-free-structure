@@ -25,6 +25,8 @@ class CopeEvaluation:
     secondary_occurrence: object
     primary_metadata: object
     secondary_metadata: object
+    primary_curve: object
+    secondary_curve: object
     geometry: object
     primary_profile_geometry: cope_geometry.IProfileGeometry
     profile_geometry: cope_geometry.IProfileGeometry
@@ -33,6 +35,7 @@ class CopeEvaluation:
     longitudinal_clearance_cm: float
     web_clearance_cm: float
     origin: tuple
+    cope_start_point: tuple
     web_cut_point: tuple
     web_cut_normal: tuple
     primary_anchor_mm: tuple
@@ -46,6 +49,7 @@ class CopeEvaluation:
     volumes: tuple
     primary_extensions: tuple
     primary_extension_segments: tuple
+    treatment: object
 
 
 def _vector_tuple(vector):
@@ -154,6 +158,16 @@ def evaluate_double_ipe_cope(
         primary_points,
     )
     depth_cm = automatic_depth_cm + float(longitudinal_clearance_cm)
+    available_length_cm = joint_geometry.length(
+        joint_geometry.subtract(
+            geometry.secondary_joint_endpoint,
+            geometry.secondary_inner_endpoint,
+        )
+    )
+    if depth_cm >= available_length_cm - joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+        raise ValueError(
+            "La profondeur du grugeage atteint toute la longueur de la secondaire."
+        )
 
     primary_dxf_path = profile_catalog.resolve_profile_source(
         primary_metadata.profile_source
@@ -197,6 +211,29 @@ def evaluate_double_ipe_cope(
         geometry.plane_normal,
         float(web_clearance_cm),
     )
+    cope_start_point = joint_geometry.add(
+        geometry.secondary_joint_endpoint,
+        joint_geometry.scale(axial_axis, -depth_cm),
+    )
+    cut_length_cm = joint_geometry.dot(
+        joint_geometry.subtract(web_cut_point, cope_start_point),
+        axial_axis,
+    )
+    if cut_length_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+        raise ValueError(
+            "Le début du grugeage dépasse le plan de coupe contre l'âme."
+        )
+    treatment = joint_builder._evaluate_treatment(
+        secondary_occurrence,
+        secondary_body,
+        secondary_curve,
+        geometry.secondary_joint_endpoint_index,
+        geometry.secondary_joint_endpoint,
+        geometry.secondary_inner_endpoint,
+        geometry.approach_direction,
+        web_cut_point,
+        geometry.plane_normal,
+    )
     primary_extensions = joint_builder._evaluate_primary_extensions(
         primary_occurrence,
         primary_body,
@@ -216,6 +253,8 @@ def evaluate_double_ipe_cope(
         secondary_occurrence=secondary_occurrence,
         primary_metadata=primary_metadata,
         secondary_metadata=secondary_metadata,
+        primary_curve=primary_curve,
+        secondary_curve=secondary_curve,
         geometry=geometry,
         primary_profile_geometry=primary_profile_geometry,
         profile_geometry=profile_geometry,
@@ -224,6 +263,7 @@ def evaluate_double_ipe_cope(
         longitudinal_clearance_cm=float(longitudinal_clearance_cm),
         web_clearance_cm=float(web_clearance_cm),
         origin=geometry.secondary_joint_endpoint,
+        cope_start_point=cope_start_point,
         web_cut_point=web_cut_point,
         web_cut_normal=geometry.plane_normal,
         primary_anchor_mm=primary_anchor_mm,
@@ -237,4 +277,5 @@ def evaluate_double_ipe_cope(
         volumes=volumes,
         primary_extensions=primary_extensions,
         primary_extension_segments=primary_extension_segments,
+        treatment=treatment,
     )

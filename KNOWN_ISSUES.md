@@ -4,13 +4,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
-### ISSUE-022 — Grugeage IPE complet limité à un aperçu de validation
+### ISSUE-022 — Création réelle du grugeage IPE à valider dans Fusion
 
-- **État :** limitation volontaire de la V1.17.1.
+- **État :** candidate V1.18.0 installée pour validation réelle.
 - **Périmètre :** principale IPE, HEA ou HEB, secondaire IPE droite et axes à `90°`.
-- **Impact :** les deux volumes de retrait sont visibles en rouge, la coupe contre l'âme principale en orange et les prolongements requis de la principale en vert, mais aucun solide n'est encore modifié.
-- **Sécurité :** aucun bouton `OK`, aucune fonction Fusion et aucune modification de l'historique ne sont produits par cette commande.
-- **Validation prévue :** exécuter le test 22 sur une principale suffisamment longue puis trop courte, et sur plusieurs tailles, orientations, miroirs et points d'ancrage avant d'autoriser les opérations réelles.
+- **Impact :** la prévisualisation à `90°` est validée. Le bouton `OK` crée désormais le prolongement éventuel de la principale, la coupe droite de la secondaire contre l'âme et le retrait de ses deux semelles, mais cette chaîne doit encore être contrôlée dans Fusion avant extension à d'autres angles ou familles.
+- **Sécurité :** la création exige un corps secondaire unique et un volume réellement retiré ; toute tentative incomplète supprime ses attributs, coupes, esquisses, plans et prolongements.
+- **Validation prévue :** exécuter le test 22 sur une principale suffisamment longue puis trop courte, vérifier l'historique et le corps final, puis répéter sur plusieurs tailles, orientations, miroirs et points d'ancrage.
 
 ### ISSUE-021 — Barre principale trop courte non prolongée
 
@@ -29,7 +29,7 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 ### ISSUE-019 — Géométries courbes avancées encore limitées
 
 - **État :** périmètre restant après la V1.16.0.
-- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, la coupe réelle des grugeages, les platines et les boulons ne sont pas encore pris en charge ; la V1.17.1 ajoute l'aperçu complet du premier grugeage IPE sans modifier les solides.
+- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, les grugeages hors du cas IPE droit à `90°`, les platines et les boulons ne sont pas encore pris en charge ; la V1.18.0 ajoute la première création réelle du double grugeage IPE à valider.
 - **Sécurité :** la position et l'orientation du plan final sont contrôlées contre la prévisualisation avant toute coupe ; les cas hors périmètre sont refusés sans modifier le modèle.
 - **Validation prévue :** terminer les essais du test 21 avant d'étendre le même modèle géométrique aux références cintrées.
 

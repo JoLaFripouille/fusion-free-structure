@@ -4,6 +4,24 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.18.0] - En validation
+
+### Ajouté
+
+- activation du bouton `OK` de la commande `Grugeage IPE` pour créer réellement le premier double grugeage à `90°` ;
+- création de trois références paramétriques dans la secondaire : plan d'extrémité, plan de coupe contre l'âme principale et plan de début du grugeage ;
+- prolongement automatique de la principale lorsqu'elle ne couvre pas la section de la secondaire, avec la même fonction déjà éprouvée pour les jonctions droites ;
+- prolongement éventuel de la secondaire jusqu'au plan de l'âme, séparation à ce plan et retrait de son excédent ;
+- esquisse de deux outils fermés sur le plan de début du grugeage, puis coupe des semelles exactement jusqu'au plan de l'âme principale ;
+- enregistrement du grugeage et de l'extrémité utilisée sans bloquer l'extrémité opposée de la même barre.
+
+### Sécurisé
+
+- la prévisualisation et les fonctions finales partagent exactement les mêmes points, directions, profondeurs et jeux ;
+- la création est annulée si la coupe ne retire aucune matière mesurable ou si la secondaire ne conserve pas un corps unique ;
+- en cas d'échec, les attributs, coupes, esquisses, plans et prolongements créés pendant la tentative sont supprimés dans l'ordre inverse ;
+- le périmètre reste volontairement limité à une principale IPE, HEA ou HEB, une secondaire IPE droite et des axes à `90°` jusqu'à validation dans Fusion.
+
 ## [1.17.1] - En validation
 
 ### Corrigé

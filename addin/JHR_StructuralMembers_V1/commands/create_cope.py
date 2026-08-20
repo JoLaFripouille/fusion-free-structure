@@ -6,14 +6,14 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from ..lib import addin_info, cope_builder, ui_layout
+from ..lib import addin_info, cope_builder, cope_creator, ui_layout
 from ..lib.cope_preview import CopePreviewManager
 
 
 COMMAND_ID = "EI_JHR_PreviewDoubleIpeCopeV1"
-COMMAND_NAME = "Grugeage IPE — aperçu V{}".format(addin_info.VERSION)
+COMMAND_NAME = "Grugeage IPE V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Prévisualise un double grugeage IPE, sa coupe contre l'âme et le prolongement de la principale."
+    "Prolonge la principale, coupe la secondaire contre son âme et gruge ses semelles."
 )
 PRIMARY_SELECTION_ID = "copePrimaryMember"
 SECONDARY_SELECTION_ID = "copeSecondaryMember"
@@ -68,7 +68,7 @@ def _evaluate(inputs):
         raise ValueError("Ouvrir une conception Fusion.")
     if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
         raise ValueError("Le prototype nécessite l'historique paramétrique activé.")
-    return design, cope_builder.evaluate_double_ipe_cope(
+    evaluation = cope_builder.evaluate_double_ipe_cope(
         design,
         _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale"),
         _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire"),
@@ -76,6 +76,8 @@ def _evaluate(inputs):
         _distance_value(inputs, LONGITUDINAL_CLEARANCE_ID, "Le jeu longitudinal"),
         _distance_value(inputs, WEB_CLEARANCE_ID, "Le jeu contre l'âme"),
     )
+    cope_creator.ensure_endpoint_available(evaluation)
+    return design, evaluation
 
 
 def _success_report(evaluation):
@@ -112,7 +114,7 @@ def _success_report(evaluation):
         ),
     )
     content = [
-        "<b>Prototype d'aperçu uniquement — aucune coupe ne sera créée.</b><br>",
+        "<b>Les opérations seront créées après validation avec OK.</b><br>",
         "Rouge : semelles retirées. Orange : coupe contre l'âme principale. ",
         "Vert : prolongement nécessaire de la principale.<br><br>",
     ]
@@ -141,8 +143,6 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             event_args = adsk.core.CommandCreatedEventArgs.cast(args)
             command = event_args.command
             command.isRepeatable = False
-            command.isOKButtonVisible = False
-            command.cancelButtonText = "Fermer"
             inputs = command.commandInputs
             preview_manager = CopePreviewManager()
 
@@ -201,14 +201,22 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             command.inputChanged.add(input_changed)
             _handlers.append(input_changed)
 
+            validate = ValidateInputsHandler(report, preview_manager)
+            command.validateInputs.add(validate)
+            _handlers.append(validate)
+
             execute_preview = ExecutePreviewHandler(report, preview_manager)
             command.executePreview.add(execute_preview)
             _handlers.append(execute_preview)
 
+            execute = ExecuteHandler(preview_manager)
+            command.execute.add(execute)
+            _handlers.append(execute)
+
             destroy = DestroyHandler(preview_manager)
             command.destroy.add(destroy)
             _handlers.append(destroy)
-            _log("Prototype d'aperçu ouvert")
+            _log("Commande ouverte")
         except Exception:
             _, ui = _app_and_ui()
             ui.messageBox(
@@ -251,6 +259,51 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
             self._report_input,
             self._preview_manager,
         )
+
+
+class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
+    def __init__(self, report_input, preview_manager):
+        super().__init__()
+        self._report_input = report_input
+        self._preview_manager = preview_manager
+
+    def notify(self, args):
+        event_args = adsk.core.ValidateInputsEventArgs.cast(args)
+        event_args.areInputsValid = (
+            _refresh(event_args.inputs, self._report_input, self._preview_manager)
+            is not None
+        )
+
+
+class ExecuteHandler(adsk.core.CommandEventHandler):
+    def __init__(self, preview_manager):
+        super().__init__()
+        self._preview_manager = preview_manager
+
+    def notify(self, args):
+        event_args = adsk.core.CommandEventArgs.cast(args)
+        try:
+            self._preview_manager.clear()
+            _, evaluation = _evaluate(event_args.command.commandInputs)
+            cope_creator.create_double_ipe_cope(evaluation)
+            _log(
+                "Grugeage créé : principale={}, secondaire={}, "
+                "prolongement_principale={} mm, profondeur={} mm"
+                .format(
+                    evaluation.primary_occurrence.component.name,
+                    evaluation.secondary_occurrence.component.name,
+                    sum(
+                        extension.extension_cm * 10.0
+                        for extension in evaluation.primary_extensions
+                    ),
+                    evaluation.depth_cm * 10.0,
+                )
+            )
+        except Exception as error:
+            event_args.executeFailed = True
+            _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
+            _, ui = _app_and_ui()
+            ui.messageBox("Le grugeage a été annulé :\n{}".format(error))
 
 
 class DestroyHandler(adsk.core.CommandEventHandler):

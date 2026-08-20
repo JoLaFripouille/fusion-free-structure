@@ -27,9 +27,9 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
 - commande `Jonctions acier` : jonction ajustée à l'enveloppe d'une barre de référence, quel que soit l'angle non parallèle, ou coupe d'onglet symétrique entre deux barres droites ; détection des espaces et chevauchements, prolongement automatique, opérations multiples par barre et aperçu orange identique au plan final.
-- prototype `Grugeage IPE — aperçu` : double retrait rouge des semelles d'une secondaire IPE à `90°`, plan orange de coupe contre l'âme principale et prolongement vert de la principale lorsqu'elle est trop courte, sans modifier les solides tant que la méthode n'est pas validée dans Fusion.
+- commande `Grugeage IPE` : à `90°`, prévisualisation rouge des semelles retirées, plan orange de coupe contre l'âme principale et prolongement vert de la principale lorsqu'elle est trop courte ; la validation crée ensuite le prolongement nécessaire, la coupe droite sur l'âme et le double grugeage réel de la secondaire.
 
-Dans l'onglet dédié, `CRÉER` contient **Profil acier** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonctions acier**, **Grugeage IPE — aperçu** et **Inspecter un profil acier**. Les commandes ne sont plus ajoutées aux panneaux généraux de Fusion.
+Dans l'onglet dédié, `CRÉER` contient **Profil acier** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonctions acier**, **Grugeage IPE** et **Inspecter un profil acier**. Les commandes ne sont plus ajoutées aux panneaux généraux de Fusion.
 
 ## Bibliothèque incluse
 

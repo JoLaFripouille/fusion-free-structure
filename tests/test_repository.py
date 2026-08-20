@@ -45,7 +45,7 @@ class RepositoryTests(unittest.TestCase):
         builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
         self.assertIn("COMMAND_NAME = addin_info.DISPLAY_NAME", command_source)
         self.assertIn('COMMAND_NAME = "Jonctions acier V{}".format(addin_info.VERSION)', joint_source)
-        self.assertIn('COMMAND_NAME = "Grugeage IPE — aperçu V{}".format(addin_info.VERSION)', cope_source)
+        self.assertIn('COMMAND_NAME = "Grugeage IPE V{}".format(addin_info.VERSION)', cope_source)
         self.assertIn('COMMAND_NAME = "Inspecter un profil acier V{}".format(addin_info.VERSION)', inspection_source)
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
 
@@ -127,7 +127,7 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn("SolidModifyPanel", source)
             self.assertNotIn("SolidScriptsAddinsPanel", source)
 
-    def test_double_ipe_cope_is_registered_as_preview_only(self):
+    def test_double_ipe_cope_is_previewed_validated_and_created(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
             encoding="utf-8"
         )
@@ -135,6 +135,9 @@ class RepositoryTests(unittest.TestCase):
             encoding="utf-8"
         )
         preview_source = (ADDIN / "lib" / "cope_preview.py").read_text(
+            encoding="utf-8"
+        )
+        creator_source = (ADDIN / "lib" / "cope_creator.py").read_text(
             encoding="utf-8"
         )
         self.assertIn("create_cope.start()", entry_source)
@@ -145,8 +148,10 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("evaluate_double_ipe_cope", command_source)
         self.assertIn("CopePreviewManager", command_source)
         self.assertIn('WEB_CLEARANCE_ID = "copeWebClearance"', command_source)
-        self.assertIn("command.isOKButtonVisible = False", command_source)
-        self.assertIn("aucune coupe ne sera créée", command_source)
+        self.assertIn("ValidateInputsHandler", command_source)
+        self.assertIn("ExecuteHandler", command_source)
+        self.assertIn("create_double_ipe_cope", command_source)
+        self.assertNotIn("command.isOKButtonVisible = False", command_source)
         self.assertIn("COPE_PREVIEW_RED", preview_source)
         self.assertIn("WEB_CUT_ORANGE", preview_source)
         self.assertIn("PRIMARY_EXTENSION_GREEN", preview_source)
@@ -161,8 +166,19 @@ class RepositoryTests(unittest.TestCase):
             if isinstance(node, ast.FunctionDef) and node.name == "_profile_axes"
         )
         self.assertTrue(any(isinstance(node, ast.Return) for node in profile_axes.body))
-        self.assertNotIn("combineFeatures", command_source)
-        self.assertNotIn("splitBodyFeatures", command_source)
+        self.assertIn("CutFeatureOperation", creator_source)
+        self.assertIn("ToEntityExtentDefinition.create", creator_source)
+        self.assertIn("_extend_primary_end", creator_source)
+        self.assertIn("_extend_body", creator_source)
+        self.assertIn("_split_and_keep_interior", creator_source)
+        self.assertIn('COPE_TYPE = "double_ipe_cope"', creator_source)
+        self.assertIn('ENDPOINT_PLANE_NAME = "PLAN_GRUGEAGE_EXTREMITE"', creator_source)
+        self.assertIn('WEB_CUT_PLANE_NAME = "PLAN_COUPE_AME_PRINCIPALE"', creator_source)
+        self.assertIn('COPE_START_PLANE_NAME = "PLAN_DEBUT_GRUGEAGE"', creator_source)
+        self.assertIn('COPE_CUT_FEATURE_NAME = "GRUGEAGE_SEMELLES_IPE"', creator_source)
+        self.assertIn("removed_volume_cm3", creator_source)
+        self.assertIn("for entity in reversed(created_entities)", creator_source)
+        self.assertIn("for attribute in reversed(created_attributes)", creator_source)
 
     def test_github_installation_guide_covers_profiles_and_updates(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

@@ -356,12 +356,12 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 4. Contrôler que la principale couvre toute la largeur de la section secondaire sans vide et que seule l'extrémité nécessaire a été prolongée.
 5. Refaire l'essai avec la même jonction au milieu d'une principale suffisamment longue : le rapport doit afficher `Suffisante — aucune modification` et ne créer aucun prolongement principal.
 
-## Test 22 — Premier aperçu du double grugeage IPE
+## Test 22 — Premier double grugeage IPE réel
 
-Cette validation est volontairement visuelle et non destructive. Aucun solide ne doit être modifié pendant ce test.
+Procéder en deux temps : contrôler d'abord la preview déjà validée, puis créer une seule opération et inspecter son résultat avant de multiplier les essais.
 
 1. Créer une barre principale IPE, HEA ou HEB et une barre secondaire IPE droite dont les axes se rejoignent exactement à `90°`.
-2. Arrêter puis exécuter le complément et vérifier `Grugeage IPE — aperçu V1.17.1` dans `STRUCTURE JHR > MODIFIER`.
+2. Arrêter puis exécuter le complément et vérifier `Grugeage IPE V1.18.0` dans `STRUCTURE JHR > MODIFIER`.
 3. Ouvrir la commande, sélectionner la principale puis la secondaire IPE.
 4. Vérifier l'apparition de deux volumes rouges semi-transparents, l'un sur la semelle supérieure de la secondaire et l'autre sur sa semelle inférieure.
 5. Vérifier que les volumes rouges partent de l'extrémité située sur l'axe principal et se terminent sur la face extérieure de la principale orientée vers la secondaire.
@@ -372,12 +372,16 @@ Cette validation est volontairement visuelle et non destructive. Aucun solide ne
 10. Passer le `Jeu contre l'âme` de `1 mm` à `0 mm`, puis à `2 mm` : seul le rectangle orange doit se déplacer par rapport à l'âme principale.
 11. Placer le raccord au milieu d'une principale suffisamment longue : le rapport doit indiquer `Aucun — couverture suffisante` et aucun ajout vert ne doit apparaître.
 12. Refaire le raccord près de l'extrémité d'une principale trop courte : une section verte doit prolonger uniquement cette extrémité jusqu'à couvrir la section secondaire, avec la même longueur dans le rapport.
-13. Fermer la commande et vérifier que les éléments rouges, orange et verts disparaissent, sans nouvelle entrée dans l'historique et sans modification des deux corps.
-14. Refaire l'essai avec au moins trois sections IPE différentes, dont `IPE 100`, une section intermédiaire et une grande section.
-15. Refaire un cas avec rotation, miroir X, miroir Y et un point d'ancrage non centré ; les volumes doivent rester attachés aux deux semelles de l'IPE secondaire.
-16. Vérifier qu'une secondaire HEA, un arc, un angle différent de `90°` ou une principale dont l'âme ne regarde pas la secondaire est refusé avec un message clair et sans aucun graphisme résiduel.
-
-Le bouton `OK` ne doit pas être affiché dans la V1.17.1. Les opérations réelles ne seront implémentées qu'après validation de ces seize points.
+13. Cliquer sur `OK` et vérifier que la principale n'est modifiée que si sa couverture était insuffisante.
+14. Dans le composant secondaire, vérifier la présence de `PLAN_GRUGEAGE_EXTREMITE`, `PLAN_COUPE_AME_PRINCIPALE`, `PLAN_DEBUT_GRUGEAGE`, `COUPE_DROITE_AME_PRINCIPALE`, `RETRAIT_APRES_AME_PRINCIPALE`, `ESQUISSE_OUTILS_GRUGEAGE` et `GRUGEAGE_SEMELLES_IPE`.
+15. Vérifier qu'il reste exactement un corps dans la secondaire, que son âme s'arrête contre l'âme principale avec le jeu choisi et que ses deux semelles s'arrêtent suivant les volumes rouges de la preview.
+16. Si la principale était trop courte, vérifier `PROLONGEMENT_BARRE_PRINCIPALE` et l'absence de vide sur toute la largeur de la secondaire. Dans un raccord situé au milieu d'une principale assez longue, cette fonction ne doit pas être créée.
+17. Mesurer les jeux vertical, longitudinal et contre l'âme ; ils doivent correspondre aux valeurs saisies.
+18. Annuler l'opération dans l'historique et vérifier le retour des deux barres à leur état initial.
+19. Refaire l'essai avec au moins trois sections IPE différentes, dont `IPE 100`, une section intermédiaire et une grande section.
+20. Refaire un cas avec rotation, miroir X, miroir Y et un point d'ancrage non centré ; la coupe réelle doit rester superposée à la preview.
+21. Appliquer un grugeage à l'extrémité opposée d'une même secondaire : il doit être autorisé. Réessayer sur l'extrémité déjà traitée : le doublon doit être refusé.
+22. Vérifier qu'une secondaire HEA, un arc, un angle différent de `90°` ou une principale dont l'âme ne regarde pas la secondaire est refusé avec un message clair et sans fonction résiduelle.
 
 ## Critères de validation
 
@@ -413,6 +417,7 @@ Le bouton `OK` ne doit pas être affiché dans la V1.17.1. Les opérations réel
 - prolongement automatique si le corps est séparé du plan et coupe directe s'il le chevauche.
 - point et normale de la preview identiques au plan final contrôlé par le complément.
 - jeu de jonction mesurable et conforme à la valeur saisie.
-- deux volumes rouges de grugeage alignés sur les semelles de l'IPE secondaire, un plan orange sur l'âme principale et un éventuel prolongement vert correct, sans aucune modification du modèle.
+- deux volumes rouges de grugeage alignés sur les semelles de l'IPE secondaire, un plan orange sur l'âme principale et un éventuel prolongement vert correct avant validation.
+- après `OK`, un corps secondaire unique, les deux semelles réellement grugées et l'âme coupée contre l'âme principale avec les jeux saisis.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.
