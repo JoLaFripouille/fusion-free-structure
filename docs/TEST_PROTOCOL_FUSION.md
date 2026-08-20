@@ -433,6 +433,24 @@ Pour chaque essai, contrôler d'abord à `90°` le volume rouge unique, la face 
 
 Les mélanges I/H ↔ cornière/té et les chemins cintrés doivent être refusés sans fonction résiduelle.
 
+## Test 25 — Valeurs par défaut locales
+
+Procéder avec une seule valeur à la fois afin de distinguer la sauvegarde globale d'une modification ponctuelle dans une commande.
+
+1. Arrêter puis exécuter le complément et vérifier `Paramètres Structure JHR V1.21.0` dans le groupe `PARAMÈTRES` de l'onglet `STRUCTURE JHR`.
+2. Ouvrir la fenêtre et vérifier qu'elle contient uniquement l'onglet `Valeurs par défaut`, puis les groupes `Jonction ajustée`, `Coupe d'onglet`, `Grugeage IPE / HEA / HEB` et `Grugeage cornières / Tés`.
+3. Vérifier que la coupe d'onglet indique `Aucune valeur réglable pour le moment`.
+4. Dans `Jonction ajustée`, régler seulement `IPE / HEA / HEB` à `2 mm`, laisser les trois autres groupes à `0 mm`, puis valider avec `OK`.
+5. Rouvrir immédiatement les paramètres et vérifier que `2 mm` est conservé.
+6. Ouvrir `Jonctions acier`, rester en `Jonction ajustée`, sélectionner une IPE/HEA/HEB comme barre secondaire et vérifier que le champ `Jeu` passe automatiquement à `2 mm`.
+7. Remplacer la secondaire par un tube et vérifier que le champ repasse à `0 mm`.
+8. Saisir ponctuellement `3 mm` dans la commande de jonction, annuler la commande, puis rouvrir les paramètres : la valeur I/H doit rester `2 mm` et la valeur tube `0 mm`.
+9. Dans les paramètres, régler `Jeu sous l'âme secondaire` du grugeage cornières/tés à `1,5 mm` et `Jeu autour du congé principal` à `0,5 mm`, puis valider.
+10. Ouvrir `Grugeage profils ouverts`, sélectionner une secondaire cornière ou té et vérifier que les deux champs affichent respectivement `1,5 mm` et `0,5 mm`.
+11. Sélectionner ensuite un couple IPE/HEA/HEB et vérifier que les champs cornière/té disparaissent et que les trois valeurs du groupe I/H sont utilisées.
+12. Arrêter puis exécuter de nouveau le complément, répéter les étapes 5, 6 et 10 et vérifier que toutes les valeurs sont toujours conservées.
+13. Vérifier que le fichier `%APPDATA%\EI_JHR\fusion-free-structure\settings.json` existe et ne contient que le numéro de schéma et les distances configurées, sans chemin de document, nom de profil créé ni donnée personnelle.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -469,5 +487,6 @@ Les mélanges I/H ↔ cornière/té et les chemins cintrés doivent être refus�
 - jeu de jonction mesurable et conforme à la valeur saisie.
 - deux volumes rouges inchangés pour un profil I/H ; pour une cornière/un té, un retrait droit limité à l'épaisseur et, seulement face à un congé intérieur principal, un dégagement rouge arrondi séparé. Tous se terminent sur la géométrie de la branche verticale principale, avec un éventuel prolongement vert correct avant validation.
 - après `OK`, un corps secondaire unique, la matière réellement grugée et la branche verticale coupée contre l'appui principal avec les jeux saisis.
+- valeurs par défaut conservées après fermeture et redémarrage du complément, appliquées selon la famille secondaire et modifiables ponctuellement sans changer le fichier local.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

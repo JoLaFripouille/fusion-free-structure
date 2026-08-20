@@ -66,6 +66,8 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] généraliser le calcul et la création aux quatre combinaisons cornière/té dans la V1.20.0.
 - [x] limiter le retrait droit des cornières/tés à leur épaisseur et ajouter séparément le dégagement arrondi du congé principal dans la V1.20.1, sans modifier les IPE/HEA/HEB.
 - [x] séparer dans la V1.20.2 le jeu sous l'âme secondaire du jeu autour du congé principal, avec des champs propres aux cornières/tés.
+- [x] ajouter dans la V1.21.0 une fenêtre `Paramètres > Valeurs par défaut`, persistée localement et organisée par opération et groupe de profils.
+- [ ] ajouter de nouveaux onglets de paramètres uniquement lorsque de nouvelles catégories de réglages auront été validées.
 - [ ] valider séparément dans Fusion cornière→cornière, cornière→té, té→cornière et té→té avant d'ajouter d'autres profils ouverts.
 - [ ] ajouter séparément les platines, boulons et assemblages composés.
 

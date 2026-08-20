@@ -4,6 +4,24 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.21.0] - En validation
+
+### Ajouté
+
+- nouveau groupe `PARAMÈTRES` dans l'onglet `STRUCTURE JHR` et bouton `Paramètres Structure JHR` ;
+- première fenêtre de configuration avec l'onglet `Valeurs par défaut`, organisé par type d'opération et groupe de profils ;
+- jeux de jonction ajustée indépendants pour IPE/HEA/HEB, cornières/tés, tubes et autres profils ;
+- valeurs séparées pour le grugeage I/H et le grugeage cornières/tés ; la coupe d'onglet indique qu'elle ne possède encore aucune valeur réglable ;
+- sauvegarde locale dans `%APPDATA%\EI_JHR\fusion-free-structure\settings.json`, hors du dépôt, de la bibliothèque DXF et des documents Fusion ;
+- application automatique du jeu correspondant à la famille de la barre secondaire lors de sa sélection, tout en conservant la possibilité de modifier ponctuellement la valeur dans la commande.
+
+### Sécurisé
+
+- le fichier contient uniquement un numéro de schéma et des distances numériques positives ou nulles ;
+- l'écriture est atomique et un fichier illisible n'est jamais remplacé sans validation explicite par `OK` dans la fenêtre Paramètres ;
+- l'absence de fichier conserve toutes les valeurs historiques : `0 mm` pour les jonctions ajustées et `1 mm` pour les jeux de grugeage ;
+- 134 tests automatiques couvrent le stockage, la validation, le regroupement des familles et le branchement des commandes.
+
 ## [1.20.2] - En validation
 
 ### Ajouté

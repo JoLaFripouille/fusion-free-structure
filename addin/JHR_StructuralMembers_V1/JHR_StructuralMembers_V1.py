@@ -9,6 +9,7 @@ from .commands import (
     create_members,
     inspect_member,
     manage_custom_profiles,
+    manage_settings,
 )
 from .lib import addin_info, structural_materials, ui_layout
 
@@ -38,6 +39,7 @@ def run(context):
         create_cope.start()
         inspect_member.start()
         manage_custom_profiles.start()
+        manage_settings.start()
     except Exception:
         if ui:
             ui.messageBox(
@@ -51,6 +53,7 @@ def stop(context):
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
+        manage_settings.stop()
         manage_custom_profiles.stop()
         inspect_member.stop()
         create_cope.stop()

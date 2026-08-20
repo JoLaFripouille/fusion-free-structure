@@ -106,6 +106,14 @@ L'ajout valide le DXF avant de le copier et vérifie que la copie est identique 
 
 La suppression est limitée à cette branche locale. Le DXF, son JSON et un enregistrement de suppression sont déplacés ensemble dans `corbeille_profils/<horodatage>-<profil>`. Les composants Fusion existants ne sont pas effacés ; leur attribut `profile_source` permet d'avertir l'utilisateur avant le retrait du fichier.
 
+## Paramètres locaux
+
+La V1.21.0 ajoute `%APPDATA%\EI_JHR\fusion-free-structure\settings.json`. Ce fichier est extérieur à l'installation du complément : une mise à jour du code ou des 341 DXF ne le remplace donc pas. Il ne contient que la version de son schéma et des distances en millimètres.
+
+Les valeurs de jonction ajustée sont indexées par famille secondaire regroupée en quatre ensembles : IPE/HEA/HEB, cornières/tés, tubes et autres profils. Les deux moteurs de grugeage possèdent leurs propres valeurs. À l'ouverture d'une commande, le fichier est lu une seule fois ; lorsque la secondaire est sélectionnée, les champs reçoivent les valeurs de son groupe. Une modification ponctuelle dans la commande ne modifie pas le fichier : seule la validation par `OK` de `Paramètres Structure JHR` l'écrit.
+
+L'écriture utilise un fichier temporaire puis un remplacement atomique. Une valeur négative, non numérique ou non finie est refusée. Si le JSON local est absent, les valeurs historiques sont utilisées. S'il est illisible, les commandes utilisent aussi ces valeurs d'usine, tandis que la fenêtre Paramètres affiche l'avertissement et demande une validation explicite avant de remplacer le fichier.
+
 ## Modèle général des jonctions
 
 La géométrie de référence est le squelette, pas l'état de contact des solides. La commande retrouve les courbes sources enregistrées sur les composants, détermine l'extrémité concernée, la direction orientée depuis l'intérieur vers la rencontre et l'angle réel entre les axes. Les angles presque parallèles, inférieurs à `5°`, restent refusés car ils ne définissent pas un plan de coupe stable.

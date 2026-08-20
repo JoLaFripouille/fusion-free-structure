@@ -6,7 +6,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 
 ## Fonction de la V1
 
-- onglet Fusion dédié `STRUCTURE JHR`, divisé en groupes `CRÉER` et `MODIFIER` ;
+- onglet Fusion dédié `STRUCTURE JHR`, divisé en groupes `CRÉER`, `MODIFIER` et `PARAMÈTRES` ;
 - sélection d'une ou plusieurs lignes ou arcs d'esquisse dans le composant racine ;
 - choix de la catégorie, de la zone géographique, de la famille puis de la section parmi les 341 DXF disponibles ;
 - ajout de profils DXF personnels dans une catégorie `Personnalisés` séparée des zones géographiques ;
@@ -28,8 +28,9 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
 - commande `Jonctions acier` : jonction ajustée à l'enveloppe d'une barre de référence, quel que soit l'angle non parallèle, ou coupe d'onglet symétrique entre deux barres droites ; détection des espaces et chevauchements, prolongement automatique, opérations multiples par barre et aperçu orange identique au plan final.
 - commande `Grugeage profils ouverts` : double grugeage IPE/HEA/HEB ou grugeage simple pour les quatre combinaisons cornière/té, à tout angle non parallèle ; uniquement pour les cornières et les tés, le retrait droit suit l'épaisseur de la branche secondaire plus le `Jeu sous l'âme secondaire`, tandis qu'un réglage indépendant commande le dégagement rouge arrondi du congé principal. Le plan orange indique la face d'appui réelle et le vert son éventuel prolongement.
+- commande `Paramètres Structure JHR` : onglet `Valeurs par défaut` sauvegardé localement, avec jeux distincts selon l'opération et le groupe de profils ; les valeurs sont proposées dans les commandes suivantes et restent modifiables pour une opération particulière.
 
-Dans l'onglet dédié, `CRÉER` contient **Profil acier** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonctions acier**, **Grugeage profils ouverts** et **Inspecter un profil acier**. Les commandes ne sont plus ajoutées aux panneaux généraux de Fusion.
+Dans l'onglet dédié, `CRÉER` contient **Profil acier** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonctions acier**, **Grugeage profils ouverts** et **Inspecter un profil acier**. `PARAMÈTRES` contient **Paramètres Structure JHR**. Les commandes ne sont plus ajoutées aux panneaux généraux de Fusion.
 
 ## Bibliothèque incluse
 
@@ -75,6 +76,8 @@ fusion-free-structure/
 ```
 
 Les profils personnels ne figurent volontairement pas dans cette arborescence : ils restent dans les données locales de l'utilisateur.
+
+Les valeurs par défaut sont également locales et ne sont jamais publiées dans le dépôt. Elles sont enregistrées dans `%APPDATA%\EI_JHR\fusion-free-structure\settings.json`.
 
 ## Installation dans Fusion
 

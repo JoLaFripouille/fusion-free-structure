@@ -6,7 +6,14 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from ..lib import addin_info, cope_builder, cope_creator, ui_layout
+from ..lib import (
+    addin_info,
+    cope_builder,
+    cope_creator,
+    default_settings,
+    joint_builder,
+    ui_layout,
+)
 from ..lib.cope_preview import CopePreviewManager
 
 
@@ -61,6 +68,44 @@ def _distance_value(inputs, input_id, label):
     if distance.value < 0.0:
         raise ValueError("{} ne peut pas être négatif.".format(label))
     return distance.value
+
+
+def _apply_saved_defaults(inputs, values):
+    selection = inputs.itemById(SECONDARY_SELECTION_ID)
+    if not selection or selection.selectionCount != 1:
+        return
+    occurrence = adsk.fusion.Occurrence.cast(selection.selection(0).entity)
+    if not occurrence or not occurrence.isValid:
+        return
+    metadata = joint_builder._member_metadata(occurrence, "secondaire")
+    if metadata.profile_family in cope_builder.I_H_FAMILIES:
+        is_i_h = True
+        assignments_mm = (
+            (VERTICAL_CLEARANCE_ID, values.cope_ih_vertical_mm),
+            (LONGITUDINAL_CLEARANCE_ID, values.cope_ih_longitudinal_mm),
+            (WEB_CLEARANCE_ID, values.cope_ih_support_mm),
+        )
+    elif metadata.profile_family in cope_builder.L_T_FAMILIES:
+        is_i_h = False
+        assignments_mm = (
+            (UNDER_WEB_CLEARANCE_ID, values.cope_lt_under_web_mm),
+            (ROOT_RELIEF_CLEARANCE_ID, values.cope_lt_root_relief_mm),
+            (LONGITUDINAL_CLEARANCE_ID, values.cope_lt_longitudinal_mm),
+            (WEB_CLEARANCE_ID, values.cope_lt_support_mm),
+        )
+    else:
+        return
+    visibility = (
+        (VERTICAL_CLEARANCE_ID, is_i_h),
+        (UNDER_WEB_CLEARANCE_ID, not is_i_h),
+        (ROOT_RELIEF_CLEARANCE_ID, not is_i_h),
+    )
+    for input_id, expected_visibility in visibility:
+        command_input = inputs.itemById(input_id)
+        if command_input.isVisible != expected_visibility:
+            command_input.isVisible = expected_visibility
+    for input_id, value_mm in assignments_mm:
+        inputs.itemById(input_id).value = value_mm * default_settings.MM_TO_CM
 
 
 def _evaluate(inputs):
@@ -233,6 +278,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             command.isRepeatable = False
             inputs = command.commandInputs
             preview_manager = CopePreviewManager()
+            saved_defaults, settings_warning = default_settings.load_or_factory()
+            if settings_warning:
+                _log(
+                    "Paramètres locaux ignorés, valeurs d'usine utilisées : {}"
+                    .format(settings_warning)
+                )
 
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
@@ -254,7 +305,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 VERTICAL_CLEARANCE_ID,
                 "Jeu vertical I/H",
                 "mm",
-                adsk.core.ValueInput.createByString("1 mm"),
+                adsk.core.ValueInput.createByString(
+                    "{:.9g} mm".format(saved_defaults.cope_ih_vertical_mm)
+                ),
             )
             vertical.minimumValue = 0.0
             vertical.isMinimumInclusive = True
@@ -263,7 +316,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 UNDER_WEB_CLEARANCE_ID,
                 "Jeu sous l'âme secondaire",
                 "mm",
-                adsk.core.ValueInput.createByString("1 mm"),
+                adsk.core.ValueInput.createByString(
+                    "{:.9g} mm".format(saved_defaults.cope_lt_under_web_mm)
+                ),
             )
             under_web.minimumValue = 0.0
             under_web.isMinimumInclusive = True
@@ -273,7 +328,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 ROOT_RELIEF_CLEARANCE_ID,
                 "Jeu autour du congé principal",
                 "mm",
-                adsk.core.ValueInput.createByString("1 mm"),
+                adsk.core.ValueInput.createByString(
+                    "{:.9g} mm".format(saved_defaults.cope_lt_root_relief_mm)
+                ),
             )
             root_relief.minimumValue = 0.0
             root_relief.isMinimumInclusive = True
@@ -283,7 +340,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 LONGITUDINAL_CLEARANCE_ID,
                 "Jeu longitudinal",
                 "mm",
-                adsk.core.ValueInput.createByString("1 mm"),
+                adsk.core.ValueInput.createByString(
+                    "{:.9g} mm".format(saved_defaults.cope_ih_longitudinal_mm)
+                ),
             )
             longitudinal.minimumValue = 0.0
             longitudinal.isMinimumInclusive = True
@@ -292,7 +351,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 WEB_CLEARANCE_ID,
                 "Jeu contre l'appui",
                 "mm",
-                adsk.core.ValueInput.createByString("1 mm"),
+                adsk.core.ValueInput.createByString(
+                    "{:.9g} mm".format(saved_defaults.cope_ih_support_mm)
+                ),
             )
             web_clearance.minimumValue = 0.0
             web_clearance.isMinimumInclusive = True
@@ -305,7 +366,11 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 True,
             )
 
-            input_changed = InputChangedHandler(report, preview_manager)
+            input_changed = InputChangedHandler(
+                report,
+                preview_manager,
+                saved_defaults,
+            )
             command.inputChanged.add(input_changed)
             _handlers.append(input_changed)
 
@@ -335,10 +400,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
 
 class InputChangedHandler(adsk.core.InputChangedEventHandler):
-    def __init__(self, report_input, preview_manager):
+    def __init__(self, report_input, preview_manager, saved_defaults):
         super().__init__()
         self._report_input = report_input
         self._preview_manager = preview_manager
+        self._saved_defaults = saved_defaults
+        self._applying_defaults = False
 
     def notify(self, args):
         event_args = adsk.core.InputChangedEventArgs.cast(args)
@@ -352,6 +419,15 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             LONGITUDINAL_CLEARANCE_ID,
             WEB_CLEARANCE_ID,
         ):
+            if (
+                changed.id == SECONDARY_SELECTION_ID
+                and not self._applying_defaults
+            ):
+                self._applying_defaults = True
+                try:
+                    _apply_saved_defaults(event_args.inputs, self._saved_defaults)
+                finally:
+                    self._applying_defaults = False
             _refresh(event_args.inputs, self._report_input, self._preview_manager)
 
 

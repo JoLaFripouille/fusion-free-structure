@@ -4,6 +4,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
+### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
+
+- **État :** fenêtre et stockage V1.21.0 prêts pour un essai progressif.
+- **Périmètre :** jonction ajustée par groupe de profils, grugeage I/H et grugeage cornière/té. La coupe d'onglet n'a actuellement aucune valeur à mémoriser.
+- **Sécurité :** un fichier absent produit les valeurs d'usine ; un fichier invalide est signalé et conservé tant que l'utilisateur ne valide pas son remplacement dans la fenêtre Paramètres.
+- **Validation prévue :** modifier une seule valeur de jonction I/H, fermer par `OK`, rouvrir la fenêtre puis la commande de jonction et vérifier sa réutilisation après sélection d'une barre secondaire I/H. Tester ensuite une valeur cornière/té séparée.
+
 ### ISSUE-024 — Grugeage cornière/té à valider dans Fusion
 
 - **État :** forme du grugeage V1.20.1 validée dans Fusion ; réglages indépendants V1.20.2 à confirmer.

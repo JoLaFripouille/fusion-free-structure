@@ -42,6 +42,9 @@ class RepositoryTests(unittest.TestCase):
         joint_source = (ADDIN / "commands" / "create_joint.py").read_text(encoding="utf-8")
         cope_source = (ADDIN / "commands" / "create_cope.py").read_text(encoding="utf-8")
         inspection_source = (ADDIN / "commands" / "inspect_member.py").read_text(encoding="utf-8")
+        settings_source = (ADDIN / "commands" / "manage_settings.py").read_text(
+            encoding="utf-8"
+        )
         builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
         self.assertIn("COMMAND_NAME = addin_info.DISPLAY_NAME", command_source)
         self.assertIn('COMMAND_NAME = "Jonctions acier V{}".format(addin_info.VERSION)', joint_source)
@@ -50,6 +53,10 @@ class RepositoryTests(unittest.TestCase):
             cope_source,
         )
         self.assertIn('COMMAND_NAME = "Inspecter un profil acier V{}".format(addin_info.VERSION)', inspection_source)
+        self.assertIn(
+            'COMMAND_NAME = "Paramètres Structure JHR V{}".format(addin_info.VERSION)',
+            settings_source,
+        )
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
 
     def test_first_straight_joint_is_registered_previewed_and_parametric(self):
@@ -111,6 +118,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('TAB_NAME = "STRUCTURE JHR"', layout_source)
         self.assertIn('CREATE_PANEL_NAME = "CRÉER"', layout_source)
         self.assertIn('MODIFY_PANEL_NAME = "MODIFIER"', layout_source)
+        self.assertIn('SETTINGS_PANEL_NAME = "PARAMÈTRES"', layout_source)
         self.assertIn("workspace.toolbarTabs.add", layout_source)
         self.assertIn("tab.toolbarPanels.add", layout_source)
         self.assertIn("ui_layout.start(ui)", entry_source)
@@ -122,6 +130,7 @@ class RepositoryTests(unittest.TestCase):
             "create_joint.py": "ui_layout.MODIFY_PANEL_ID",
             "create_cope.py": "ui_layout.MODIFY_PANEL_ID",
             "inspect_member.py": "ui_layout.MODIFY_PANEL_ID",
+            "manage_settings.py": "ui_layout.SETTINGS_PANEL_ID",
         }
         for filename, panel_id in expected_panels.items():
             source = (ADDIN / "commands" / filename).read_text(encoding="utf-8")
@@ -129,6 +138,35 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn("SolidCreatePanel", source)
             self.assertNotIn("SolidModifyPanel", source)
             self.assertNotIn("SolidScriptsAddinsPanel", source)
+
+    def test_local_default_values_are_managed_and_used_by_operations(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
+            encoding="utf-8"
+        )
+        settings_source = (ADDIN / "commands" / "manage_settings.py").read_text(
+            encoding="utf-8"
+        )
+        storage_source = (ADDIN / "lib" / "default_settings.py").read_text(
+            encoding="utf-8"
+        )
+        joint_source = (ADDIN / "commands" / "create_joint.py").read_text(
+            encoding="utf-8"
+        )
+        cope_source = (ADDIN / "commands" / "create_cope.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("manage_settings.start()", entry_source)
+        self.assertIn("manage_settings.stop()", entry_source)
+        self.assertIn("addTabCommandInput", settings_source)
+        self.assertIn("Valeurs par défaut", settings_source)
+        self.assertIn("default_settings.save", settings_source)
+        self.assertIn('SETTINGS_FILENAME = "settings.json"', storage_source)
+        self.assertIn("os.replace", storage_source)
+        self.assertIn("straight_joint_gap_mm", joint_source)
+        self.assertIn("_apply_saved_gap", joint_source)
+        self.assertIn("_apply_saved_defaults", cope_source)
+        self.assertIn("cope_lt_under_web_mm", cope_source)
+        self.assertNotIn("C:\\Users\\", storage_source)
 
     def test_open_profile_cope_is_previewed_validated_and_created(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(

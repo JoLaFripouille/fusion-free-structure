@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.20.2 : jeux indépendants sous âme et autour du congé."
+    "": "Profil acier V1.21.0 : valeurs par défaut enregistrées par opération et profil."
   },
-  "version": "1.20.2",
+  "version": "1.21.0",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

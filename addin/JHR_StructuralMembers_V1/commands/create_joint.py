@@ -6,7 +6,7 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from ..lib import addin_info, joint_builder, ui_layout
+from ..lib import addin_info, default_settings, joint_builder, ui_layout
 from ..lib.joint_preview import JointPreviewManager
 
 
@@ -76,6 +76,21 @@ def _update_mode_visibility(inputs):
         command_input = inputs.itemById(input_id)
         if command_input:
             command_input.isVisible = is_visible
+
+
+def _apply_saved_gap(inputs, values):
+    selection = inputs.itemById(SECONDARY_SELECTION_ID)
+    if not selection or selection.selectionCount != 1:
+        return
+    occurrence = adsk.fusion.Occurrence.cast(selection.selection(0).entity)
+    if not occurrence or not occurrence.isValid:
+        return
+    metadata = joint_builder._member_metadata(occurrence, "secondaire")
+    gap = inputs.itemById(GAP_INPUT_ID)
+    gap.value = (
+        values.straight_joint_gap_mm(metadata.profile_family)
+        * default_settings.MM_TO_CM
+    )
 
 
 def _evaluate(inputs):
@@ -210,6 +225,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             command.isRepeatable = False
             inputs = command.commandInputs
             preview_manager = JointPreviewManager()
+            saved_defaults, settings_warning = default_settings.load_or_factory()
+            if settings_warning:
+                _log(
+                    "Paramètres locaux ignorés, valeurs d'usine utilisées : {}"
+                    .format(settings_warning)
+                )
 
             joint_type = inputs.addDropDownCommandInput(
                 JOINT_TYPE_INPUT_ID,
@@ -257,7 +278,11 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 GAP_INPUT_ID,
                 "Jeu",
                 "mm",
-                adsk.core.ValueInput.createByString("0 mm"),
+                adsk.core.ValueInput.createByString(
+                    "{:.9g} mm".format(
+                        saved_defaults.straight_joint_other_gap_mm
+                    )
+                ),
             )
             gap.minimumValue = 0.0
             gap.isMinimumInclusive = True
@@ -270,7 +295,11 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 True,
             )
 
-            input_changed = InputChangedHandler(report, preview_manager)
+            input_changed = InputChangedHandler(
+                report,
+                preview_manager,
+                saved_defaults,
+            )
             command.inputChanged.add(input_changed)
             _handlers.append(input_changed)
 
@@ -298,10 +327,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
 
 class InputChangedHandler(adsk.core.InputChangedEventHandler):
-    def __init__(self, report_input, preview_manager):
+    def __init__(self, report_input, preview_manager, saved_defaults):
         super().__init__()
         self._report_input = report_input
         self._preview_manager = preview_manager
+        self._saved_defaults = saved_defaults
+        self._applying_defaults = False
 
     def notify(self, args):
         event_args = adsk.core.InputChangedEventArgs.cast(args)
@@ -316,6 +347,15 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         ):
             if changed.id == JOINT_TYPE_INPUT_ID:
                 _update_mode_visibility(event_args.inputs)
+            if (
+                changed.id == SECONDARY_SELECTION_ID
+                and not self._applying_defaults
+            ):
+                self._applying_defaults = True
+                try:
+                    _apply_saved_gap(event_args.inputs, self._saved_defaults)
+                finally:
+                    self._applying_defaults = False
             _refresh(event_args.inputs, self._report_input, self._preview_manager)
 
 
