@@ -4,13 +4,25 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
-## [1.24.1] - En validation
+## [1.24.2] - En validation
+
+### Corrigé
+
+- le déclenchement de l'événement natif ne part plus directement de l'événement `destroy` de la commande JHR, chemin refusé par Fusion avec le message « n'a pas pu planifier » ;
+- un thread de coordination attend `0,1 s`, puis appelle uniquement `fireCustomEvent` jusqu'à trois fois ; Fusion traite ensuite l'ouverture native sur son thread principal lorsqu'il est au repos ;
+- la création des cornières, les quatre groupes de perçages et la sélection des six arêtes restent strictement inchangés.
+
+### Validation prévue
+
+- vérifier que `Insérer une attache` s'ouvre après fermeture du message JHR, puis contrôler si les six arêtes de deux orientations sont conservées ensemble.
+
+## [1.24.1] - Échec d'ouverture confirmé dans Fusion
 
 ### Modifié
 
 - les boulons reconstruits par cinq corps sont retirés avant leur validation Fusion au profit de la commande native `Insérer une attache` ;
 - après création des cornières et des quatre groupes de trous, le complément retrouve six arêtes circulaires réelles : quatre sur la face arrière de l'âme principale et deux sur la face extérieure de la cornière gauche ;
-- à la destruction de la commande JHR, un événement personnalisé reporte la présélection des six arêtes et l'ouverture de `FusionFastenersCommand` jusqu'au retour au repos de Fusion ;
+- à la destruction de la commande JHR, un événement personnalisé devait reporter la présélection des six arêtes et l'ouverture de `FusionFastenersCommand` jusqu'au retour au repos de Fusion ; l'appel direct à `fireCustomEvent` depuis cet événement a été refusé par Fusion avant la mise en file ;
 - l'aperçu bleu matérialise uniquement la tête et la tige visées, tandis que la norme, la longueur, le matériau, la finition, les écrous et les rondelles sont laissés à la bibliothèque native Fusion.
 
 ### Sécurité

@@ -215,6 +215,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('NATIVE_FASTENER_COMMAND_ID = "FusionFastenersCommand"', command_source)
         self.assertIn("adsk.core.CustomEventHandler", command_source)
         self.assertIn("app.fireCustomEvent", command_source)
+        self.assertIn("threading.Thread", command_source)
+        self.assertIn("time.sleep(0.1)", command_source)
         self.assertIn("ui.activeSelections", command_source)
         self.assertIn("definition.execute()", command_source)
         self.assertIn("native_fastener_edges", creator_source)

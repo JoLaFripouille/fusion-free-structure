@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import html
+import threading
+import time
 import traceback
 
 import adsk.core
@@ -58,6 +60,16 @@ def _log(message):
 
 def _escaped(value):
     return html.escape(str(value), quote=True)
+
+
+def _fire_native_fastener_event_from_worker(app):
+    """Attend la fin réelle de la commande JHR avant de réveiller Fusion."""
+    time.sleep(0.1)
+    for attempt in range(3):
+        if app.fireCustomEvent(NATIVE_FASTENER_EVENT_ID):
+            return
+        if attempt < 2:
+            time.sleep(0.2)
 
 
 def _selected_occurrence(inputs, input_id, role):
@@ -277,15 +289,14 @@ class NativeFastenerLauncher:
     def queue(self):
         if not self._edges:
             return
-        app, ui = _app_and_ui()
-        if app.fireCustomEvent(NATIVE_FASTENER_EVENT_ID):
-            _log("Ouverture native des attaches placée dans la file Fusion")
-            return
-        self.cancel()
-        ui.messageBox(
-            "Les cornières et les trous sont créés, mais Fusion n'a pas pu "
-            "planifier l'ouverture de sa fenêtre native d'attaches.\n\n"
-            "Utiliser manuellement Solide > Insérer > Insérer une attache."
+        app, _ = _app_and_ui()
+        threading.Thread(
+            target=_fire_native_fastener_event_from_worker,
+            args=(app,),
+            daemon=True,
+        ).start()
+        _log(
+            "Ouverture native des attaches confiée au déclencheur différé"
         )
 
     def launch(self):

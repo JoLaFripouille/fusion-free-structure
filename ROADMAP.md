@@ -73,6 +73,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] valider dans Fusion la création et les perçages V1.23.6 avant d'ajouter les boulons.
 - [x] prototyper dans la V1.24.0 des boulons géométriques comme composants indépendants ; solution remplacée avant validation Fusion.
 - [x] remplacer dans la V1.24.1 ce prototype par la présélection des six perçages et l'ouverture de la commande native `Insérer une attache`.
+- [x] corriger dans la V1.24.2 le refus de planification en déclenchant l'événement personnalisé hors de l'événement de commande JHR.
 - [ ] valider dans Fusion que les six arêtes sont acceptées ensemble et que la bibliothèque native dimensionne correctement les quatre axes principaux et les deux axes secondaires.
 - [ ] tester ensuite séparément l'ajout natif des écrous et rondelles sur les attaches créées.
 - [ ] intégrer le jeu entre secondaire et principale ainsi que les distances aux bords uniquement après définition des valeurs souhaitées par l'utilisateur ou le calculateur structure.

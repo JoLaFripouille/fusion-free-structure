@@ -497,8 +497,8 @@ Effectuer d'abord un seul assemblage avec les valeurs proposées. Ne pas ajouter
 
 Effectuer uniquement ce test sur le cas déjà validé du test 27. Ne modifier ni les cornières ni les distances de perçage pendant ce premier contrôle.
 
-1. Supprimer ou annuler l'assemblage V1.23.6 précédent, puis arrêter et exécuter le complément et vérifier la version `V1.24.1`.
-2. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.24.1`.
+1. Supprimer ou annuler l'assemblage précédent, puis arrêter et exécuter le complément et vérifier la version `V1.24.2`.
+2. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.24.2`.
 3. Vérifier que `M16 — classe 8.8 — trou Ø18 mm` est proposé et que le diamètre des perçages vaut `18 mm`.
 4. Sélectionner la principale puis la secondaire avec la cornière `50 × 50 — ép. 5 mm`, une hauteur de `100 mm`, deux rangées et un entraxe de `50 mm`.
 5. Vérifier les deux cornières jaunes, les trous rouges et exactement six boulons indicatifs bleus : quatre sur l'âme principale et deux traversant l'âme secondaire.
@@ -511,7 +511,7 @@ Effectuer uniquement ce test sur le cas déjà validé du test 27. Ne modifier n
 12. Si Fusion n'accepte qu'une partie des six positions ou mélange les deux orientations, annuler la fenêtre native et noter exactement les positions conservées ; la prochaine correction séparera les deux groupes.
 13. Si les six positions sont acceptées, choisir un boulon hexagonal ISO M16 et vérifier les tailles et longueurs proposées par Fusion avant de confirmer.
 14. Confirmer uniquement les boulons. Vérifier qu'ils sont des attaches natives Fusion et non des composants JHR reconstruits.
-15. Tester ensuite manuellement, dans une session séparée, l'insertion native des rondelles puis des écrous sur les boulons ; cette partie n'est pas automatisée en V1.24.1.
+15. Tester ensuite manuellement, dans une session séparée, l'insertion native des rondelles puis des écrous sur les boulons ; cette partie n'est pas automatisée en V1.24.2.
 16. Annuler la commande native ne doit pas supprimer les deux cornières ni les trous créés par la commande JHR précédente.
 
 ## Critères de validation
@@ -553,6 +553,6 @@ Effectuer uniquement ce test sur le cas déjà validé du test 27. Ne modifier n
 - valeurs par défaut conservées après fermeture et redémarrage du complément, appliquées selon la famille secondaire et modifiables ponctuellement sans changer le fichier local.
 - deux cornières d'assemblage jaunes, symétriques sur l'âme secondaire et en contact avec les deux âmes pendant la phase V1.22.0.
 - en V1.23.6, deux composants de cornière indépendants reproduisant cet aperçu et des perçages traversants alignés, conformes aux valeurs saisies.
-- en V1.24.1 avec deux rangées, six positions bleues puis six arêtes présélectionnées dans la commande native : quatre vers la principale et deux traversantes vers la secondaire, sans composant de boulon reconstruit par JHR.
+- en V1.24.2 avec deux rangées, six positions bleues puis six arêtes présélectionnées dans la commande native : quatre vers la principale et deux traversantes vers la secondaire, sans composant de boulon reconstruit par JHR.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

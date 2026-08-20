@@ -6,12 +6,12 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ### ISSUE-027 — Boulons du premier assemblage par cornières à valider
 
-- **État :** prototype géométrique V1.24.0 remplacé avant validation ; passerelle vers la commande native prête en V1.24.1.
+- **État :** l'appel direct de la V1.24.1 a été refusé par Fusion ; déclenchement hors événement corrigé en V1.24.2, à valider.
 - **Périmètre :** choix indicatif M12/M16/M20/M24, aperçu bleu et transmission de quatre arêtes de l'âme principale plus deux arêtes de la cornière gauche à `Insérer une attache`.
 - **Comportement attendu :** après `OK` et le message de création, la fenêtre native Fusion s'ouvre avec les six positions déjà sélectionnées. L'utilisateur choisit ensuite la fixation dans le catalogue natif.
 - **Sécurité :** aucune API preview de bibliothèque n'est appelée. Si la présélection ou l'ouverture échoue, les trous et cornières restent valides et le chemin manuel est affiché.
 - **Limite :** l'API publique ne permet pas de préremplir le type, la norme, la longueur, le matériau ou la finition. Il reste à vérifier si une seule session native accepte les deux orientations et, si nécessaire, à séparer principale et secondaire en deux lancements.
-- **Validation prévue :** exécuter uniquement le test 28 en V1.24.1 et s'arrêter dès l'ouverture native pour vérifier le nombre et l'emplacement des positions avant toute insertion.
+- **Validation prévue :** exécuter uniquement le test 28 en V1.24.2 et s'arrêter dès l'ouverture native pour vérifier le nombre et l'emplacement des positions avant toute insertion.
 
 ### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
 
