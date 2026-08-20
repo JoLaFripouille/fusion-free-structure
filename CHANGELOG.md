@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.23.6] - En validation
+
+### Corrigé
+
+- les trous des âmes principale et secondaire utilisent désormais la même coupe circulaire symétrique que les cornières, limitée explicitement au corps de la barre concernée ;
+- sur une esquisse portée par une face, seuls les profils constitués d'une boucle unique et d'une courbe circulaire sont transmis à la coupe ; la région de fond et ses boucles intérieures sont exclues ;
+- correction de l'échec V1.23.5 du groupe `PERCAGES_ASSEMBLAGE_CORNIERES_SECONDAIRE` avec `ZERO_DISTANCE_ERROR`, `HOLE_CANNOT_CREATE_TOOLBODY` et `InternalValidationError`.
+
 ## [1.23.5] - En validation
 
 ### Corrigé
@@ -11,6 +19,10 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 - les cercles de coupe des cornières sont maintenant dessinés sur les plans locaux d'origine `XZ` et `YZ`, perpendiculaires aux axes de perçage concernés ;
 - aucune face du solide n'est utilisée comme support de ces deux esquisses : Fusion ne peut donc plus ajouter la région de fond de la face aux deux disques de coupe ;
 - correction de l'annulation V1.23.4 `3 régions circulaires obtenues au lieu de 2` pour le groupe `PERCAGES_VERS_AME_PRINCIPALE`.
+
+### Bloqué pendant la validation
+
+- les coupes des deux cornières passent, mais la fonction native de perçage reste refusée sur l'âme secondaire ; la commande est annulée avant le contrôle final du placement.
 
 ## [1.23.4] - En validation
 

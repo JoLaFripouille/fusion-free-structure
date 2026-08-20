@@ -294,70 +294,67 @@ def _planar_face_for_holes(body, occurrence, axis_world, centers_world):
     return face.nativeObject if face.nativeObject else face
 
 
-def _create_hole_group(
-    component,
-    occurrence,
-    body,
-    centers_world,
-    axis_world,
-    diameter_cm,
-    feature_name,
-    sketch_name,
-):
-    if not centers_world:
-        raise ValueError("Le groupe de perçages ne contient aucun centre.")
-    face = _planar_face_for_holes(
-        body,
-        occurrence,
-        axis_world,
-        centers_world,
-    )
-    sketch = component.sketches.add(face)
-    if not sketch:
-        raise RuntimeError("Fusion n'a pas pu créer l'esquisse des perçages.")
-    sketch.name = sketch_name
-    points = adsk.core.ObjectCollection.create()
-    for center_world in centers_world:
-        local_point = _world_to_local_point(occurrence, center_world)
-        sketch_point = sketch.sketchPoints.add(
-            sketch.modelToSketchSpace(local_point)
+def _circular_profiles(sketch, expected_count):
+    """Exclut la région de fond d'une face et conserve les disques ajoutés."""
+    profiles = adsk.core.ObjectCollection.create()
+    for index in range(sketch.profiles.count):
+        profile = sketch.profiles.item(index)
+        loops = profile.profileLoops
+        if loops.count != 1:
+            continue
+        curves = loops.item(0).profileCurves
+        if curves.count != 1:
+            continue
+        if not adsk.core.Circle3D.cast(curves.item(0).geometry):
+            continue
+        profiles.add(profile)
+    if profiles.count != int(expected_count):
+        raise RuntimeError(
+            "{} disques circulaires isolés au lieu de {} "
+            "({} régions totales dans l'esquisse)"
+            .format(profiles.count, expected_count, sketch.profiles.count)
         )
-        if not sketch_point:
-            sketch.deleteMe()
-            raise RuntimeError("Fusion n'a pas pu placer un centre de perçage.")
-        points.add(sketch_point)
+    return profiles
 
-    holes = component.features.holeFeatures
-    failures = []
-    for label, direction in (
-        ("positive", adsk.fusion.ExtentDirections.PositiveExtentDirection),
-        ("négative", adsk.fusion.ExtentDirections.NegativeExtentDirection),
-    ):
-        try:
-            hole_input = holes.createSimpleInput(
-                adsk.core.ValueInput.createByReal(float(diameter_cm))
-            )
-            if not hole_input:
-                raise RuntimeError("entrée de perçage indisponible")
-            if not hole_input.setPositionBySketchPoints(points):
-                raise RuntimeError("centres de perçage refusés")
-            if not hole_input.setAllExtent(direction):
-                raise RuntimeError("profondeur traversante refusée")
-            hole_input.participantBodies = [body]
-            feature = holes.add(hole_input)
-            if not feature:
-                raise RuntimeError("fonction de perçage non créée")
-            feature.name = feature_name
-            sketch.isVisible = False
-            return feature, sketch
-        except Exception as error:
-            failures.append("direction {}: {}".format(label, error))
-    if sketch and sketch.isValid:
-        sketch.deleteMe()
-    raise RuntimeError(
-        "Fusion n'a pas pu créer le groupe de perçages '{}' ({})"
-        .format(feature_name, " ; ".join(failures))
+
+def _add_cut_circles(sketch, centers_local, diameter_cm):
+    radius_cm = float(diameter_cm) / 2.0
+    for center_local in centers_local:
+        model_point = adsk.core.Point3D.create(*center_local)
+        circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(
+            sketch.modelToSketchSpace(model_point),
+            radius_cm,
+        )
+        if not circle:
+            raise RuntimeError("un cercle de coupe n'a pas été créé")
+    return _circular_profiles(sketch, len(centers_local))
+
+
+def _extrude_symmetric_cuts(
+    component,
+    body,
+    profiles,
+    cut_span_cm,
+    feature_name,
+):
+    extrudes = component.features.extrudeFeatures
+    cut_input = extrudes.createInput(
+        profiles,
+        adsk.fusion.FeatureOperations.CutFeatureOperation,
     )
+    if not cut_input:
+        raise RuntimeError("entrée de coupe indisponible")
+    cut_input.participantBodies = [body]
+    if not cut_input.setSymmetricExtent(
+        adsk.core.ValueInput.createByReal(float(cut_span_cm)),
+        True,
+    ):
+        raise RuntimeError("profondeur symétrique refusée")
+    feature = extrudes.add(cut_input)
+    if not feature:
+        raise RuntimeError("fonction de coupe non créée")
+    feature.name = feature_name
+    return feature
 
 
 def _create_local_cut_group(
@@ -378,42 +375,62 @@ def _create_local_cut_group(
         raise RuntimeError("Fusion n'a pas pu créer l'esquisse des coupes.")
     sketch.name = sketch_name
     try:
-        radius_cm = float(diameter_cm) / 2.0
-        for center_local in centers_local:
-            model_point = adsk.core.Point3D.create(*center_local)
-            circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(
-                sketch.modelToSketchSpace(model_point),
-                radius_cm,
-            )
-            if not circle:
-                raise RuntimeError("un cercle de coupe n'a pas été créé")
-
-        profiles = adsk.core.ObjectCollection.create()
-        for index in range(sketch.profiles.count):
-            profiles.add(sketch.profiles.item(index))
-        if profiles.count != len(centers_local):
-            raise RuntimeError(
-                "{} régions circulaires obtenues au lieu de {}"
-                .format(profiles.count, len(centers_local))
-            )
-
-        extrudes = component.features.extrudeFeatures
-        cut_input = extrudes.createInput(
+        profiles = _add_cut_circles(sketch, centers_local, diameter_cm)
+        feature = _extrude_symmetric_cuts(
+            component,
+            body,
             profiles,
-            adsk.fusion.FeatureOperations.CutFeatureOperation,
+            cut_span_cm,
+            feature_name,
         )
-        if not cut_input:
-            raise RuntimeError("entrée de coupe indisponible")
-        cut_input.participantBodies = [body]
-        if not cut_input.setSymmetricExtent(
-            adsk.core.ValueInput.createByReal(float(cut_span_cm)),
-            True,
-        ):
-            raise RuntimeError("profondeur symétrique refusée")
-        feature = extrudes.add(cut_input)
-        if not feature:
-            raise RuntimeError("fonction de coupe non créée")
-        feature.name = feature_name
+        sketch.isVisible = False
+        return feature, sketch
+    except Exception as error:
+        if sketch and sketch.isValid:
+            sketch.deleteMe()
+        raise RuntimeError(
+            "Fusion n'a pas pu créer le groupe de coupes '{}' ({})"
+            .format(feature_name, error)
+        ) from error
+
+
+def _create_member_cut_group(
+    component,
+    occurrence,
+    body,
+    centers_world,
+    axis_world,
+    diameter_cm,
+    cut_span_cm,
+    feature_name,
+    sketch_name,
+):
+    """Coupe symétriquement une âme depuis sa face réelle d'assemblage."""
+    if not centers_world:
+        raise ValueError("Le groupe de coupes ne contient aucun centre.")
+    face = _planar_face_for_holes(
+        body,
+        occurrence,
+        axis_world,
+        centers_world,
+    )
+    sketch = component.sketches.add(face)
+    if not sketch:
+        raise RuntimeError("Fusion n'a pas pu créer l'esquisse des coupes.")
+    sketch.name = sketch_name
+    try:
+        centers_local = tuple(
+            _point_tuple(_world_to_local_point(occurrence, center))
+            for center in centers_world
+        )
+        profiles = _add_cut_circles(sketch, centers_local, diameter_cm)
+        feature = _extrude_symmetric_cuts(
+            component,
+            body,
+            profiles,
+            cut_span_cm,
+            feature_name,
+        )
         sketch.isVisible = False
         return feature, sketch
     except Exception as error:
@@ -556,25 +573,35 @@ def create_double_angle_assembly(root_component, evaluation):
             _add_attributes(component, evaluation, placement.side)
             angle_occurrences.append(occurrence)
 
-        primary_feature, primary_sketch = _create_hole_group(
+        primary_cut_span_cm = 2.0 * max(
+            evaluation.primary_profile_geometry.width_mm,
+            evaluation.primary_profile_geometry.height_mm,
+        ) * profile_catalog.MM_TO_CM
+        primary_feature, primary_sketch = _create_member_cut_group(
             evaluation.primary_occurrence.component,
             evaluation.primary_occurrence,
             primary_body,
             evaluation.primary_hole_centers_world,
             evaluation.geometry.plane_normal,
             evaluation.hole_pattern.diameter_cm,
+            primary_cut_span_cm,
             "PERCAGES_ASSEMBLAGE_CORNIERES_PRINCIPALE",
             "CENTRES_ASSEMBLAGE_CORNIERES_PRINCIPALE",
         )
         created_on_members.extend((primary_sketch, primary_feature))
 
-        secondary_feature, secondary_sketch = _create_hole_group(
+        secondary_cut_span_cm = 2.0 * max(
+            evaluation.secondary_profile_geometry.width_mm,
+            evaluation.secondary_profile_geometry.height_mm,
+        ) * profile_catalog.MM_TO_CM
+        secondary_feature, secondary_sketch = _create_member_cut_group(
             evaluation.secondary_occurrence.component,
             evaluation.secondary_occurrence,
             secondary_body,
             evaluation.secondary_hole_centers_world,
             evaluation.secondary_profile_x_axis,
             evaluation.hole_pattern.diameter_cm,
+            secondary_cut_span_cm,
             "PERCAGES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
             "CENTRES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
         )

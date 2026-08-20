@@ -6,7 +6,7 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ### ISSUE-026 — Création et perçages du premier assemblage par cornières à valider
 
-- **État :** position des deux aperçus V1.22.0 validée dans Fusion ; les V1.23.1 et V1.23.2 créent encore des corps décalés malgré des trous monde corrects. La V1.23.3 sépare la création locale du placement final. La V1.23.4 remplace les perçages de cornière par des coupes cylindriques, mais l'esquisse sur face ajoute une troisième région. La V1.23.5 utilise uniquement les plans locaux d'origine pour obtenir exactement les deux disques attendus.
+- **État :** position des deux aperçus V1.22.0 validée dans Fusion ; les V1.23.1 et V1.23.2 créent encore des corps décalés malgré des trous monde corrects. Les V1.23.3 à V1.23.5 fiabilisent progressivement la création locale et les coupes des cornières. En V1.23.5 ces coupes passent, mais le perçage natif de l'âme secondaire échoue encore. La V1.23.6 applique des coupes symétriques aux quatre pièces.
 - **Périmètre :** une principale et une secondaire IPE/HEA/HEB droites, axes raccordés à `90°`, cornière égale européenne, hauteur, décalage vertical et motif de perçage réglables.
 - **Comportement attendu :** deux composants de cornière reprennent exactement l'aperçu jaune. Les cercles rouges deviennent des trous traversants alignés dans les deux branches des cornières, l'âme principale et l'âme secondaire.
 - **Sécurité :** les perçages sont refusés s'ils sortent d'une branche, de la hauteur de cornière ou de la hauteur libre d'une âme. Une erreur de création doit retirer tous les trous et composants de la tentative.
@@ -15,8 +15,9 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 - **Correction V1.23.3 :** le composant reste à l'identité pendant l'import, l'extrusion et les perçages ; les centres de l'aperçu sont convertis en coordonnées locales, puis la position initiale de l'occurrence terminée est définie et contrôlée par son enveloppe précise.
 - **Correction V1.23.4 :** chaque cercle local devient une coupe symétrique traversante limitée au corps de cornière ; le sens de normale de la face ne peut donc plus produire une distance nulle ou l'absence de corps cible.
 - **Correction V1.23.5 :** les groupes vers l'âme principale et secondaire utilisent respectivement les plans locaux `XZ` et `YZ`, sans région de fond issue d'une face du solide.
+- **Correction V1.23.6 :** les deux âmes reçoivent elles aussi des coupes symétriques ; un filtre de profil conserve uniquement chaque disque défini par une boucle et une courbe circulaire.
 - **Hors périmètre :** calcul de résistance, choix automatique d'une cornière, boulons, angles obliques, chemins cintrés et profils non I/H.
-- **Validation prévue :** relancer uniquement le test 27 en V1.23.5 avec les valeurs proposées ; contrôler que les deux groupes de coupe sont créés, puis que la commande atteint le contrôle du placement final avant d'essayer une autre section.
+- **Validation prévue :** relancer uniquement le test 27 en V1.23.6 avec les valeurs proposées ; contrôler que les quatre groupes de coupe sont créés, puis que la commande atteint le contrôle du placement final avant d'essayer une autre section.
 
 ### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
 

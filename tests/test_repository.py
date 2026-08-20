@@ -194,9 +194,9 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("build_swept_side_mesh", preview_source)
         self.assertIn("occurrences.addNewComponent", creator_source)
         self.assertIn("createDXF2DImportOptions", creator_source)
-        self.assertIn("component.features.holeFeatures", creator_source)
-        self.assertIn("setPositionBySketchPoints", creator_source)
-        self.assertIn("setAllExtent", creator_source)
+        self.assertNotIn("component.features.holeFeatures", creator_source)
+        self.assertNotIn("setPositionBySketchPoints", creator_source)
+        self.assertIn("_create_member_cut_group", creator_source)
         self.assertIn("participantBodies = [body]", creator_source)
         self.assertIn("_rebase_sketch_to_anchor", creator_source)
         self.assertIn("sketch.move", creator_source)
@@ -211,6 +211,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("cut_input.setSymmetricExtent", creator_source)
         self.assertIn("component.xZConstructionPlane", creator_source)
         self.assertIn("component.yZConstructionPlane", creator_source)
+        self.assertIn("adsk.core.Circle3D.cast", creator_source)
 
     def test_local_default_values_are_managed_and_used_by_operations(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
