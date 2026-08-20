@@ -281,7 +281,7 @@ Cette première validation ne porte pas encore sur les coupes d'onglet, grugeage
 1. Dans une esquisse du composant racine, tracer une ligne droite principale et un arc secondaire.
 2. Contraindre une extrémité de l'arc sur le milieu de la ligne et rendre la tangente de l'arc perpendiculaire à cette ligne au point de raccord.
 3. Créer une barre droite sur la ligne puis une barre cintrée sur l'arc.
-4. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.16.0` dans `STRUCTURE JHR > MODIFIER`.
+4. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.16.2` dans `STRUCTURE JHR > MODIFIER`.
 5. Choisir la barre droite comme principale et la barre cintrée comme secondaire.
 6. Vérifier que le rapport indique `Chemin secondaire : Arc cintré` et un angle proche de `90°`.
 7. Vérifier que le plan orange est normal à la tangente de l'arc au raccord et situé sur l'enveloppe extérieure de la principale.
@@ -294,7 +294,7 @@ Ne pas encore tester une barre principale cintrée ni un onglet : ces deux cas r
 ## Test 20 — Coupe d'onglet entre deux barres droites
 
 1. Utiliser le dessin du problème signalé avec deux tubes rectangulaires obliques dont les lignes de squelette partagent exactement une extrémité.
-2. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.16.0` dans `STRUCTURE JHR > MODIFIER`.
+2. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.16.2` dans `STRUCTURE JHR > MODIFIER`.
 3. Ouvrir la commande et choisir `Coupe d'onglet symétrique` ; vérifier que le champ `Jeu` disparaît.
 4. Sélectionner les deux tubes dans n'importe quel ordre.
 5. Vérifier que le rapport indique que les deux barres seront coupées, que le plan orange partage leur angle et que le bouton `OK` devient actif.
@@ -312,7 +312,7 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 ### 21A — Angle réel et preview
 
 1. Créer deux tubes rectangulaires sur des axes raccordés à `60°`.
-2. Ouvrir `Jonctions acier V1.16.0`, conserver `Jonction ajustée sur une barre de référence`, puis sélectionner la référence comme barre 1 et la barre à modifier comme barre 2.
+2. Ouvrir `Jonctions acier V1.16.2`, conserver `Jonction ajustée sur une barre de référence`, puis sélectionner la référence comme `Barre principale` et la barre à modifier comme `Barre secondaire`.
 3. Vérifier `Angle entre axes : 60°`, la position du plan orange sur l'enveloppe réelle et l'activation de `OK`.
 4. Valider et vérifier que le plan `PLAN_JONCTION_FINAL` se superpose au plan orange mémorisé visuellement.
 5. Refaire avec `30°`, `90°` et un angle obtus ; aucun de ces angles ne doit déclencher un message exigeant `90°`.
@@ -341,6 +341,7 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 1. Créer le même angle avec les profils placés à l'axe afin qu'ils se chevauchent.
 2. En mode onglet, vérifier que le rapport peut afficher un prolongement positif : il doit faire dépasser le plan par toute la face, pas seulement par une moitié du corps.
 3. Valider et contrôler que la partie intérieure correcte est conservée, qu'un seul corps reste dans chaque composant et que le coin est fermé sans triangle manquant.
+4. Dans l'historique des deux composants, vérifier que le prolongement est appliqué du côté du coin ; aucun prolongement ne doit partir vers l'extrémité opposée.
 
 ### 21F — Plans de travail
 

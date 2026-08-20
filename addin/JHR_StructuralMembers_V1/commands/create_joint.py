@@ -18,6 +18,8 @@ COMMAND_DESCRIPTION = (
 JOINT_TYPE_INPUT_ID = "jointType"
 PRIMARY_SELECTION_ID = "primaryMember"
 SECONDARY_SELECTION_ID = "secondaryMember"
+MITER_FIRST_SELECTION_ID = "miterFirstMember"
+MITER_SECOND_SELECTION_ID = "miterSecondMember"
 GAP_INPUT_ID = "jointGap"
 REPORT_ID = "jointReport"
 PANEL_IDS = (ui_layout.MODIFY_PANEL_ID,)
@@ -61,6 +63,21 @@ def _selected_mode(inputs):
     return selected.name
 
 
+def _update_mode_visibility(inputs):
+    straight_mode = _selected_mode(inputs) == STRAIGHT_MODE
+    visibility = {
+        PRIMARY_SELECTION_ID: straight_mode,
+        SECONDARY_SELECTION_ID: straight_mode,
+        MITER_FIRST_SELECTION_ID: not straight_mode,
+        MITER_SECOND_SELECTION_ID: not straight_mode,
+        GAP_INPUT_ID: straight_mode,
+    }
+    for input_id, is_visible in visibility.items():
+        command_input = inputs.itemById(input_id)
+        if command_input:
+            command_input.isVisible = is_visible
+
+
 def _evaluate(inputs):
     app, _ = _app_and_ui()
     design = adsk.fusion.Design.cast(app.activeProduct)
@@ -68,15 +85,17 @@ def _evaluate(inputs):
         raise ValueError("Ouvrir une conception Fusion.")
     if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
         raise ValueError("La jonction nécessite l'historique de conception paramétrique activé.")
-    primary = _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "1")
-    secondary = _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "2")
     mode = _selected_mode(inputs)
     if mode == MITER_MODE:
+        primary = _selected_occurrence(inputs, MITER_FIRST_SELECTION_ID, "1")
+        secondary = _selected_occurrence(inputs, MITER_SECOND_SELECTION_ID, "2")
         return design, joint_builder.evaluate_miter_joint(
             design,
             primary,
             secondary,
         ), mode
+    primary = _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale")
+    secondary = _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire")
     gap_input = inputs.itemById(GAP_INPUT_ID)
     if not gap_input or not gap_input.isValidExpression:
         raise ValueError("Le jeu de jonction n'est pas une distance valide.")
@@ -189,19 +208,37 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
-                "Barre 1",
-                "Référence intacte en jonction ajustée ; première barre équivalente en onglet.",
+                "Barre principale",
+                "Barre de référence qui restera intacte.",
             )
             primary.addSelectionFilter("Occurrences")
             primary.setSelectionLimits(0, 1)
 
             secondary = inputs.addSelectionInput(
                 SECONDARY_SELECTION_ID,
-                "Barre 2",
-                "Barre modifiée en jonction ajustée ; seconde barre équivalente en onglet.",
+                "Barre secondaire",
+                "Barre qui sera prolongée si nécessaire, puis coupée contre la principale.",
             )
             secondary.addSelectionFilter("Occurrences")
             secondary.setSelectionLimits(0, 1)
+
+            miter_first = inputs.addSelectionInput(
+                MITER_FIRST_SELECTION_ID,
+                "Barre 1",
+                "Première barre de la coupe d'onglet symétrique.",
+            )
+            miter_first.addSelectionFilter("Occurrences")
+            miter_first.setSelectionLimits(0, 1)
+            miter_first.isVisible = False
+
+            miter_second = inputs.addSelectionInput(
+                MITER_SECOND_SELECTION_ID,
+                "Barre 2",
+                "Seconde barre de la coupe d'onglet symétrique.",
+            )
+            miter_second.addSelectionFilter("Occurrences")
+            miter_second.setSelectionLimits(0, 1)
+            miter_second.isVisible = False
 
             gap = inputs.addValueInput(
                 GAP_INPUT_ID,
@@ -260,15 +297,12 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             JOINT_TYPE_INPUT_ID,
             PRIMARY_SELECTION_ID,
             SECONDARY_SELECTION_ID,
+            MITER_FIRST_SELECTION_ID,
+            MITER_SECOND_SELECTION_ID,
             GAP_INPUT_ID,
         ):
             if changed.id == JOINT_TYPE_INPUT_ID:
-                gap = event_args.inputs.itemById(GAP_INPUT_ID)
-                if gap:
-                    try:
-                        gap.isVisible = _selected_mode(event_args.inputs) == STRAIGHT_MODE
-                    except ValueError:
-                        gap.isVisible = True
+                _update_mode_visibility(event_args.inputs)
             _refresh(event_args.inputs, self._report_input, self._preview_manager)
 
 

@@ -4,6 +4,21 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.16.2] - En validation
+
+### Corrigé
+
+- suppression de l'hypothèse selon laquelle le sens positif d'une extrusion de face correspond toujours à la direction d'approche mondiale de la barre ;
+- essai contrôlé des deux directions d'extrusion lorsque Fusion oriente différemment la surface plane interne ;
+- nouvelle validation sur la face d'extrémité réellement obtenue : tous ses points doivent avoir dépassé le plan avant que la séparation soit autorisée ;
+- suppression immédiate d'une tentative orientée dans le mauvais sens, sans laisser de fonction parasite dans l'historique ;
+- rétablissement des rôles explicites « Barre principale » et « Barre secondaire » pour la jonction ajustée ; l'onglet conserve deux barres symétriques sans hiérarchie.
+
+### Diagnostic Fusion
+
+- la commande chargée dans le document signalé a été contrôlée directement : `Jonctions acier V1.16.1` était bien active ;
+- les semelles partageaient la même diagonale, ce qui confirme la position du plan et localise le défaut dans le sens du prolongement du corps.
+
 ## [1.16.1] - En validation
 
 ### Corrigé

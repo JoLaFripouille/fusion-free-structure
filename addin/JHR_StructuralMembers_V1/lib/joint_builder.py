@@ -837,13 +837,18 @@ def _add_miter_cut_plane(evaluation, occurrence, created_entities):
     )
 
 
-def _extend_body(treatment, created_entities):
-    if treatment.extension_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
-        return None
+def _create_extension_feature(treatment, direction):
+    body = _single_body(treatment.occurrence, "à prolonger")
+    extension_face, _ = _planar_end_face(
+        body,
+        treatment.occurrence,
+        treatment.approach_direction,
+        treatment.joint_endpoint,
+    )
     component = treatment.occurrence.component
     extrudes = component.features.extrudeFeatures
     extrude_input = extrudes.createInput(
-        treatment.extension_face,
+        extension_face,
         adsk.fusion.FeatureOperations.JoinFeatureOperation,
     )
     if not extrude_input:
@@ -852,17 +857,67 @@ def _extend_body(treatment, created_entities):
     extent = adsk.fusion.DistanceExtentDefinition.create(
         adsk.core.ValueInput.createByReal(treatment.extension_cm)
     )
-    if not extrude_input.setOneSideExtent(
-        extent,
-        adsk.fusion.ExtentDirections.PositiveExtentDirection,
-    ):
-        raise RuntimeError("Fusion n'a pas pu orienter le prolongement vers la jonction.")
+    if not extrude_input.setOneSideExtent(extent, direction):
+        raise RuntimeError("Fusion n'a pas pu orienter le prolongement de la barre.")
     feature = extrudes.add(extrude_input)
     if not feature:
-        raise RuntimeError("Fusion n'a pas pu prolonger la barre jusqu'au plan de coupe.")
-    feature.name = EXTEND_FEATURE_NAME
-    created_entities.append(feature)
+        raise RuntimeError("Fusion n'a pas pu créer le prolongement de la barre.")
     return feature
+
+
+def _remaining_end_extension(treatment, cut_point, cut_normal):
+    body = _single_body(treatment.occurrence, "à contrôler après prolongement")
+    _, face_points = _planar_end_face(
+        body,
+        treatment.occurrence,
+        treatment.approach_direction,
+        treatment.joint_endpoint,
+    )
+    return joint_geometry.extension_distance_to_plane(
+        face_points,
+        treatment.approach_direction,
+        cut_point,
+        cut_normal,
+        treatment.interior_sign,
+    )
+
+
+def _extend_body(treatment, cut_point, cut_normal, created_entities):
+    if treatment.extension_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        return None
+    failures = []
+    directions = (
+        ("positive", adsk.fusion.ExtentDirections.PositiveExtentDirection),
+        ("négative", adsk.fusion.ExtentDirections.NegativeExtentDirection),
+    )
+    for label, direction in directions:
+        feature = None
+        accepted = False
+        try:
+            feature = _create_extension_feature(treatment, direction)
+            remaining_cm = _remaining_end_extension(
+                treatment,
+                cut_point,
+                cut_normal,
+            )
+            if remaining_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+                feature.name = EXTEND_FEATURE_NAME
+                created_entities.append(feature)
+                accepted = True
+                return feature
+            failures.append(
+                "direction {}: {:.3f} mm encore manquants"
+                .format(label, remaining_cm * 10.0)
+            )
+        except Exception as error:
+            failures.append("direction {}: {}".format(label, error))
+        finally:
+            if feature and feature.isValid and not accepted:
+                feature.deleteMe()
+    raise RuntimeError(
+        "Fusion n'a pas pu prolonger toute la face au-delà du plan de coupe ({})"
+        .format(" ; ".join(failures))
+    )
 
 
 def _projection_center(body, occurrence, plane_point, plane_normal, interior_sign):
@@ -998,7 +1053,12 @@ def create_straight_joint(evaluation):
     created_attributes = []
     try:
         cut_plane = _add_direct_cut_plane(evaluation, created_entities)
-        _extend_body(evaluation.treatment, created_entities)
+        _extend_body(
+            evaluation.treatment,
+            evaluation.cut_point,
+            evaluation.cut_normal,
+            created_entities,
+        )
         _split_and_keep_interior(
             evaluation.treatment,
             cut_plane,
@@ -1032,7 +1092,12 @@ def create_miter_joint(evaluation):
             evaluation.primary_occurrence,
             created_entities,
         )
-        _extend_body(evaluation.first_treatment, created_entities)
+        _extend_body(
+            evaluation.first_treatment,
+            evaluation.cut_point,
+            evaluation.cut_normal,
+            created_entities,
+        )
         _split_and_keep_interior(
             evaluation.first_treatment,
             first_plane,
@@ -1047,7 +1112,12 @@ def create_miter_joint(evaluation):
             evaluation.secondary_occurrence,
             created_entities,
         )
-        _extend_body(evaluation.second_treatment, created_entities)
+        _extend_body(
+            evaluation.second_treatment,
+            evaluation.cut_point,
+            evaluation.cut_normal,
+            created_entities,
+        )
         _split_and_keep_interior(
             evaluation.second_treatment,
             second_plane,
