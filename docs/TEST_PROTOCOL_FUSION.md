@@ -361,19 +361,23 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 Cette validation est volontairement visuelle et non destructive. Aucun solide ne doit être modifié pendant ce test.
 
 1. Créer une barre principale IPE, HEA ou HEB et une barre secondaire IPE droite dont les axes se rejoignent exactement à `90°`.
-2. Arrêter puis exécuter le complément et vérifier `Grugeage IPE — aperçu V1.17.0` dans `STRUCTURE JHR > MODIFIER`.
+2. Arrêter puis exécuter le complément et vérifier `Grugeage IPE — aperçu V1.17.1` dans `STRUCTURE JHR > MODIFIER`.
 3. Ouvrir la commande, sélectionner la principale puis la secondaire IPE.
 4. Vérifier l'apparition de deux volumes rouges semi-transparents, l'un sur la semelle supérieure de la secondaire et l'autre sur sa semelle inférieure.
-5. Vérifier que les volumes partent de l'extrémité située sur l'axe principal et se terminent sur la face extérieure de la principale orientée vers la secondaire.
-6. Vérifier dans le rapport la famille et la section des deux barres, l'angle de `90°`, la profondeur automatique et les hauteurs retirées.
-7. Passer le `Jeu vertical` de `1 mm` à `0 mm`, puis à `2 mm` : les limites rouges proches de l'âme doivent suivre immédiatement la valeur.
-8. Passer le `Jeu longitudinal` de `1 mm` à `0 mm`, puis à `2 mm` : la profondeur rouge doit suivre immédiatement la valeur.
-9. Fermer la commande et vérifier que les volumes rouges disparaissent, sans nouvelle entrée dans l'historique et sans modification du corps IPE.
-10. Refaire l'essai avec au moins trois sections IPE différentes, dont `IPE 100`, une section intermédiaire et une grande section.
-11. Refaire un cas avec rotation, miroir X, miroir Y et un point d'ancrage non centré ; les volumes doivent rester attachés aux deux semelles de l'IPE secondaire.
-12. Vérifier qu'une secondaire HEA, un arc ou un angle différent de `90°` est refusé avec un message clair et sans aucun graphisme résiduel.
+5. Vérifier que les volumes rouges partent de l'extrémité située sur l'axe principal et se terminent sur la face extérieure de la principale orientée vers la secondaire.
+6. Vérifier que le rectangle orange coupe toute la secondaire au niveau de la face de l'âme principale orientée vers elle, et non sur l'axe central ni sur la face extérieure de la semelle principale.
+7. Vérifier dans le rapport la famille et la section des deux barres, l'angle de `90°`, la profondeur automatique et les hauteurs retirées.
+8. Passer le `Jeu vertical` de `1 mm` à `0 mm`, puis à `2 mm` : les limites rouges proches de l'âme secondaire doivent suivre immédiatement la valeur.
+9. Passer le `Jeu longitudinal` de `1 mm` à `0 mm`, puis à `2 mm` : la profondeur rouge doit suivre immédiatement la valeur.
+10. Passer le `Jeu contre l'âme` de `1 mm` à `0 mm`, puis à `2 mm` : seul le rectangle orange doit se déplacer par rapport à l'âme principale.
+11. Placer le raccord au milieu d'une principale suffisamment longue : le rapport doit indiquer `Aucun — couverture suffisante` et aucun ajout vert ne doit apparaître.
+12. Refaire le raccord près de l'extrémité d'une principale trop courte : une section verte doit prolonger uniquement cette extrémité jusqu'à couvrir la section secondaire, avec la même longueur dans le rapport.
+13. Fermer la commande et vérifier que les éléments rouges, orange et verts disparaissent, sans nouvelle entrée dans l'historique et sans modification des deux corps.
+14. Refaire l'essai avec au moins trois sections IPE différentes, dont `IPE 100`, une section intermédiaire et une grande section.
+15. Refaire un cas avec rotation, miroir X, miroir Y et un point d'ancrage non centré ; les volumes doivent rester attachés aux deux semelles de l'IPE secondaire.
+16. Vérifier qu'une secondaire HEA, un arc, un angle différent de `90°` ou une principale dont l'âme ne regarde pas la secondaire est refusé avec un message clair et sans aucun graphisme résiduel.
 
-Le bouton `OK` ne doit pas être affiché dans la V1.17.0. La coupe réelle ne sera implémentée qu'après validation de ces douze points.
+Le bouton `OK` ne doit pas être affiché dans la V1.17.1. Les opérations réelles ne seront implémentées qu'après validation de ces seize points.
 
 ## Critères de validation
 
@@ -409,6 +413,6 @@ Le bouton `OK` ne doit pas être affiché dans la V1.17.0. La coupe réelle ne s
 - prolongement automatique si le corps est séparé du plan et coupe directe s'il le chevauche.
 - point et normale de la preview identiques au plan final contrôlé par le complément.
 - jeu de jonction mesurable et conforme à la valeur saisie.
-- deux volumes rouges de grugeage alignés sur les semelles de l'IPE secondaire, sans aucune modification du modèle.
+- deux volumes rouges de grugeage alignés sur les semelles de l'IPE secondaire, un plan orange sur l'âme principale et un éventuel prolongement vert correct, sans aucune modification du modèle.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

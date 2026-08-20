@@ -9,6 +9,8 @@ MM_TO_CM = 0.1
 PROFILE_TOLERANCE_MM = 1e-5
 SIDE_OVERSIZE_CM = 0.05
 END_OVERRUN_CM = 0.05
+WEB_AXIS_ALIGNMENT_TOLERANCE = 0.995
+PLANE_MARGIN_CM = 0.5
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,8 @@ class IProfileGeometry:
     min_y_mm: float
     max_x_mm: float
     max_y_mm: float
+    web_min_x_mm: float
+    web_max_x_mm: float
     web_min_y_mm: float
     web_max_y_mm: float
 
@@ -104,17 +108,53 @@ def analyze_i_profile_vertices(vertices):
         min_y_mm=min_y,
         max_x_mm=max_x,
         max_y_mm=max_y,
+        web_min_x_mm=center_x - web_half_width,
+        web_max_x_mm=center_x + web_half_width,
         web_min_y_mm=web_min_y,
         web_max_y_mm=web_max_y,
     )
 
 
 def analyze_i_profile_dxf(dxf_path):
-    entities = dxf_geometry.read_r12_entities(dxf_path)
-    polylines = [entity for entity in entities if entity["type"] == "POLYLINE"]
-    if len(polylines) != 1 or not polylines[0]["closed"]:
-        raise ValueError("Le profil IPE doit contenir un unique contour fermé POLYLINE.")
-    return analyze_i_profile_vertices(polylines[0]["vertices"])
+    contours = dxf_geometry.tessellate_profile_contours_mm(dxf_path, 5.0)
+    if len(contours) != 1:
+        raise ValueError("Le profil I/H doit contenir un unique contour fermé.")
+    return analyze_i_profile_vertices(contours[0])
+
+
+def web_face_cut_point(
+    profile,
+    anchor_mm,
+    joint_point,
+    profile_x_axis,
+    toward_secondary,
+    web_clearance_cm,
+):
+    """Place la coupe secondaire sur la face de l'âme orientée vers celle-ci."""
+    if web_clearance_cm < 0.0:
+        raise ValueError("Le jeu contre l'âme ne peut pas être négatif.")
+    profile_x = joint_geometry.normalize(profile_x_axis)
+    toward = joint_geometry.normalize(toward_secondary)
+    alignment = joint_geometry.dot(profile_x, toward)
+    if abs(alignment) < WEB_AXIS_ALIGNMENT_TOLERANCE:
+        raise ValueError(
+            "L'âme de la principale n'est pas orientée face à la secondaire."
+        )
+    anchor_x_mm = float(anchor_mm[0])
+    face_x_mm = (
+        profile.web_max_x_mm if alignment > 0.0 else profile.web_min_x_mm
+    )
+    face_point = joint_geometry.add(
+        joint_point,
+        joint_geometry.scale(
+            profile_x,
+            (face_x_mm - anchor_x_mm) * MM_TO_CM,
+        ),
+    )
+    return joint_geometry.add(
+        face_point,
+        joint_geometry.scale(toward, float(web_clearance_cm)),
+    )
 
 
 def double_cope_volumes(
@@ -195,13 +235,34 @@ def depth_to_facing_support(
     return depth_cm
 
 
-def _world_point(origin, x_axis, y_axis, axial_axis, x, y, axial):
+def world_point(origin, x_axis, y_axis, axial_axis, x, y, axial):
     return tuple(
         origin[index]
         + x_axis[index] * x
         + y_axis[index] * y
         + axial_axis[index] * axial
         for index in range(3)
+    )
+
+
+def section_plane_mesh(profile, anchor_mm, origin, x_axis, y_axis):
+    x_axis = joint_geometry.normalize(x_axis)
+    y_axis = joint_geometry.normalize(y_axis)
+    anchor_x, anchor_y = anchor_mm
+    x_min = (profile.min_x_mm - anchor_x) * MM_TO_CM - PLANE_MARGIN_CM
+    x_max = (profile.max_x_mm - anchor_x) * MM_TO_CM + PLANE_MARGIN_CM
+    y_min = (profile.min_y_mm - anchor_y) * MM_TO_CM - PLANE_MARGIN_CM
+    y_max = (profile.max_y_mm - anchor_y) * MM_TO_CM + PLANE_MARGIN_CM
+    points = (
+        world_point(origin, x_axis, y_axis, (0.0, 0.0, 1.0), x_min, y_min, 0.0),
+        world_point(origin, x_axis, y_axis, (0.0, 0.0, 1.0), x_max, y_min, 0.0),
+        world_point(origin, x_axis, y_axis, (0.0, 0.0, 1.0), x_max, y_max, 0.0),
+        world_point(origin, x_axis, y_axis, (0.0, 0.0, 1.0), x_min, y_max, 0.0),
+    )
+    return (
+        tuple(value for point in points for value in point),
+        (0, 1, 2, 0, 2, 3),
+        (0, 1, 1, 2, 2, 3, 3, 0),
     )
 
 
@@ -220,7 +281,7 @@ def volume_mesh(volume, origin, x_axis, y_axis, axial_axis):
         (volume.x_min_cm, volume.y_max_cm, volume.axial_max_cm),
     )
     points = tuple(
-        _world_point(origin, x_axis, y_axis, axial_axis, *point)
+        world_point(origin, x_axis, y_axis, axial_axis, *point)
         for point in local_points
     )
     coordinates = tuple(value for point in points for value in point)

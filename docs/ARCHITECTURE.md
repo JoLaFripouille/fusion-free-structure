@@ -137,8 +137,10 @@ Une barre de référence cintrée, les onglets sur arcs, la coupe réelle des gr
 
 ## Prototype de double grugeage IPE
 
-La V1.17.0 ajoute une commande séparée de prévisualisation, sans réutiliser une coupe de jonction comme approximation. La principale peut être une IPE, HEA ou HEB et reste intacte. La secondaire doit être une IPE droite dont l'axe rejoint celui de la principale à `90°`.
+La V1.17 ajoute une commande séparée de prévisualisation. La principale peut être une IPE, HEA ou HEB et la secondaire doit être une IPE droite dont l'axe rejoint celui de la principale à `90°`.
 
 Les limites des deux semelles et de l'âme sont déduites du contour fermé du DXF source de la secondaire. La position des deux volumes tient ensuite compte du point d'ancrage enregistré, de la rotation et des miroirs appliqués lors de la création de la barre. La profondeur part de l'axe commun et s'arrête sur la face extérieure réelle de la principale orientée vers la secondaire ; elle ne dépend donc pas de la longueur totale de la principale.
 
-Deux boîtes rouges semi-transparentes montrent la matière proposée au retrait, avec un jeu vertical autour des raccords d'âme et un jeu longitudinal devant la principale. Ces boîtes sont des graphismes temporaires : elles ne créent ni corps outil, ni fonction, ni entrée d'historique. Le bouton `OK` est masqué dans cette phase. La géométrie de coupe réelle ne sera ajoutée qu'après validation visuelle sur plusieurs tailles et orientations IPE.
+La V1.17.1 localise aussi les deux faces de l'âme principale dans son DXF. Elle choisit celle qui regarde la secondaire, la décale du `Jeu contre l'âme` et obtient ainsi le plan de coupe droite de l'extrémité secondaire. Si la principale se termine trop près du raccord, la face secondaire est projetée sur ce plan et sa portée est comparée au corps principal, comme dans la jonction droite. Chaque manque de couverture fournit le côté et la longueur du prolongement requis.
+
+Deux boîtes rouges semi-transparentes montrent les semelles proposées au retrait, un rectangle orange montre la coupe contre l'âme et une section verte extrudée montre chaque prolongement nécessaire de la principale. Ces éléments sont des graphismes temporaires : ils ne créent ni corps outil, ni fonction, ni entrée d'historique. Le bouton `OK` est masqué dans cette phase. Les opérations réelles ne seront ajoutées qu'après validation visuelle de l'ensemble.

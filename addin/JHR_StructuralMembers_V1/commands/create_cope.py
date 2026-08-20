@@ -13,12 +13,13 @@ from ..lib.cope_preview import CopePreviewManager
 COMMAND_ID = "EI_JHR_PreviewDoubleIpeCopeV1"
 COMMAND_NAME = "Grugeage IPE — aperçu V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Prévisualise un grugeage double automatique sur un IPE secondaire à 90°."
+    "Prévisualise un double grugeage IPE, sa coupe contre l'âme et le prolongement de la principale."
 )
 PRIMARY_SELECTION_ID = "copePrimaryMember"
 SECONDARY_SELECTION_ID = "copeSecondaryMember"
 VERTICAL_CLEARANCE_ID = "copeVerticalClearance"
 LONGITUDINAL_CLEARANCE_ID = "copeLongitudinalClearance"
+WEB_CLEARANCE_ID = "copeWebClearance"
 REPORT_ID = "copeReport"
 PANEL_IDS = (ui_layout.MODIFY_PANEL_ID,)
 
@@ -73,6 +74,7 @@ def _evaluate(inputs):
         _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire"),
         _distance_value(inputs, VERTICAL_CLEARANCE_ID, "Le jeu vertical"),
         _distance_value(inputs, LONGITUDINAL_CLEARANCE_ID, "Le jeu longitudinal"),
+        _distance_value(inputs, WEB_CLEARANCE_ID, "Le jeu contre l'âme"),
     )
 
 
@@ -85,6 +87,12 @@ def _success_report(evaluation):
         evaluation.profile_geometry.top_cope_height_mm
         + evaluation.vertical_clearance_cm * 10.0
     )
+    extension_text = "Aucun — couverture suffisante"
+    if evaluation.primary_extensions:
+        extension_text = ", ".join(
+            "{:.3f} mm".format(extension.extension_cm * 10.0)
+            for extension in evaluation.primary_extensions
+        )
     rows = (
         ("Barre principale", evaluation.primary_occurrence.component.name),
         ("Profil principal", evaluation.primary_metadata.profile),
@@ -92,6 +100,9 @@ def _success_report(evaluation):
         ("Profil secondaire", evaluation.secondary_metadata.profile),
         ("Angle entre axes", "{:.2f}°".format(evaluation.geometry.angle_degrees)),
         ("Profondeur automatique", "{:.3f} mm".format(evaluation.depth_cm * 10.0)),
+        ("Coupe droite", "Face de l'âme principale"),
+        ("Jeu contre l'âme", "{:.3f} mm".format(evaluation.web_clearance_cm * 10.0)),
+        ("Prolongement de la principale", extension_text),
         ("Hauteur inférieure retirée", "{:.3f} mm".format(bottom_height_mm)),
         ("Hauteur supérieure retirée", "{:.3f} mm".format(top_height_mm)),
         ("Jeu vertical", "{:.3f} mm".format(evaluation.vertical_clearance_cm * 10.0)),
@@ -102,7 +113,8 @@ def _success_report(evaluation):
     )
     content = [
         "<b>Prototype d'aperçu uniquement — aucune coupe ne sera créée.</b><br>",
-        "Les deux volumes rouges représentent la matière proposée au retrait.<br><br>",
+        "Rouge : semelles retirées. Orange : coupe contre l'âme principale. ",
+        "Vert : prolongement nécessaire de la principale.<br><br>",
     ]
     for label, value in rows:
         content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
@@ -137,7 +149,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
                 "Barre principale",
-                "Sélectionner une barre IPE, HEA ou HEB qui restera intacte.",
+                "Sélectionner une IPE, HEA ou HEB qui sera prolongée si nécessaire.",
             )
             primary.addSelectionFilter("Occurrences")
             primary.setSelectionLimits(0, 1)
@@ -167,6 +179,15 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             )
             longitudinal.minimumValue = 0.0
             longitudinal.isMinimumInclusive = True
+
+            web_clearance = inputs.addValueInput(
+                WEB_CLEARANCE_ID,
+                "Jeu contre l'âme",
+                "mm",
+                adsk.core.ValueInput.createByString("1 mm"),
+            )
+            web_clearance.minimumValue = 0.0
+            web_clearance.isMinimumInclusive = True
 
             report = inputs.addTextBoxCommandInput(
                 REPORT_ID,
@@ -211,6 +232,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             SECONDARY_SELECTION_ID,
             VERTICAL_CLEARANCE_ID,
             LONGITUDINAL_CLEARANCE_ID,
+            WEB_CLEARANCE_ID,
         ):
             _refresh(event_args.inputs, self._report_input, self._preview_manager)
 

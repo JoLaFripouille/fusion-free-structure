@@ -144,9 +144,23 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('"Barre secondaire IPE"', command_source)
         self.assertIn("evaluate_double_ipe_cope", command_source)
         self.assertIn("CopePreviewManager", command_source)
+        self.assertIn('WEB_CLEARANCE_ID = "copeWebClearance"', command_source)
         self.assertIn("command.isOKButtonVisible = False", command_source)
         self.assertIn("aucune coupe ne sera créée", command_source)
         self.assertIn("COPE_PREVIEW_RED", preview_source)
+        self.assertIn("WEB_CUT_ORANGE", preview_source)
+        self.assertIn("PRIMARY_EXTENSION_GREEN", preview_source)
+        cope_builder_source = (ADDIN / "lib" / "cope_builder.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("_evaluate_primary_extensions", cope_builder_source)
+        cope_tree = ast.parse(cope_builder_source)
+        profile_axes = next(
+            node
+            for node in cope_tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_profile_axes"
+        )
+        self.assertTrue(any(isinstance(node, ast.Return) for node in profile_axes.body))
         self.assertNotIn("combineFeatures", command_source)
         self.assertNotIn("splitBodyFeatures", command_source)
 

@@ -55,7 +55,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] prolonger automatiquement une barre séparée du plan et couper une barre qui le chevauche.
 - [ ] étendre la coupe d'onglet aux cas cintrés après validation du mode droit.
 - [x] ajouter un premier aperçu non destructif du double grugeage pour une secondaire IPE à 90°.
-- [ ] valider cet aperçu sur plusieurs tailles, ancrages, rotations et miroirs avant d'activer la coupe réelle.
+- [ ] valider l'aperçu V1.17.1 avec coupe sur l'âme et prolongement de la principale, puis sur plusieurs tailles, ancrages, rotations et miroirs avant d'activer les opérations réelles.
 - [ ] généraliser ensuite les grugeages aux autres profils de charpente, cornières et tés.
 - [ ] ajouter séparément les platines, boulons et assemblages composés.
 

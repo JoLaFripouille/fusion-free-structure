@@ -4,6 +4,22 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.17.1] - En validation
+
+### Corrigé
+
+- ajout d'une coupe droite de la secondaire référencée sur la face de l'âme principale orientée vers elle, au lieu de laisser son âme atteindre l'axe principal ;
+- nouveau `Jeu contre l'âme`, indépendant des jeux vertical et longitudinal du grugeage ;
+- réutilisation du calcul de couverture de la jonction droite pour détecter une principale trop courte à proximité du raccord ;
+- indication de chaque longueur de prolongement nécessaire dans le rapport ;
+- aperçu orange du plan de coupe contre l'âme et aperçu vert de la portion à ajouter à la principale ;
+- prise en charge de la détection d'âme sur les 18 IPE, 15 HEA et 15 HEB, qu'ils soient décrits par polyligne ou par lignes et arcs.
+
+### Sécurité de validation
+
+- les ajouts verts, la coupe orange et les retraits rouges restent exclusivement graphiques ;
+- aucune barre n'est encore prolongée ou coupée par cette commande et le bouton `OK` reste masqué.
+
 ## [1.17.0] - En validation
 
 ### Ajouté
