@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from . import (
     anchors,
     angle_cleat_geometry,
+    bolt_geometry,
+    bolt_specs,
     cope_builder,
     cope_geometry,
     joint_builder,
@@ -39,6 +41,8 @@ class DoubleAnglePreviewEvaluation:
     cleat_height_cm: float
     vertical_offset_cm: float
     hole_pattern: object
+    bolt_spec: object
+    bolt_placements: tuple
     primary_hole_centers_world: tuple
     secondary_hole_centers_world: tuple
     angle_contours_cm: tuple
@@ -79,6 +83,7 @@ def evaluate_double_angle_preview(
     hole_pitch_cm,
     primary_hole_gauge_cm,
     secondary_hole_gauge_cm,
+    bolt_spec,
 ):
     if primary_occurrence == secondary_occurrence:
         raise ValueError("Les deux barres sélectionnées doivent être différentes.")
@@ -195,6 +200,7 @@ def evaluate_double_angle_preview(
         primary_gauge_cm=primary_hole_gauge_cm,
         secondary_gauge_cm=secondary_hole_gauge_cm,
     )
+    bolt_specs.validate_hole_diameter(bolt_spec, hole_pattern.diameter_cm)
     row_offsets = tuple(
         float(vertical_offset_cm)
         - float(cleat_height_cm) / 2.0
@@ -244,6 +250,22 @@ def evaluate_double_angle_preview(
     contours = angle_cleat_geometry.profile_contours_from_outer_corner_cm(
         angle_profile.dxf_path
     )
+    bolt_placements = bolt_geometry.build_angle_cleat_bolt_placements(
+        placements=placements,
+        hole_pattern=hole_pattern,
+        primary_axis=geometry.plane_normal,
+        secondary_axis=secondary_x,
+        primary_web_thickness_cm=(
+            primary_geometry.web_max_x_mm - primary_geometry.web_min_x_mm
+        ) * cope_geometry.MM_TO_CM,
+        secondary_web_thickness_cm=(
+            secondary_geometry.web_max_x_mm - secondary_geometry.web_min_x_mm
+        ) * cope_geometry.MM_TO_CM,
+        angle_thickness_cm=(
+            angle_geometry.flange_thickness_mm * cope_geometry.MM_TO_CM
+        ),
+        spec=bolt_spec,
+    )
     return DoubleAnglePreviewEvaluation(
         primary_occurrence=primary_occurrence,
         secondary_occurrence=secondary_occurrence,
@@ -265,6 +287,8 @@ def evaluate_double_angle_preview(
         cleat_height_cm=float(cleat_height_cm),
         vertical_offset_cm=float(vertical_offset_cm),
         hole_pattern=hole_pattern,
+        bolt_spec=bolt_spec,
+        bolt_placements=bolt_placements,
         primary_hole_centers_world=primary_hole_centers,
         secondary_hole_centers_world=secondary_hole_centers,
         angle_contours_cm=contours,

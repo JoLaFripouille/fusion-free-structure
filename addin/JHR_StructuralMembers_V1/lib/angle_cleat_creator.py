@@ -8,6 +8,7 @@ import adsk.fusion
 from . import (
     addin_info,
     angle_cleat_geometry,
+    bolt_creator,
     joint_builder,
     joint_geometry,
     member_builder,
@@ -26,6 +27,7 @@ class DoubleAngleCreationResult:
     right_occurrence: object
     primary_hole_feature: object
     secondary_hole_feature: object
+    bolt_occurrences: tuple
 
 
 def _point_tuple(point):
@@ -606,11 +608,35 @@ def create_double_angle_assembly(root_component, evaluation):
             "CENTRES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
         )
         created_on_members.extend((secondary_sketch, secondary_feature))
+
+        bolt_occurrences = []
+        for bolt_index, bolt_placement in enumerate(
+            evaluation.bolt_placements,
+            start=1,
+        ):
+            bolt_occurrence = bolt_creator.create_bolt_occurrence(
+                root_component=root_component,
+                placement=bolt_placement,
+                spec=evaluation.bolt_spec,
+                material=material,
+                component_name=(
+                    "BOULON_{:03d}_{}_{:02d}_{}".format(
+                        assembly_index,
+                        evaluation.bolt_spec.designation,
+                        bolt_index,
+                        bolt_placement.name_suffix,
+                    )
+                ),
+                hole_diameter_cm=evaluation.hole_pattern.diameter_cm,
+            )
+            created_occurrences.append(bolt_occurrence)
+            bolt_occurrences.append(bolt_occurrence)
         return DoubleAngleCreationResult(
             left_occurrence=angle_occurrences[0],
             right_occurrence=angle_occurrences[1],
             primary_hole_feature=primary_feature,
             secondary_hole_feature=secondary_feature,
+            bolt_occurrences=tuple(bolt_occurrences),
         )
     except Exception:
         _delete_valid(created_on_members)

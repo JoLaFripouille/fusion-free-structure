@@ -4,7 +4,29 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
-## [1.23.6] - En validation
+## [1.24.0] - En validation
+
+### Ajouté
+
+- choix dynamique de boulons métriques `M12`, `M16`, `M20` ou `M24`, classe affichée `8.8`, avec adaptation automatique du diamètre de perçage conseillé ;
+- aperçu bleu des tiges, têtes, écrous et deux rondelles, calculé depuis les mêmes centres et axes que les trous rouges ;
+- création d'un composant indépendant par boulon, avec corps nommés pour la tige, la tête hexagonale, les deux rondelles et l'écrou hexagonal ;
+- pour deux rangées, quatre boulons relient séparément chaque cornière à l'âme principale et deux boulons traversent ensemble les deux cornières et l'âme secondaire ;
+- longueur calculée depuis les épaisseurs réelles des deux âmes et de la cornière, les rondelles, l'écrou et une sortie de filetage, puis arrondie par excès au pas de `5 mm` ;
+- attributs de traçabilité sur chaque composant de boulon : diamètre, classe, groupe de liaison, côté, rangée, serrage, longueur et version du complément.
+
+### Sécurité
+
+- un diamètre de trou inférieur ou égal au diamètre nominal du boulon est refusé avant toute création ;
+- une incohérence entre les deux centres secondaires et l'épaisseur réelle de l'âme annule la commande ;
+- si la création d'un boulon échoue, tous les trous, cornières et boulons de la tentative sont retirés.
+
+### Limites explicites
+
+- le filetage n'est pas modélisé et la classe `8.8` reste une désignation de fixation, pas un calcul de résistance ;
+- le matériau physique des corps de boulon est provisoirement repris sur la barre secondaire, sans prétendre représenter un matériau certifié de boulonnerie.
+
+## [1.23.6] - Validé dans Fusion le 2026-08-20
 
 ### Corrigé
 

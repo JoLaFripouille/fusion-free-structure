@@ -70,8 +70,10 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] ajouter dans la V1.22.0 un aperçu non destructif de deux cornières égales autour de l'âme secondaire, limité aux IPE/HEA/HEB droits à `90°`.
 - [x] valider dans Fusion la position des deux cornières V1.22.0 sur les deux faces de l'âme secondaire et la face de l'âme principale.
 - [x] créer dans la V1.23.0 deux composants de cornière indépendants et les perçages paramétrés alignés dans les deux âmes, à la demande de l'utilisateur.
-- [ ] valider dans Fusion la création et les perçages V1.23.0 avant d'ajouter les boulons.
-- [ ] ajouter ensuite les boulons dans une phase distincte.
+- [x] valider dans Fusion la création et les perçages V1.23.6 avant d'ajouter les boulons.
+- [x] ajouter dans la V1.24.0 les boulons géométriques comme composants indépendants, avec tête, écrou et deux rondelles.
+- [ ] valider dans Fusion le choix de diamètre, l'aperçu bleu, les longueurs et les six boulons du premier assemblage à deux rangées.
+- [ ] remplacer ensuite le matériau provisoire par une nuance de boulonnerie réellement exploitable en simulation, après validation de ses propriétés.
 - [ ] intégrer le jeu entre secondaire et principale ainsi que les distances aux bords uniquement après définition des valeurs souhaitées par l'utilisateur ou le calculateur structure.
 - [ ] ajouter de nouveaux onglets de paramètres uniquement lorsque de nouvelles catégories de réglages auront été validées.
 - [ ] valider séparément dans Fusion cornière→cornière, cornière→té, té→cornière et té→té avant d'ajouter d'autres profils ouverts.

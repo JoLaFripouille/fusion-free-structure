@@ -74,6 +74,23 @@ class PreviewGeometryTests(unittest.TestCase):
             )
         )
 
+    def test_cylinder_wire_contains_two_rings_and_six_rails(self):
+        coordinates, indices = preview_geometry.build_cylinder_wire(
+            origin=(1.0, 2.0, 3.0),
+            axis=(0.0, 1.0, 0.0),
+            radius=0.8,
+            length=4.0,
+            segments=24,
+        )
+        self.assertEqual(len(coordinates), 48 * 3)
+        self.assertEqual(len(indices), (48 + 6) * 2)
+        points = tuple(
+            tuple(coordinates[index:index + 3])
+            for index in range(0, len(coordinates), 3)
+        )
+        self.assertTrue(all(abs(point[1] - 2.0) < 1e-9 for point in points[:24]))
+        self.assertTrue(all(abs(point[1] - 6.0) < 1e-9 for point in points[24:]))
+
 
 if __name__ == "__main__":
     unittest.main()

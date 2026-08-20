@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.23.6 : coupes symétriques dans toutes les âmes."
+    "": "Profil acier V1.24.0 : boulons géométriques pour l'assemblage par cornières."
   },
-  "version": "1.23.6",
+  "version": "1.24.0",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

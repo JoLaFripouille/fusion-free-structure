@@ -10,6 +10,7 @@ from ..lib import (
     addin_info,
     angle_cleat_builder,
     angle_cleat_creator,
+    bolt_specs,
     profile_catalog,
     ui_layout,
 )
@@ -19,13 +20,14 @@ from ..lib.angle_cleat_preview import DoubleAnglePreviewManager
 COMMAND_ID = "EI_JHR_PreviewDoubleAngleCleatV1"
 COMMAND_NAME = "Assemblage par cornières V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Crée deux cornières percées de part et d'autre de l'âme secondaire."
+    "Crée deux cornières percées et leurs boulons de part et d'autre de l'âme secondaire."
 )
 PRIMARY_SELECTION_ID = "angleCleatPrimaryMember"
 SECONDARY_SELECTION_ID = "angleCleatSecondaryMember"
 ANGLE_PROFILE_ID = "angleCleatProfile"
 CLEAT_HEIGHT_ID = "angleCleatHeight"
 VERTICAL_OFFSET_ID = "angleCleatVerticalOffset"
+BOLT_SIZE_ID = "angleCleatBoltSize"
 HOLE_DIAMETER_ID = "angleCleatHoleDiameter"
 HOLE_ROW_COUNT_ID = "angleCleatHoleRowCount"
 HOLE_PITCH_ID = "angleCleatHolePitch"
@@ -73,6 +75,15 @@ def _selected_angle_profile(inputs, profiles):
         if profile.section_label == profile_input.selectedItem.name:
             return profile
     raise ValueError("La cornière sélectionnée n'existe plus dans la bibliothèque.")
+
+
+def _selected_bolt_spec(inputs):
+    bolt_input = adsk.core.DropDownCommandInput.cast(
+        inputs.itemById(BOLT_SIZE_ID)
+    )
+    if not bolt_input or not bolt_input.selectedItem:
+        raise ValueError("Sélectionner un diamètre de boulon.")
+    return bolt_specs.bolt_spec_from_label(bolt_input.selectedItem.name)
 
 
 def _height_value(inputs):
@@ -150,11 +161,18 @@ def _evaluate(inputs, profiles):
             SECONDARY_GAUGE_ID,
             "La distance de perçage sur la branche secondaire",
         ),
+        bolt_spec=_selected_bolt_spec(inputs),
     )
     return design, evaluation
 
 
 def _success_report(evaluation):
+    lengths = sorted(
+        {
+            int(round(placement.bolt_length_cm * 10.0))
+            for placement in evaluation.bolt_placements
+        }
+    )
     rows = (
         ("Barre principale", evaluation.primary_occurrence.component.name),
         ("Profil principal", evaluation.primary_metadata.profile),
@@ -182,6 +200,15 @@ def _success_report(evaluation):
             ),
         ),
         (
+            "Boulons",
+            "{} × {} classe {} — longueur(s) {} mm".format(
+                len(evaluation.bolt_placements),
+                evaluation.bolt_spec.designation,
+                evaluation.bolt_spec.strength_class,
+                ", ".join(str(value) for value in lengths),
+            ),
+        ),
+        (
             "Entraxe vertical",
             "{:.3f} mm".format(evaluation.hole_pattern.pitch_cm * 10.0),
         ),
@@ -202,8 +229,9 @@ def _success_report(evaluation):
         "<b>CRÉATION PARAMÉTRIQUE</b><br>",
         "Jaune : deux cornières issues du DXF sélectionné.<br>",
         "Rouge : centres et diamètres des futurs perçages.<br>",
-        "OK créera deux composants et les trous alignés dans les cornières et les deux âmes.<br>",
-        "Aucun boulon n'est créé et ces valeurs ne constituent pas un dimensionnement de résistance.<br><br>",
+        "Bleu : boulons, écrous et rondelles qui seront créés.<br>",
+        "OK créera les deux cornières, les trous alignés et les boulons géométriques.<br>",
+        "La classe indiquée décrit le choix de fixation mais ne constitue pas un calcul de résistance.<br><br>",
     ]
     for label, value in rows:
         content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
@@ -279,6 +307,19 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 "mm",
                 adsk.core.ValueInput.createByString("0 mm"),
             )
+
+            default_bolt = bolt_specs.default_bolt_spec()
+            bolt_input = inputs.addDropDownCommandInput(
+                BOLT_SIZE_ID,
+                "Boulons",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            for spec in bolt_specs.BOLT_SPECS:
+                bolt_input.listItems.add(
+                    spec.display_label,
+                    spec == default_bolt,
+                    "",
+                )
 
             diameter = inputs.addValueInput(
                 HOLE_DIAMETER_ID,
@@ -379,12 +420,20 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
     def notify(self, args):
         event_args = adsk.core.InputChangedEventArgs.cast(args)
         changed = event_args.input
+        if changed and changed.id == BOLT_SIZE_ID:
+            spec = _selected_bolt_spec(event_args.inputs)
+            diameter = event_args.inputs.itemById(HOLE_DIAMETER_ID)
+            if diameter:
+                diameter.expression = "{} mm".format(
+                    spec.recommended_hole_mm
+                )
         if changed and changed.id in (
             PRIMARY_SELECTION_ID,
             SECONDARY_SELECTION_ID,
             ANGLE_PROFILE_ID,
             CLEAT_HEIGHT_ID,
             VERTICAL_OFFSET_ID,
+            BOLT_SIZE_ID,
             HOLE_DIAMETER_ID,
             HOLE_ROW_COUNT_ID,
             HOLE_PITCH_ID,
@@ -456,7 +505,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 evaluation,
             )
             _log(
-                "Assemblage créé : principale={}, secondaire={}, cornière={}, hauteur={} mm, trous=Ø{} mm x {} rangées"
+                "Assemblage créé : principale={}, secondaire={}, cornière={}, hauteur={} mm, trous=Ø{} mm x {} rangées, boulons={} {}"
                 .format(
                     evaluation.primary_occurrence.component.name,
                     evaluation.secondary_occurrence.component.name,
@@ -464,6 +513,8 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                     evaluation.cleat_height_cm * 10.0,
                     evaluation.hole_pattern.diameter_cm * 10.0,
                     evaluation.hole_pattern.row_count,
+                    len(result.bolt_occurrences),
+                    evaluation.bolt_spec.designation,
                 )
             )
             _, ui = _app_and_ui()
@@ -472,10 +523,12 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "Composants :\n- {}\n- {}\n\n"
                 "Perçages traversants ajoutés dans les deux cornières, "
                 "l'âme principale et l'âme secondaire.\n"
-                "Aucun boulon n'a été créé."
+                "{} boulons {} avec écrous et rondelles ont été créés."
                 .format(
                     result.left_occurrence.component.name,
                     result.right_occurrence.component.name,
+                    len(result.bolt_occurrences),
+                    evaluation.bolt_spec.designation,
                 )
             )
         except Exception as error:

@@ -493,6 +493,27 @@ Effectuer d'abord un seul assemblage avec les valeurs proposées. Ne pas ajouter
 15. Annuler l'opération complète avec l'historique Fusion, puis la rétablir ; les deux composants et tous les trous doivent disparaître puis revenir ensemble sans erreur.
 16. Faire un seul essai d'échec en déplaçant le motif hors de la hauteur libre de l'âme : `OK` doit rester inactif et aucune nouvelle entité ne doit apparaître.
 
+## Test 28 — Boulons géométriques du premier assemblage
+
+Effectuer uniquement ce test sur le cas déjà validé du test 27. Ne modifier ni les cornières ni les distances de perçage pendant ce premier contrôle.
+
+1. Supprimer ou annuler l'assemblage V1.23.6 précédent, puis arrêter et exécuter le complément et vérifier la version `V1.24.0`.
+2. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.24.0`.
+3. Vérifier que `M16 — classe 8.8 — trou Ø18 mm` est proposé et que le diamètre des perçages vaut `18 mm`.
+4. Sélectionner la principale puis la secondaire avec la cornière `50 × 50 — ép. 5 mm`, une hauteur de `100 mm`, deux rangées et un entraxe de `50 mm`.
+5. Vérifier les deux cornières jaunes, les trous rouges et exactement six ensembles bleus : quatre sur l'âme principale et deux traversant l'âme secondaire.
+6. Contrôler visuellement qu'aucun ensemble bleu n'est retourné, décalé ou placé sur une mauvaise rangée. Une tête et un écrou doivent se trouver de part et d'autre des pièces serrées.
+7. Choisir temporairement `M12`, puis `M20` : le diamètre de trou doit passer respectivement à `14 mm` puis `22 mm`, et l'aperçu bleu doit changer de diamètre. Revenir à `M16`.
+8. Saisir temporairement un trou de `16 mm` pour M16 : le rapport doit refuser le diamètre et `OK` doit rester inactif. Revenir à `18 mm`.
+9. Cliquer une seule fois sur `OK`.
+10. Vérifier la création de six composants nommés `BOULON_001_M16_...` en plus des deux composants de cornière.
+11. Ouvrir un composant de boulon et contrôler cinq corps : `TIGE_M16`, `TETE_HEXAGONALE`, `RONDELLE_SOUS_TETE`, `RONDELLE_SOUS_ECROU` et `ECROU_HEXAGONAL`.
+12. Masquer les cornières et les deux barres pour vérifier que les quatre boulons principaux et les deux boulons secondaires suivent exactement les axes des trous.
+13. Mesurer une tige : diamètre `16 mm`. Mesurer les têtes et écrous : `24 mm` sur plats. Vérifier que les longueurs sous tête affichées dans le rapport correspondent aux composants créés.
+14. Vérifier qu'un boulon secondaire traverse bien les deux cornières et l'âme secondaire avec une seule tête et un seul écrou, et non trois boulons superposés.
+15. Annuler l'opération complète dans l'historique puis la rétablir : les six boulons, les deux cornières et tous les trous doivent disparaître puis revenir ensemble.
+16. Ne pas utiliser ces boulons pour valider une simulation de résistance : la V1.24.0 crée la géométrie et la traçabilité, mais pas encore le filetage, la précharge ni un matériau certifié de classe 8.8.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -531,6 +552,7 @@ Effectuer d'abord un seul assemblage avec les valeurs proposées. Ne pas ajouter
 - après `OK`, un corps secondaire unique, la matière réellement grugée et la branche verticale coupée contre l'appui principal avec les jeux saisis.
 - valeurs par défaut conservées après fermeture et redémarrage du complément, appliquées selon la famille secondaire et modifiables ponctuellement sans changer le fichier local.
 - deux cornières d'assemblage jaunes, symétriques sur l'âme secondaire et en contact avec les deux âmes pendant la phase V1.22.0.
-- en V1.23.0, deux composants de cornière indépendants reproduisant cet aperçu et des perçages traversants alignés, conformes aux valeurs saisies, sans boulon ni dimensionnement automatique de résistance.
+- en V1.23.6, deux composants de cornière indépendants reproduisant cet aperçu et des perçages traversants alignés, conformes aux valeurs saisies.
+- en V1.24.0 avec deux rangées, six aperçus bleus puis six composants de boulon alignés : quatre vers la principale, deux traversants vers la secondaire, chacun avec cinq corps nommés et sans prétention de dimensionnement automatique de résistance.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

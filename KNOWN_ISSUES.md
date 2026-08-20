@@ -4,20 +4,14 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
-### ISSUE-026 — Création et perçages du premier assemblage par cornières à valider
+### ISSUE-027 — Boulons du premier assemblage par cornières à valider
 
-- **État :** position des deux aperçus V1.22.0 validée dans Fusion ; les V1.23.1 et V1.23.2 créent encore des corps décalés malgré des trous monde corrects. Les V1.23.3 à V1.23.5 fiabilisent progressivement la création locale et les coupes des cornières. En V1.23.5 ces coupes passent, mais le perçage natif de l'âme secondaire échoue encore. La V1.23.6 applique des coupes symétriques aux quatre pièces.
-- **Périmètre :** une principale et une secondaire IPE/HEA/HEB droites, axes raccordés à `90°`, cornière égale européenne, hauteur, décalage vertical et motif de perçage réglables.
-- **Comportement attendu :** deux composants de cornière reprennent exactement l'aperçu jaune. Les cercles rouges deviennent des trous traversants alignés dans les deux branches des cornières, l'âme principale et l'âme secondaire.
-- **Sécurité :** les perçages sont refusés s'ils sortent d'une branche, de la hauteur de cornière ou de la hauteur libre d'une âme. Une erreur de création doit retirer tous les trous et composants de la tentative.
-- **Correction V1.23.1 :** le contour importé est mesuré dans son esquisse locale, déplacé jusqu'à l'ancrage `BL`, puis soumis au même contrôle strict avant extrusion.
-- **Correction V1.23.2 :** l'extrusion et les perçages propres à une cornière restent dans le repère local de son composant ; seule l'occurrence applique le placement dans l'assemblage.
-- **Correction V1.23.3 :** le composant reste à l'identité pendant l'import, l'extrusion et les perçages ; les centres de l'aperçu sont convertis en coordonnées locales, puis la position initiale de l'occurrence terminée est définie et contrôlée par son enveloppe précise.
-- **Correction V1.23.4 :** chaque cercle local devient une coupe symétrique traversante limitée au corps de cornière ; le sens de normale de la face ne peut donc plus produire une distance nulle ou l'absence de corps cible.
-- **Correction V1.23.5 :** les groupes vers l'âme principale et secondaire utilisent respectivement les plans locaux `XZ` et `YZ`, sans région de fond issue d'une face du solide.
-- **Correction V1.23.6 :** les deux âmes reçoivent elles aussi des coupes symétriques ; un filtre de profil conserve uniquement chaque disque défini par une boucle et une courbe circulaire.
-- **Hors périmètre :** calcul de résistance, choix automatique d'une cornière, boulons, angles obliques, chemins cintrés et profils non I/H.
-- **Validation prévue :** relancer uniquement le test 27 en V1.23.6 avec les valeurs proposées ; contrôler que les quatre groupes de coupe sont créés, puis que la commande atteint le contrôle du placement final avant d'essayer une autre section.
+- **État :** implémentation V1.24.0 prête pour un premier essai Fusion limité.
+- **Périmètre :** choix M12/M16/M20/M24 classe affichée 8.8 ; aperçu bleu ; tête hexagonale, tige, écrou et deux rondelles ; quatre boulons vers l'âme principale et un boulon traversant par rangée dans l'âme secondaire.
+- **Comportement attendu :** pour deux rangées, six composants de boulon reprennent exactement les axes des trous déjà validés. Les quatre fixations principales ne traversent qu'une cornière et l'âme principale ; les deux fixations secondaires traversent ensemble les deux cornières et l'âme secondaire.
+- **Sécurité :** le trou doit être plus grand que le boulon, la distance entre les deux perçages secondaires doit correspondre à l'épaisseur réelle de l'âme et toute erreur doit retirer l'assemblage complet de la tentative.
+- **Limite :** filetage non détaillé, aucune précharge ni résistance calculée, et matériau physique provisoirement repris sur la barre secondaire. La classe 8.8 est une désignation, pas encore un matériau de simulation certifié.
+- **Validation prévue :** exécuter uniquement le test 28 avec M16 et deux rangées ; contrôler d'abord les six aperçus bleus, puis les noms, les cinq corps et l'alignement de chaque composant créé.
 
 ### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
 
@@ -61,7 +55,7 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 ### ISSUE-019 — Géométries courbes avancées encore limitées
 
 - **État :** périmètre restant après la V1.16.0.
-- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les mélanges I/H ↔ cornière/té, les platines et les boulons ne sont pas encore pris en charge ; les quatre grugeages cornière/té corrigés en V1.20.2 restent en validation.
+- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les mélanges I/H ↔ cornière/té, les platines et les boulons hors du premier assemblage par doubles cornières ne sont pas encore pris en charge ; les quatre grugeages cornière/té corrigés en V1.20.2 restent en validation.
 - **Sécurité :** la position et l'orientation du plan final sont contrôlées contre la prévisualisation avant toute coupe ; les cas hors périmètre sont refusés sans modifier le modèle.
 - **Validation prévue :** terminer les essais du test 21 avant d'étendre le même modèle géométrique aux références cintrées.
 
@@ -114,6 +108,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 - **Suite :** ajouter une restauration contrôlée après validation de l'ajout et de la suppression.
 
 ## Résolus pendant la préparation de la V1
+
+### ISSUE-026 — Création et perçages du premier assemblage par cornières
+
+- **Résolu :** validé par l'utilisateur dans Fusion avec la V1.23.6 le 2026-08-20.
+- **Résultat :** deux composants de cornière reprennent l'aperçu jaune et les coupes circulaires symétriques produisent les trous alignés dans les deux cornières et les deux âmes.
+- **Corrections successives :** recalage strict du DXF sur `BL`, création locale à l'identité, placement final par un seul repère rigide, plans locaux `XZ/YZ` pour les cornières et filtre des seules régions circulaires sur les faces des deux âmes.
+- **Périmètre validé :** principale et secondaire IPE/HEA/HEB droites, axes à `90°`, cornière égale européenne et motif de perçage réglable.
 
 ### ISSUE-023 — Début du grugeage des semelles perpendiculaire à un raccord oblique
 

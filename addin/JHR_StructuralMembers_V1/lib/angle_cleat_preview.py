@@ -9,6 +9,7 @@ from . import angle_cleat_geometry, joint_geometry, preview_geometry
 CLEAT_PREVIEW_YELLOW = (255, 205, 0)
 CLEAT_PREVIEW_EDGE = (170, 105, 0)
 HOLE_PREVIEW_RED = (235, 55, 45)
+BOLT_PREVIEW_BLUE = (30, 125, 255)
 
 
 def _color_effect(color):
@@ -39,6 +40,7 @@ class DoubleAnglePreviewManager:
         yellow = _color_effect(CLEAT_PREVIEW_YELLOW)
         edge = _color_effect(CLEAT_PREVIEW_EDGE)
         hole_red = _color_effect(HOLE_PREVIEW_RED)
+        bolt_blue = _color_effect(BOLT_PREVIEW_BLUE)
         try:
             for placement in evaluation.placements:
                 for contour_index, contour in enumerate(
@@ -114,6 +116,77 @@ class DoubleAnglePreviewManager:
                         ring.color = hole_red
                         ring.weight = 3.0
                         ring.isSelectable = False
+
+            spec = evaluation.bolt_spec
+            washer_thickness_cm = spec.washer_thickness_mm * 0.1
+            head_height_cm = spec.head_height_mm * 0.1
+            nut_height_cm = spec.nut_height_mm * 0.1
+            for bolt in evaluation.bolt_placements:
+                nut_start_cm = (
+                    2.0 * washer_thickness_cm + bolt.grip_length_cm
+                )
+                pieces = (
+                    (
+                        joint_geometry.subtract(
+                            bolt.origin,
+                            joint_geometry.scale(bolt.z_axis, head_height_cm),
+                        ),
+                        spec.head_across_flats_mm * 0.1 / 2.0,
+                        head_height_cm,
+                        "tête",
+                    ),
+                    (
+                        bolt.origin,
+                        spec.washer_outer_diameter_mm * 0.1 / 2.0,
+                        washer_thickness_cm,
+                        "rondelle tête",
+                    ),
+                    (
+                        bolt.origin,
+                        spec.nominal_diameter_mm * 0.1 / 2.0,
+                        bolt.bolt_length_cm,
+                        "tige",
+                    ),
+                    (
+                        joint_geometry.add(
+                            bolt.origin,
+                            joint_geometry.scale(
+                                bolt.z_axis,
+                                washer_thickness_cm + bolt.grip_length_cm,
+                            ),
+                        ),
+                        spec.washer_outer_diameter_mm * 0.1 / 2.0,
+                        washer_thickness_cm,
+                        "rondelle écrou",
+                    ),
+                    (
+                        joint_geometry.add(
+                            bolt.origin,
+                            joint_geometry.scale(bolt.z_axis, nut_start_cm),
+                        ),
+                        spec.nut_across_flats_mm * 0.1 / 2.0,
+                        nut_height_cm,
+                        "écrou",
+                    ),
+                )
+                for origin, radius, length, label in pieces:
+                    coordinates, indices = preview_geometry.build_cylinder_wire(
+                        origin,
+                        bolt.z_axis,
+                        radius,
+                        length,
+                    )
+                    graphics_coordinates = (
+                        adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
+                    )
+                    wire = group.addLines(graphics_coordinates, indices, False)
+                    wire.name = "Boulon bleu — {} — {}".format(
+                        bolt.name_suffix,
+                        label,
+                    )
+                    wire.color = bolt_blue
+                    wire.weight = 2.0
+                    wire.isSelectable = False
         except Exception:
             self.clear()
             raise

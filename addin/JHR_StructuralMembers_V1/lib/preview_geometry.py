@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from . import dxf_geometry
+from . import dxf_geometry, joint_geometry
 
 
 def read_r12_polyline_vertices(dxf_path):
@@ -103,4 +103,44 @@ def build_circle_wire(center, first_axis, second_axis, radius, segments=32):
     indices = []
     for index in range(segments):
         indices.extend((index, (index + 1) % segments))
+    return coordinates, indices
+
+
+def build_cylinder_wire(origin, axis, radius, length, segments=24):
+    """Construit deux cercles reliés pour prévisualiser un cylindre orienté."""
+    if radius <= 0.0 or length <= 0.0 or segments < 8:
+        raise ValueError("Le cylindre d'aperçu est invalide.")
+    z_axis = joint_geometry.normalize(axis)
+    reference = (
+        (0.0, 0.0, 1.0)
+        if abs(joint_geometry.dot(z_axis, (0.0, 0.0, 1.0))) < 0.9
+        else (1.0, 0.0, 0.0)
+    )
+    first_axis = joint_geometry.normalize(
+        joint_geometry.cross(reference, z_axis)
+    )
+    second_axis = joint_geometry.normalize(
+        joint_geometry.cross(z_axis, first_axis)
+    )
+    end = joint_geometry.add(origin, joint_geometry.scale(z_axis, length))
+    first_coordinates, first_indices = build_circle_wire(
+        origin,
+        first_axis,
+        second_axis,
+        radius,
+        segments,
+    )
+    second_coordinates, second_indices = build_circle_wire(
+        end,
+        first_axis,
+        second_axis,
+        radius,
+        segments,
+    )
+    coordinates = first_coordinates + second_coordinates
+    indices = list(first_indices)
+    indices.extend(index + segments for index in second_indices)
+    rail_step = max(1, segments // 6)
+    for index in range(0, segments, rail_step):
+        indices.extend((index, index + segments))
     return coordinates, indices
