@@ -6,12 +6,12 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ### ISSUE-027 — Boulons du premier assemblage par cornières à valider
 
-- **État :** implémentation V1.24.0 prête pour un premier essai Fusion limité.
-- **Périmètre :** choix M12/M16/M20/M24 classe affichée 8.8 ; aperçu bleu ; tête hexagonale, tige, écrou et deux rondelles ; quatre boulons vers l'âme principale et un boulon traversant par rangée dans l'âme secondaire.
-- **Comportement attendu :** pour deux rangées, six composants de boulon reprennent exactement les axes des trous déjà validés. Les quatre fixations principales ne traversent qu'une cornière et l'âme principale ; les deux fixations secondaires traversent ensemble les deux cornières et l'âme secondaire.
-- **Sécurité :** le trou doit être plus grand que le boulon, la distance entre les deux perçages secondaires doit correspondre à l'épaisseur réelle de l'âme et toute erreur doit retirer l'assemblage complet de la tentative.
-- **Limite :** filetage non détaillé, aucune précharge ni résistance calculée, et matériau physique provisoirement repris sur la barre secondaire. La classe 8.8 est une désignation, pas encore un matériau de simulation certifié.
-- **Validation prévue :** exécuter uniquement le test 28 avec M16 et deux rangées ; contrôler d'abord les six aperçus bleus, puis les noms, les cinq corps et l'alignement de chaque composant créé.
+- **État :** prototype géométrique V1.24.0 remplacé avant validation ; passerelle vers la commande native prête en V1.24.1.
+- **Périmètre :** choix indicatif M12/M16/M20/M24, aperçu bleu et transmission de quatre arêtes de l'âme principale plus deux arêtes de la cornière gauche à `Insérer une attache`.
+- **Comportement attendu :** après `OK` et le message de création, la fenêtre native Fusion s'ouvre avec les six positions déjà sélectionnées. L'utilisateur choisit ensuite la fixation dans le catalogue natif.
+- **Sécurité :** aucune API preview de bibliothèque n'est appelée. Si la présélection ou l'ouverture échoue, les trous et cornières restent valides et le chemin manuel est affiché.
+- **Limite :** l'API publique ne permet pas de préremplir le type, la norme, la longueur, le matériau ou la finition. Il reste à vérifier si une seule session native accepte les deux orientations et, si nécessaire, à séparer principale et secondaire en deux lancements.
+- **Validation prévue :** exécuter uniquement le test 28 en V1.24.1 et s'arrêter dès l'ouverture native pour vérifier le nombre et l'emplacement des positions avant toute insertion.
 
 ### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
 

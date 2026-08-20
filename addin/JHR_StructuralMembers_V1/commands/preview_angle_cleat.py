@@ -20,7 +20,7 @@ from ..lib.angle_cleat_preview import DoubleAnglePreviewManager
 COMMAND_ID = "EI_JHR_PreviewDoubleAngleCleatV1"
 COMMAND_NAME = "Assemblage par cornières V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Crée deux cornières percées et leurs boulons de part et d'autre de l'âme secondaire."
+    "Crée deux cornières percées puis ouvre l'insertion native des attaches Fusion."
 )
 PRIMARY_SELECTION_ID = "angleCleatPrimaryMember"
 SECONDARY_SELECTION_ID = "angleCleatSecondaryMember"
@@ -34,11 +34,16 @@ HOLE_PITCH_ID = "angleCleatHolePitch"
 PRIMARY_GAUGE_ID = "angleCleatPrimaryGauge"
 SECONDARY_GAUGE_ID = "angleCleatSecondaryGauge"
 REPORT_ID = "angleCleatReport"
+NATIVE_FASTENER_COMMAND_ID = "FusionFastenersCommand"
+NATIVE_FASTENER_EVENT_ID = "EI_JHR_OpenNativeFastenersV1_Deferred"
 PANEL_IDS = (ui_layout.ASSEMBLY_PANEL_ID,)
 
 
 _handlers = []
 _panel_id = None
+_native_fastener_event = None
+_native_fastener_event_handler = None
+_native_fastener_launcher = None
 
 
 def _app_and_ui():
@@ -200,8 +205,8 @@ def _success_report(evaluation):
             ),
         ),
         (
-            "Boulons",
-            "{} × {} classe {} — longueur(s) {} mm".format(
+            "Attaches visées",
+            "{} × {} classe {} — longueur(s) indicatives {} mm".format(
                 len(evaluation.bolt_placements),
                 evaluation.bolt_spec.designation,
                 evaluation.bolt_spec.strength_class,
@@ -229,9 +234,9 @@ def _success_report(evaluation):
         "<b>CRÉATION PARAMÉTRIQUE</b><br>",
         "Jaune : deux cornières issues du DXF sélectionné.<br>",
         "Rouge : centres et diamètres des futurs perçages.<br>",
-        "Bleu : boulons, écrous et rondelles qui seront créés.<br>",
-        "OK créera les deux cornières, les trous alignés et les boulons géométriques.<br>",
-        "La classe indiquée décrit le choix de fixation mais ne constitue pas un calcul de résistance.<br><br>",
+        "Bleu : six positions proposées à l'outil natif d'attaches Fusion.<br>",
+        "OK créera les deux cornières et les trous, puis ouvrira Insérer une attache.<br>",
+        "Le type, la norme, la longueur, le matériau et la finition restent à confirmer dans la fenêtre native.<br><br>",
     ]
     for label, value in rows:
         content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
@@ -252,6 +257,87 @@ def _refresh(inputs, profiles, report_input, preview_manager):
         return None
 
 
+class NativeFastenerLauncher:
+    """Diffère l'ouverture de la commande native jusqu'à la fin de la nôtre."""
+
+    def __init__(self):
+        self._edges = ()
+
+    def prepare(self, edges):
+        valid_edges = tuple(edge for edge in edges if edge and edge.isValid)
+        if len(valid_edges) != len(edges) or not valid_edges:
+            raise RuntimeError(
+                "Les arêtes destinées à l'outil natif d'attaches sont invalides."
+            )
+        self._edges = valid_edges
+
+    def cancel(self):
+        self._edges = ()
+
+    def queue(self):
+        if not self._edges:
+            return
+        app, ui = _app_and_ui()
+        if app.fireCustomEvent(NATIVE_FASTENER_EVENT_ID):
+            _log("Ouverture native des attaches placée dans la file Fusion")
+            return
+        self.cancel()
+        ui.messageBox(
+            "Les cornières et les trous sont créés, mais Fusion n'a pas pu "
+            "planifier l'ouverture de sa fenêtre native d'attaches.\n\n"
+            "Utiliser manuellement Solide > Insérer > Insérer une attache."
+        )
+
+    def launch(self):
+        edges = self._edges
+        self._edges = ()
+        if not edges:
+            return
+        _, ui = _app_and_ui()
+        try:
+            selections = ui.activeSelections
+            if not selections.clear():
+                raise RuntimeError("Fusion n'a pas pu vider la sélection active.")
+            for edge in edges:
+                if not edge.isValid or not selections.add(edge):
+                    raise RuntimeError(
+                        "Fusion n'a pas pu présélectionner une arête de perçage."
+                    )
+            definition = ui.commandDefinitions.itemById(
+                NATIVE_FASTENER_COMMAND_ID
+            )
+            if not definition:
+                raise RuntimeError(
+                    "La commande native Insérer une attache est introuvable."
+                )
+            if not definition.execute():
+                raise RuntimeError(
+                    "Fusion a refusé d'ouvrir Insérer une attache."
+                )
+            _log(
+                "Commande native d'attaches ouverte avec {} arêtes présélectionnées"
+                .format(len(edges))
+            )
+        except Exception as error:
+            ui.activeSelections.clear()
+            _log("ÉCHEC OUVERTURE ATTACHES NATIVES: {}".format(error))
+            ui.messageBox(
+                "Les cornières et les trous sont créés, mais la fenêtre "
+                "native d'attaches n'a pas pu être ouverte :\n{}\n\n"
+                "Utiliser manuellement Solide > Insérer > Insérer une attache."
+                .format(error)
+            )
+
+
+class NativeFastenerEventHandler(adsk.core.CustomEventHandler):
+    def __init__(self, native_launcher):
+        super().__init__()
+        self._native_launcher = native_launcher
+
+    def notify(self, args):
+        self._native_launcher.launch()
+
+
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def notify(self, args):
         try:
@@ -263,6 +349,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             angle_profiles = angle_cleat_builder.equal_angle_profiles(profiles)
             default_profile = angle_cleat_builder.default_equal_angle_profile(profiles)
             preview_manager = DoubleAnglePreviewManager()
+            native_launcher = _native_fastener_launcher
+            if not native_launcher:
+                raise RuntimeError(
+                    "Le passage vers les attaches natives n'est pas initialisé."
+                )
+            native_launcher.cancel()
 
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
@@ -394,11 +486,15 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             command.executePreview.add(execute_preview)
             _handlers.append(execute_preview)
 
-            execute = ExecuteHandler(profiles, preview_manager)
+            execute = ExecuteHandler(
+                profiles,
+                preview_manager,
+                native_launcher,
+            )
             command.execute.add(execute)
             _handlers.append(execute)
 
-            destroy = DestroyHandler(preview_manager)
+            destroy = DestroyHandler(preview_manager, native_launcher)
             command.destroy.add(destroy)
             _handlers.append(destroy)
             _log("Commande de création ouverte")
@@ -487,10 +583,11 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
-    def __init__(self, profiles, preview_manager):
+    def __init__(self, profiles, preview_manager, native_launcher):
         super().__init__()
         self._profiles = profiles
         self._preview_manager = preview_manager
+        self._native_launcher = native_launcher
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -504,8 +601,9 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 design.rootComponent,
                 evaluation,
             )
+            self._native_launcher.prepare(result.native_fastener_edges)
             _log(
-                "Assemblage créé : principale={}, secondaire={}, cornière={}, hauteur={} mm, trous=Ø{} mm x {} rangées, boulons={} {}"
+                "Assemblage créé : principale={}, secondaire={}, cornière={}, hauteur={} mm, trous=Ø{} mm x {} rangées, cibles natives={} {}"
                 .format(
                     evaluation.primary_occurrence.component.name,
                     evaluation.secondary_occurrence.component.name,
@@ -513,7 +611,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                     evaluation.cleat_height_cm * 10.0,
                     evaluation.hole_pattern.diameter_cm * 10.0,
                     evaluation.hole_pattern.row_count,
-                    len(result.bolt_occurrences),
+                    len(result.native_fastener_edges),
                     evaluation.bolt_spec.designation,
                 )
             )
@@ -523,15 +621,19 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "Composants :\n- {}\n- {}\n\n"
                 "Perçages traversants ajoutés dans les deux cornières, "
                 "l'âme principale et l'âme secondaire.\n"
-                "{} boulons {} avec écrous et rondelles ont été créés."
+                "Les {} positions {} vont maintenant être transmises à "
+                "Insérer une attache.\n\n"
+                "Choisir la fixation native dans la fenêtre Fusion puis "
+                "confirmer sa norme, sa longueur et son matériau."
                 .format(
                     result.left_occurrence.component.name,
                     result.right_occurrence.component.name,
-                    len(result.bolt_occurrences),
+                    len(result.native_fastener_edges),
                     evaluation.bolt_spec.designation,
                 )
             )
         except Exception as error:
+            self._native_launcher.cancel()
             event_args.executeFailed = True
             _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
             _, ui = _app_and_ui()
@@ -539,17 +641,42 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
 
 
 class DestroyHandler(adsk.core.CommandEventHandler):
-    def __init__(self, preview_manager):
+    def __init__(self, preview_manager, native_launcher):
         super().__init__()
         self._preview_manager = preview_manager
+        self._native_launcher = native_launcher
 
     def notify(self, args):
         self._preview_manager.clear()
+        self._native_launcher.queue()
 
 
 def start():
     global _panel_id
-    _, ui = _app_and_ui()
+    global _native_fastener_event
+    global _native_fastener_event_handler
+    global _native_fastener_launcher
+    app, ui = _app_and_ui()
+    _native_fastener_launcher = NativeFastenerLauncher()
+    _native_fastener_event = app.registerCustomEvent(NATIVE_FASTENER_EVENT_ID)
+    if not _native_fastener_event:
+        _native_fastener_launcher = None
+        raise RuntimeError(
+            "Impossible d'enregistrer le passage différé vers les attaches natives."
+        )
+    _native_fastener_event_handler = NativeFastenerEventHandler(
+        _native_fastener_launcher
+    )
+    if not _native_fastener_event.add(_native_fastener_event_handler):
+        app.unregisterCustomEvent(NATIVE_FASTENER_EVENT_ID)
+        _native_fastener_event = None
+        _native_fastener_event_handler = None
+        _native_fastener_launcher = None
+        raise RuntimeError(
+            "Impossible de connecter le passage différé vers les attaches natives."
+        )
+    _handlers.append(_native_fastener_event_handler)
+
     definition = ui.commandDefinitions.itemById(COMMAND_ID)
     if not definition:
         definition = ui.commandDefinitions.addButtonDefinition(
@@ -578,7 +705,10 @@ def start():
 
 def stop():
     global _panel_id
-    _, ui = _app_and_ui()
+    global _native_fastener_event
+    global _native_fastener_event_handler
+    global _native_fastener_launcher
+    app, ui = _app_and_ui()
     for panel_id in PANEL_IDS:
         panel = ui_layout.panel(ui, panel_id)
         if panel:
@@ -588,5 +718,14 @@ def stop():
     definition = ui.commandDefinitions.itemById(COMMAND_ID)
     if definition:
         definition.deleteMe()
+    if _native_fastener_event and _native_fastener_event_handler:
+        _native_fastener_event.remove(_native_fastener_event_handler)
+    if _native_fastener_event:
+        app.unregisterCustomEvent(NATIVE_FASTENER_EVENT_ID)
+    if _native_fastener_launcher:
+        _native_fastener_launcher.cancel()
     _handlers.clear()
     _panel_id = None
+    _native_fastener_event = None
+    _native_fastener_event_handler = None
+    _native_fastener_launcher = None

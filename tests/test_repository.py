@@ -212,6 +212,13 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("component.xZConstructionPlane", creator_source)
         self.assertIn("component.yZConstructionPlane", creator_source)
         self.assertIn("adsk.core.Circle3D.cast", creator_source)
+        self.assertIn('NATIVE_FASTENER_COMMAND_ID = "FusionFastenersCommand"', command_source)
+        self.assertIn("adsk.core.CustomEventHandler", command_source)
+        self.assertIn("app.fireCustomEvent", command_source)
+        self.assertIn("ui.activeSelections", command_source)
+        self.assertIn("definition.execute()", command_source)
+        self.assertIn("native_fastener_edges", creator_source)
+        self.assertFalse((ADDIN / "lib" / "bolt_creator.py").exists())
 
     def test_local_default_values_are_managed_and_used_by_operations(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(

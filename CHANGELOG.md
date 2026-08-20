@@ -4,7 +4,26 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
-## [1.24.0] - En validation
+## [1.24.1] - En validation
+
+### Modifié
+
+- les boulons reconstruits par cinq corps sont retirés avant leur validation Fusion au profit de la commande native `Insérer une attache` ;
+- après création des cornières et des quatre groupes de trous, le complément retrouve six arêtes circulaires réelles : quatre sur la face arrière de l'âme principale et deux sur la face extérieure de la cornière gauche ;
+- à la destruction de la commande JHR, un événement personnalisé reporte la présélection des six arêtes et l'ouverture de `FusionFastenersCommand` jusqu'au retour au repos de Fusion ;
+- l'aperçu bleu matérialise uniquement la tête et la tige visées, tandis que la norme, la longueur, le matériau, la finition, les écrous et les rondelles sont laissés à la bibliothèque native Fusion.
+
+### Sécurité
+
+- aucune API expérimentale de bibliothèque d'attaches n'est utilisée ; le complément s'appuie seulement sur la sélection active et l'exécution de la commande native publique ;
+- si la fenêtre native ne peut pas être ouverte, les cornières et trous validés restent créés et un message indique le chemin manuel `Solide > Insérer > Insérer une attache` ;
+- l'annulation de la commande JHR avant `OK` n'ouvre jamais la fenêtre native.
+
+### Limite à valider
+
+- Fusion doit confirmer pendant le test réel qu'une seule ouverture accepte simultanément les quatre axes principaux et les deux axes secondaires ; les choix du catalogue natif ne peuvent pas être préremplis par l'API publique actuelle.
+
+## [1.24.0] - Remplacé par la V1.24.1 avant validation Fusion
 
 ### Ajouté
 

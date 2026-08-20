@@ -493,26 +493,26 @@ Effectuer d'abord un seul assemblage avec les valeurs proposées. Ne pas ajouter
 15. Annuler l'opération complète avec l'historique Fusion, puis la rétablir ; les deux composants et tous les trous doivent disparaître puis revenir ensemble sans erreur.
 16. Faire un seul essai d'échec en déplaçant le motif hors de la hauteur libre de l'âme : `OK` doit rester inactif et aucune nouvelle entité ne doit apparaître.
 
-## Test 28 — Boulons géométriques du premier assemblage
+## Test 28 — Passage vers les attaches natives Fusion
 
 Effectuer uniquement ce test sur le cas déjà validé du test 27. Ne modifier ni les cornières ni les distances de perçage pendant ce premier contrôle.
 
-1. Supprimer ou annuler l'assemblage V1.23.6 précédent, puis arrêter et exécuter le complément et vérifier la version `V1.24.0`.
-2. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.24.0`.
+1. Supprimer ou annuler l'assemblage V1.23.6 précédent, puis arrêter et exécuter le complément et vérifier la version `V1.24.1`.
+2. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.24.1`.
 3. Vérifier que `M16 — classe 8.8 — trou Ø18 mm` est proposé et que le diamètre des perçages vaut `18 mm`.
 4. Sélectionner la principale puis la secondaire avec la cornière `50 × 50 — ép. 5 mm`, une hauteur de `100 mm`, deux rangées et un entraxe de `50 mm`.
-5. Vérifier les deux cornières jaunes, les trous rouges et exactement six ensembles bleus : quatre sur l'âme principale et deux traversant l'âme secondaire.
-6. Contrôler visuellement qu'aucun ensemble bleu n'est retourné, décalé ou placé sur une mauvaise rangée. Une tête et un écrou doivent se trouver de part et d'autre des pièces serrées.
+5. Vérifier les deux cornières jaunes, les trous rouges et exactement six boulons indicatifs bleus : quatre sur l'âme principale et deux traversant l'âme secondaire.
+6. Contrôler visuellement qu'aucune tête bleue n'est retournée, décalée ou placée sur une mauvaise rangée.
 7. Choisir temporairement `M12`, puis `M20` : le diamètre de trou doit passer respectivement à `14 mm` puis `22 mm`, et l'aperçu bleu doit changer de diamètre. Revenir à `M16`.
 8. Saisir temporairement un trou de `16 mm` pour M16 : le rapport doit refuser le diamètre et `OK` doit rester inactif. Revenir à `18 mm`.
-9. Cliquer une seule fois sur `OK`.
-10. Vérifier la création de six composants nommés `BOULON_001_M16_...` en plus des deux composants de cornière.
-11. Ouvrir un composant de boulon et contrôler cinq corps : `TIGE_M16`, `TETE_HEXAGONALE`, `RONDELLE_SOUS_TETE`, `RONDELLE_SOUS_ECROU` et `ECROU_HEXAGONAL`.
-12. Masquer les cornières et les deux barres pour vérifier que les quatre boulons principaux et les deux boulons secondaires suivent exactement les axes des trous.
-13. Mesurer une tige : diamètre `16 mm`. Mesurer les têtes et écrous : `24 mm` sur plats. Vérifier que les longueurs sous tête affichées dans le rapport correspondent aux composants créés.
-14. Vérifier qu'un boulon secondaire traverse bien les deux cornières et l'âme secondaire avec une seule tête et un seul écrou, et non trois boulons superposés.
-15. Annuler l'opération complète dans l'historique puis la rétablir : les six boulons, les deux cornières et tous les trous doivent disparaître puis revenir ensemble.
-16. Ne pas utiliser ces boulons pour valider une simulation de résistance : la V1.24.0 crée la géométrie et la traçabilité, mais pas encore le filetage, la précharge ni un matériau certifié de classe 8.8.
+9. Cliquer une seule fois sur `OK`, lire le message de création puis le fermer.
+10. Vérifier que la fenêtre native `Insérer une attache` s'ouvre automatiquement. Ne confirmer encore aucune attache.
+11. Vérifier dans le canevas que six arêtes sont proposées : quatre sur la face arrière de l'âme principale et deux sur la face extérieure de la cornière gauche.
+12. Si Fusion n'accepte qu'une partie des six positions ou mélange les deux orientations, annuler la fenêtre native et noter exactement les positions conservées ; la prochaine correction séparera les deux groupes.
+13. Si les six positions sont acceptées, choisir un boulon hexagonal ISO M16 et vérifier les tailles et longueurs proposées par Fusion avant de confirmer.
+14. Confirmer uniquement les boulons. Vérifier qu'ils sont des attaches natives Fusion et non des composants JHR reconstruits.
+15. Tester ensuite manuellement, dans une session séparée, l'insertion native des rondelles puis des écrous sur les boulons ; cette partie n'est pas automatisée en V1.24.1.
+16. Annuler la commande native ne doit pas supprimer les deux cornières ni les trous créés par la commande JHR précédente.
 
 ## Critères de validation
 
@@ -553,6 +553,6 @@ Effectuer uniquement ce test sur le cas déjà validé du test 27. Ne modifier n
 - valeurs par défaut conservées après fermeture et redémarrage du complément, appliquées selon la famille secondaire et modifiables ponctuellement sans changer le fichier local.
 - deux cornières d'assemblage jaunes, symétriques sur l'âme secondaire et en contact avec les deux âmes pendant la phase V1.22.0.
 - en V1.23.6, deux composants de cornière indépendants reproduisant cet aperçu et des perçages traversants alignés, conformes aux valeurs saisies.
-- en V1.24.0 avec deux rangées, six aperçus bleus puis six composants de boulon alignés : quatre vers la principale, deux traversants vers la secondaire, chacun avec cinq corps nommés et sans prétention de dimensionnement automatique de résistance.
+- en V1.24.1 avec deux rangées, six positions bleues puis six arêtes présélectionnées dans la commande native : quatre vers la principale et deux traversantes vers la secondaire, sans composant de boulon reconstruit par JHR.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

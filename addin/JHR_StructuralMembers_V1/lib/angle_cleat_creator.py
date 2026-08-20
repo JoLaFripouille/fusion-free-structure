@@ -8,7 +8,6 @@ import adsk.fusion
 from . import (
     addin_info,
     angle_cleat_geometry,
-    bolt_creator,
     joint_builder,
     joint_geometry,
     member_builder,
@@ -19,6 +18,7 @@ from . import (
 ATTRIBUTE_GROUP = "EI_JHR_AngleCleat"
 FACE_ALIGNMENT_TOLERANCE = 0.995
 PLACEMENT_TOLERANCE_CM = 1e-4
+CIRCLE_MATCH_TOLERANCE_CM = 1e-3
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ class DoubleAngleCreationResult:
     right_occurrence: object
     primary_hole_feature: object
     secondary_hole_feature: object
-    bolt_occurrences: tuple
+    native_fastener_edges: tuple
 
 
 def _point_tuple(point):
@@ -36,6 +36,52 @@ def _point_tuple(point):
 
 def _vector_tuple(vector):
     return float(vector.x), float(vector.y), float(vector.z)
+
+
+def _native_fastener_edges(
+    body,
+    occurrence,
+    centers_world,
+    axis_world,
+    radius_cm,
+    prefer_negative_station,
+    label,
+):
+    """Retrouve une arête circulaire exposée par trou pour l'outil natif Fusion."""
+    proxy = body.createForAssemblyContext(occurrence) or body
+    axis = joint_geometry.normalize(axis_world)
+    circular_edges = []
+    for index in range(proxy.edges.count):
+        edge = proxy.edges.item(index)
+        circle = adsk.core.Circle3D.cast(edge.geometry)
+        if not circle or abs(float(circle.radius) - float(radius_cm)) > (
+            CIRCLE_MATCH_TOLERANCE_CM
+        ):
+            continue
+        circular_edges.append((edge, _point_tuple(circle.center)))
+
+    selected = []
+    for row_index, center in enumerate(centers_world, start=1):
+        candidates = []
+        for edge, edge_center in circular_edges:
+            delta = joint_geometry.subtract(edge_center, center)
+            axial_distance = joint_geometry.dot(delta, axis)
+            perpendicular = joint_geometry.subtract(
+                delta,
+                joint_geometry.scale(axis, axial_distance),
+            )
+            if joint_geometry.length(perpendicular) > CIRCLE_MATCH_TOLERANCE_CM:
+                continue
+            station = joint_geometry.dot(edge_center, axis)
+            candidates.append((station, edge))
+        if not candidates:
+            raise RuntimeError(
+                "L'arête circulaire native {} rangée {} est introuvable."
+                .format(label, row_index)
+            )
+        candidates.sort(key=lambda item: item[0])
+        selected.append(candidates[0 if prefer_negative_station else -1][1])
+    return tuple(selected)
 
 
 def _next_assembly_index(root_component):
@@ -504,6 +550,7 @@ def create_double_angle_assembly(root_component, evaluation):
     created_occurrences = []
     created_on_members = []
     angle_occurrences = []
+    angle_bodies = []
     try:
         for placement in evaluation.placements:
             rigid_frame = angle_cleat_geometry.rigid_frame_for_placement(placement)
@@ -574,6 +621,7 @@ def create_double_angle_assembly(root_component, evaluation):
             )
             _add_attributes(component, evaluation, placement.side)
             angle_occurrences.append(occurrence)
+            angle_bodies.append(body)
 
         primary_cut_span_cm = 2.0 * max(
             evaluation.primary_profile_geometry.width_mm,
@@ -608,35 +656,39 @@ def create_double_angle_assembly(root_component, evaluation):
             "CENTRES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
         )
         created_on_members.extend((secondary_sketch, secondary_feature))
-
-        bolt_occurrences = []
-        for bolt_index, bolt_placement in enumerate(
-            evaluation.bolt_placements,
-            start=1,
-        ):
-            bolt_occurrence = bolt_creator.create_bolt_occurrence(
-                root_component=root_component,
-                placement=bolt_placement,
-                spec=evaluation.bolt_spec,
-                material=material,
-                component_name=(
-                    "BOULON_{:03d}_{}_{:02d}_{}".format(
-                        assembly_index,
-                        evaluation.bolt_spec.designation,
-                        bolt_index,
-                        bolt_placement.name_suffix,
-                    )
-                ),
-                hole_diameter_cm=evaluation.hole_pattern.diameter_cm,
-            )
-            created_occurrences.append(bolt_occurrence)
-            bolt_occurrences.append(bolt_occurrence)
+        hole_radius_cm = evaluation.hole_pattern.diameter_cm / 2.0
+        primary_fastener_edges = _native_fastener_edges(
+            body=primary_body,
+            occurrence=evaluation.primary_occurrence,
+            centers_world=evaluation.primary_hole_centers_world,
+            axis_world=evaluation.geometry.plane_normal,
+            radius_cm=hole_radius_cm,
+            prefer_negative_station=True,
+            label="sur l'âme principale",
+        )
+        left_secondary_centers = (
+            angle_cleat_geometry.hole_centers_for_placement(
+                evaluation.placements[0],
+                evaluation.hole_pattern,
+            )[1]
+        )
+        secondary_fastener_edges = _native_fastener_edges(
+            body=angle_bodies[0],
+            occurrence=angle_occurrences[0],
+            centers_world=left_secondary_centers,
+            axis_world=evaluation.secondary_profile_x_axis,
+            radius_cm=hole_radius_cm,
+            prefer_negative_station=True,
+            label="sur la cornière gauche",
+        )
         return DoubleAngleCreationResult(
             left_occurrence=angle_occurrences[0],
             right_occurrence=angle_occurrences[1],
             primary_hole_feature=primary_feature,
             secondary_hole_feature=secondary_feature,
-            bolt_occurrences=tuple(bolt_occurrences),
+            native_fastener_edges=(
+                primary_fastener_edges + secondary_fastener_edges
+            ),
         )
     except Exception:
         _delete_valid(created_on_members)
