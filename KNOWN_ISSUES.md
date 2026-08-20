@@ -4,12 +4,12 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
-### ISSUE-019 — Jonctions encore limitées aux premiers cas validés
+### ISSUE-019 — Géométries courbes avancées encore limitées
 
-- **État :** limitation volontaire de la V1.15.0.
-- **Impact :** la coupe droite accepte une secondaire droite ou cintrée perpendiculaire à une principale droite. La coupe d'onglet accepte deux barres droites raccordées par leurs extrémités et coupe les deux corps. Une barre principale cintrée, un onglet cintré, les grugeages, platines et boulons ne sont pas encore pris en charge.
-- **Sécurité :** les cas non reconnus sont refusés avant toute fonction ; la création d'un onglet est annulée sur les deux composants si une étape échoue.
-- **Validation prévue :** valider le test 20 sur les tubes obliques signalés avant d'élargir la géométrie.
+- **État :** périmètre restant après la V1.16.0.
+- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, les grugeages, platines et boulons ne sont pas encore pris en charge.
+- **Sécurité :** la position et l'orientation du plan final sont contrôlées contre la prévisualisation avant toute coupe ; les cas hors périmètre sont refusés sans modifier le modèle.
+- **Validation prévue :** terminer les essais du test 21 avant d'étendre le même modèle géométrique aux références cintrées.
 
 ### ISSUE-001 — Validation réelle dans Fusion à terminer
 

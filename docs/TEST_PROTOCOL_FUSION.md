@@ -281,20 +281,20 @@ Cette première validation ne porte pas encore sur les coupes d'onglet, grugeage
 1. Dans une esquisse du composant racine, tracer une ligne droite principale et un arc secondaire.
 2. Contraindre une extrémité de l'arc sur le milieu de la ligne et rendre la tangente de l'arc perpendiculaire à cette ligne au point de raccord.
 3. Créer une barre droite sur la ligne puis une barre cintrée sur l'arc.
-4. Arrêter puis exécuter le complément et vérifier `Jonction droite V1.14.0` dans `STRUCTURE JHR > MODIFIER`.
+4. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.16.0` dans `STRUCTURE JHR > MODIFIER`.
 5. Choisir la barre droite comme principale et la barre cintrée comme secondaire.
 6. Vérifier que le rapport indique `Chemin secondaire : Arc cintré` et un angle proche de `90°`.
 7. Vérifier que le plan orange est normal à la tangente de l'arc au raccord et situé sur l'enveloppe extérieure de la principale.
 8. Valider avec `Jeu : 0 mm` puis vérifier que la barre cintrée est coupée au même emplacement sans perdre sa courbure restante.
 9. Annuler avec l'historique ou recréer les barres, puis refaire l'essai avec `Jeu : 2 mm` et mesurer l'espace.
-10. Essayer un arc dont la tangente n'est pas perpendiculaire et vérifier le refus annonçant la future coupe d'onglet.
+10. Essayer un arc dont la tangente n'est pas perpendiculaire et vérifier que le plan suit l'enveloppe de la barre de référence au lieu d'être refusé.
 
 Ne pas encore tester une barre principale cintrée ni un onglet : ces deux cas restent volontairement séparés de cette validation.
 
 ## Test 20 — Coupe d'onglet entre deux barres droites
 
 1. Utiliser le dessin du problème signalé avec deux tubes rectangulaires obliques dont les lignes de squelette partagent exactement une extrémité.
-2. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.15.0` dans `STRUCTURE JHR > MODIFIER`.
+2. Arrêter puis exécuter le complément et vérifier `Jonctions acier V1.16.0` dans `STRUCTURE JHR > MODIFIER`.
 3. Ouvrir la commande et choisir `Coupe d'onglet symétrique` ; vérifier que le champ `Jeu` disparaît.
 4. Sélectionner les deux tubes dans n'importe quel ordre.
 5. Vérifier que le rapport indique que les deux barres seront coupées, que le plan orange partage leur angle et que le bouton `OK` devient actif.
@@ -305,7 +305,47 @@ Ne pas encore tester une barre principale cintrée ni un onglet : ces deux cas r
 10. Tester ensuite un angle aigu, un angle obtus, puis deux lignes dessinées en sens inverse.
 11. Vérifier qu'une barre cintrée, deux extrémités distantes de plus de `1 mm` ou deux barres presque alignées sont refusées avant activation de `OK`.
 
-Pour ce premier test, ne pas ajouter de jeu et ne pas réutiliser une barre qui possède déjà une jonction.
+## Test 21 — Jonctions angulaires, multiples, séparées ou chevauchantes
+
+Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origine d'un défaut.
+
+### 21A — Angle réel et preview
+
+1. Créer deux tubes rectangulaires sur des axes raccordés à `60°`.
+2. Ouvrir `Jonctions acier V1.16.0`, conserver `Jonction ajustée sur une barre de référence`, puis sélectionner la référence comme barre 1 et la barre à modifier comme barre 2.
+3. Vérifier `Angle entre axes : 60°`, la position du plan orange sur l'enveloppe réelle et l'activation de `OK`.
+4. Valider et vérifier que le plan `PLAN_JONCTION_FINAL` se superpose au plan orange mémorisé visuellement.
+5. Refaire avec `30°`, `90°` et un angle obtus ; aucun de ces angles ne doit déclencher un message exigeant `90°`.
+
+### 21B — Deux extrémités de la même barre
+
+1. Ajuster l'extrémité gauche d'une barre contre une première référence.
+2. Relancer la commande et ajuster son extrémité droite contre une autre référence.
+3. Vérifier que la deuxième commande n'annonce pas que la barre possède déjà une jonction.
+4. Vérifier deux enregistrements distincts `operation_0001` et `operation_0002`, avec des `endpoint_index` différents, et un seul corps final.
+
+### 21C — Onglets symétriques multiples
+
+1. Choisir `Coupe d'onglet symétrique` et vérifier les libellés neutres `Barre 1` et `Barre 2`.
+2. Créer un onglet à une extrémité, puis un second à l'autre extrémité de l'une des deux barres.
+3. Inverser l'ordre de sélection sur un essai identique : le résultat géométrique doit être le même.
+
+### 21D — Espace dû à l'ancrage extérieur
+
+1. Créer un angle de cadre dont les axes se rejoignent mais dont les profils, ancrés vers l'extérieur, laissent un espace visible.
+2. Vérifier que le rapport affiche `Espace détecté : prolongement puis coupe` et une longueur de prolongement positive.
+3. Valider et contrôler `PROLONGEMENT_VERS_JONCTION`, puis la coupe au plan sans espace résiduel.
+
+### 21E — Chevauchement dû à l'ancrage centré
+
+1. Créer le même angle avec les profils placés à l'axe afin qu'ils se chevauchent.
+2. Vérifier que le rapport affiche `Chevauchement détecté : coupe nécessaire` et un prolongement nul.
+3. Valider et contrôler que la partie intérieure correcte est conservée et qu'un seul corps reste dans chaque composant modifié.
+
+### 21F — Plans de travail
+
+1. Répéter un cas oblique simple dans les plans XY, XZ et YZ, puis depuis les deux côtés du plan d'esquisse.
+2. Vérifier que la preview ne change ni d'extrémité, ni de côté, ni de normale après validation.
 
 ## Critères de validation
 
@@ -335,7 +375,11 @@ Pour ce premier test, ne pas ajouter de jeu et ne pas réutiliser une barre qui 
 - matériau choisi dans une bibliothèque Fusion, réellement affecté au corps et relu avec le même identifiant.
 - exactement une occurrence de chacune des trois nuances européennes dans le document actif après plusieurs lancements.
 - aperçu orange du plan de jonction sans entité temporaire dans l'historique.
-- barre principale inchangée et seule la surlongueur secondaire retirée.
+- barre de référence inchangée en mode ajusté ; deux barres traitées symétriquement en mode onglet.
+- angles obliques acceptés sans hypothèse à `90°`.
+- plusieurs enregistrements de jonction possibles sur le même composant.
+- prolongement automatique si le corps est séparé du plan et coupe directe s'il le chevauche.
+- point et normale de la preview identiques au plan final contrôlé par le complément.
 - jeu de jonction mesurable et conforme à la valeur saisie.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

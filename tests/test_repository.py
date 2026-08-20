@@ -78,7 +78,11 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("component.features.splitBodyFeatures", builder_source)
         self.assertIn("split_features.createInput", builder_source)
         self.assertIn("component.features.removeFeatures.add", builder_source)
-        self.assertIn('JOINT_ATTRIBUTE_GROUP = "EI_JHR_StructuralJoint"', builder_source)
+        self.assertIn("JOINT_ATTRIBUTE_GROUP = joint_records.ATTRIBUTE_GROUP", builder_source)
+        self.assertIn("component.features.extrudeFeatures", builder_source)
+        self.assertIn("DistanceExtentDefinition.create", builder_source)
+        self.assertIn("joint_records.next_record_name", builder_source)
+        self.assertNotIn("def _existing_joint", builder_source)
         self.assertIn("CustomGraphicsCoordinates.create", preview_source)
         self.assertIn("CUT_PREVIEW_ORANGE", preview_source)
 

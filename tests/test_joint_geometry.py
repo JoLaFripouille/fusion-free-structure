@@ -62,24 +62,67 @@ class JointGeometryTests(unittest.TestCase):
                 (-5.0, 0.0, 0.0),
                 (0.0, 0.0, 0.0),
             )
-        with self.assertRaisesRegex(ValueError, "onglet"):
-            joint_geometry.analyze_straight_joint(
-                (-10.0, 0.0, 0.0),
-                (10.0, 0.0, 0.0),
-                (-5.0, -8.660254, 0.0),
-                (0.0, 0.0, 0.0),
-            )
+        result = joint_geometry.analyze_straight_joint(
+            (-10.0, 0.0, 0.0),
+            (10.0, 0.0, 0.0),
+            (-5.0, -8.660254, 0.0),
+            (0.0, 0.0, 0.0),
+        )
+        self.assertAlmostEqual(result.angle_degrees, 60.0, places=5)
+        self.assertAlmostEqual(result.plane_normal[0], 0.0)
+        self.assertAlmostEqual(result.plane_normal[1], -1.0)
 
-    def test_support_point_and_positive_gap_move_cut_away_from_main(self):
+    def test_support_point_and_positive_gap_follow_the_resolved_plane_normal(self):
         points = ((-2.0, -3.0, 0.0), (2.0, -3.0, 0.0), (2.0, 3.0, 0.0))
-        index = joint_geometry.support_point_index(points, (0.0, 1.0, 0.0))
+        index = joint_geometry.support_point_index(points, (0.0, -1.0, 0.0))
         self.assertIn(index, (0, 1))
         cut = joint_geometry.cut_point_from_support(
             points[index],
-            (0.0, 1.0, 0.0),
+            (0.0, -1.0, 0.0),
             0.2,
         )
         self.assertAlmostEqual(cut[1], -3.2)
+
+    def test_preview_point_matches_the_intersection_of_the_two_normal_planes(self):
+        point = joint_geometry.normal_plane_intersection_point(
+            (1.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 2.0, 0.0),
+            (0.0, 1.0, 0.0),
+        )
+        self.assertAlmostEqual(point[0], 1.0)
+        self.assertAlmostEqual(point[1], 2.0)
+        self.assertAlmostEqual(point[2], 0.0)
+
+    def test_body_relation_distinguishes_overlap_gap_alignment_and_wrong_side(self):
+        plane_point = (0.0, 0.0, 0.0)
+        normal = (1.0, 0.0, 0.0)
+        interior = (10.0, 0.0, 0.0)
+        cases = (
+            (((-1.0, 0.0, 0.0), (2.0, 0.0, 0.0)), "overlap"),
+            (((0.0, 0.0, 0.0), (2.0, 0.0, 0.0)), "aligned"),
+            (((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)), "gap"),
+            (((-2.0, 0.0, 0.0), (-1.0, 0.0, 0.0)), "outside"),
+        )
+        for points, expected in cases:
+            relation, sign, _, _ = joint_geometry.body_plane_relation(
+                points,
+                plane_point,
+                normal,
+                interior,
+            )
+            self.assertEqual(relation, expected)
+            self.assertEqual(sign, 1.0)
+
+    def test_extension_crosses_the_plane_for_an_initial_gap(self):
+        distance = joint_geometry.extension_distance_to_plane(
+            ((1.0, -1.0, 0.0), (2.0, 1.0, 0.0)),
+            (-1.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            1.0,
+        )
+        self.assertAlmostEqual(distance, 2.05)
 
     def test_miter_uses_the_common_angle_bisector(self):
         result = joint_geometry.analyze_miter_joint(

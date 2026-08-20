@@ -49,8 +49,10 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] ajouter une première jonction droite : principale intacte, secondaire coupée à l'enveloppe et jeu réglable.
 - [x] accepter une barre secondaire cintrée en coupant normalement à sa tangente d'extrémité.
 - [ ] permettre la suppression contrôlée d'une jonction depuis une commande dédiée.
-- [ ] prendre en charge une seconde jonction sur l'autre extrémité d'une même barre.
+- [x] prendre en charge plusieurs jonctions, notamment une à chaque extrémité d'une même barre.
 - [x] ajouter un premier mode de coupe d'onglet qui coupe explicitement deux barres droites suivant un plan commun.
+- [x] adapter la jonction ajustée aux angles non droits à partir des axes réels.
+- [x] prolonger automatiquement une barre séparée du plan et couper une barre qui le chevauche.
 - [ ] étendre la coupe d'onglet aux cas cintrés après validation du mode droit.
 - [ ] ajouter séparément les grugeages, platines, boulons et assemblages composés.
 

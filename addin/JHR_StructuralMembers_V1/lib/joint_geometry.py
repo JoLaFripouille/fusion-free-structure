@@ -7,7 +7,8 @@ from dataclasses import dataclass
 GEOMETRY_TOLERANCE_CM = 1e-6
 JOINT_ENDPOINT_TOLERANCE_CM = 0.1
 MINIMUM_JOIN_ANGLE_DEGREES = 5.0
-MAXIMUM_RIGHT_ANGLE_DEVIATION_DEGREES = 1.0
+PLANE_RELATION_TOLERANCE_CM = 1e-4
+EXTENSION_MARGIN_CM = 0.05
 
 
 def add(first, second):
@@ -57,6 +58,34 @@ def closest_point_on_segment(point, start, end):
     return add(start, scale(segment, parameter)), parameter
 
 
+def normal_plane_intersection_point(first_point, first_normal, second_point, second_normal):
+    """Point de l'axe commun aux deux plans normaux, choisi près des deux stations."""
+    first_normal = normalize(first_normal)
+    second_normal = normalize(second_normal)
+    axis = cross(first_normal, second_normal)
+    squared_axis_length = dot(axis, axis)
+    if squared_axis_length <= GEOMETRY_TOLERANCE_CM ** 2:
+        raise ValueError("Les deux plans normaux sont parallèles.")
+    first_constant = dot(first_normal, first_point)
+    second_constant = dot(second_normal, second_point)
+    point_on_axis = scale(
+        add(
+            scale(cross(second_normal, axis), first_constant),
+            scale(cross(axis, first_normal), second_constant),
+        ),
+        1.0 / squared_axis_length,
+    )
+    midpoint = scale(add(first_point, second_point), 0.5)
+    axis_direction = normalize(axis)
+    return add(
+        point_on_axis,
+        scale(
+            axis_direction,
+            dot(subtract(midpoint, point_on_axis), axis_direction),
+        ),
+    )
+
+
 @dataclass(frozen=True)
 class StraightJointGeometry:
     main_point: tuple
@@ -65,6 +94,8 @@ class StraightJointGeometry:
     secondary_inner_endpoint: tuple
     secondary_joint_endpoint_index: int
     approach_direction: tuple
+    main_direction: tuple
+    plane_normal: tuple
     endpoint_distance_cm: float
     angle_degrees: float
 
@@ -127,7 +158,12 @@ def analyze_miter_joint(
     # Les deux directions sont orientées depuis l'intérieur de chaque barre vers le raccord.
     # Leur différence est normale au plan qui laisse chaque barre d'un côté opposé.
     plane_normal = normalize(subtract(primary_approach, secondary_approach))
-    joint_point = scale(add(primary_joint, secondary_joint), 0.5)
+    joint_point = normal_plane_intersection_point(
+        primary_joint,
+        primary_approach,
+        secondary_joint,
+        secondary_approach,
+    )
     return MiterJointGeometry(
         joint_point=joint_point,
         primary_joint_endpoint=primary_joint,
@@ -200,12 +236,21 @@ def endpoint_joint_geometry(
     angle_degrees = math.degrees(math.acos(cosine))
     if angle_degrees < MINIMUM_JOIN_ANGLE_DEGREES:
         raise ValueError(
-            "Les deux barres sont presque parallèles ; la première jonction droite ne prend pas ce cas en charge."
+            "Les deux axes sont presque parallèles ; aucun plan de jonction fiable ne peut être calculé."
         )
-    if abs(90.0 - angle_degrees) > MAXIMUM_RIGHT_ANGLE_DEVIATION_DEGREES:
-        raise ValueError(
-            "La coupe droite actuelle exige des axes perpendiculaires. Utiliser la future coupe d'onglet pour cet angle."
+    # La normale vise le côté de la principale d'où arrive la barre à ajuster.
+    # Elle est la projection de l'axe intérieur secondaire sur le plan normal
+    # à l'axe principal et reste donc valable pour tout angle non parallèle.
+    secondary_interior_direction = scale(approach, -1.0)
+    plane_normal = normalize(
+        subtract(
+            secondary_interior_direction,
+            scale(
+                main_direction,
+                dot(secondary_interior_direction, main_direction),
+            ),
         )
+    )
     return StraightJointGeometry(
         main_point=main_point,
         main_parameter=main_parameter,
@@ -213,6 +258,8 @@ def endpoint_joint_geometry(
         secondary_inner_endpoint=inner_endpoint,
         secondary_joint_endpoint_index=endpoint_index,
         approach_direction=approach,
+        main_direction=main_direction,
+        plane_normal=plane_normal,
         endpoint_distance_cm=endpoint_distance_cm,
         angle_degrees=angle_degrees,
     )
@@ -221,13 +268,80 @@ def endpoint_joint_geometry(
 def support_point_index(points, direction):
     if not points:
         raise ValueError("La barre principale ne contient aucun sommet exploitable.")
-    return min(range(len(points)), key=lambda index: dot(points[index], direction))
+    return max(range(len(points)), key=lambda index: dot(points[index], direction))
 
 
-def cut_point_from_support(support_point, approach_direction, gap_cm):
+def cut_point_from_support(support_point, plane_normal, gap_cm):
     if gap_cm < 0.0:
         raise ValueError("Le jeu de jonction ne peut pas être négatif.")
-    return add(support_point, scale(approach_direction, -gap_cm))
+    return add(support_point, scale(normalize(plane_normal), gap_cm))
+
+
+def plane_signed_distance(point, plane_point, plane_normal):
+    return dot(subtract(point, plane_point), normalize(plane_normal))
+
+
+def body_plane_relation(
+    body_points,
+    plane_point,
+    plane_normal,
+    interior_point,
+    tolerance_cm=PLANE_RELATION_TOLERANCE_CM,
+):
+    """Classe un corps par rapport au plan en orientant le côté intérieur positivement."""
+    if not body_points:
+        raise ValueError("Le corps ne contient aucun sommet exploitable.")
+    interior_distance = plane_signed_distance(
+        interior_point,
+        plane_point,
+        plane_normal,
+    )
+    if abs(interior_distance) <= tolerance_cm:
+        raise ValueError("Le côté intérieur de la barre ne peut pas être déterminé.")
+    interior_sign = 1.0 if interior_distance > 0.0 else -1.0
+    distances = tuple(
+        interior_sign * plane_signed_distance(point, plane_point, plane_normal)
+        for point in body_points
+    )
+    minimum = min(distances)
+    maximum = max(distances)
+    if minimum < -tolerance_cm and maximum > tolerance_cm:
+        relation = "overlap"
+    elif minimum >= -tolerance_cm and minimum <= tolerance_cm:
+        relation = "aligned"
+    elif minimum > tolerance_cm:
+        relation = "gap"
+    else:
+        relation = "outside"
+    return relation, interior_sign, minimum, maximum
+
+
+def extension_distance_to_plane(
+    end_face_points,
+    approach_direction,
+    plane_point,
+    plane_normal,
+    interior_sign,
+    margin_cm=EXTENSION_MARGIN_CM,
+):
+    """Distance positive qui pousse toute la face d'extrémité au-delà du plan."""
+    if not end_face_points:
+        raise ValueError("La face d'extrémité ne contient aucun sommet exploitable.")
+    approach = normalize(approach_direction)
+    normal = normalize(plane_normal)
+    rate = interior_sign * dot(approach, normal)
+    if rate >= -GEOMETRY_TOLERANCE_CM:
+        raise ValueError(
+            "L'extrémité sélectionnée ne peut pas être prolongée vers le plan de jonction."
+        )
+    crossing_distances = []
+    for point in end_face_points:
+        distance = interior_sign * plane_signed_distance(point, plane_point, normal)
+        crossing_distances.append(-distance / rate)
+    distance_cm = max(crossing_distances) + margin_cm / abs(rate)
+    if distance_cm <= GEOMETRY_TOLERANCE_CM:
+        raise ValueError("Aucun prolongement positif vers le plan n'est nécessaire.")
+    return distance_cm
 
 
 def signed_offset_between_planes(reference_point, target_point, plane_normal):

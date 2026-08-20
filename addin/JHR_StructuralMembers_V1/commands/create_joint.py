@@ -13,7 +13,7 @@ from ..lib.joint_preview import JointPreviewManager
 COMMAND_ID = "EI_JHR_CreateStraightJointV1"
 COMMAND_NAME = "Jonctions acier V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Crée une coupe droite ou une coupe d'onglet entre deux barres acier."
+    "Crée une jonction ajustée ou une coupe d'onglet entre deux barres acier."
 )
 JOINT_TYPE_INPUT_ID = "jointType"
 PRIMARY_SELECTION_ID = "primaryMember"
@@ -21,7 +21,7 @@ SECONDARY_SELECTION_ID = "secondaryMember"
 GAP_INPUT_ID = "jointGap"
 REPORT_ID = "jointReport"
 PANEL_IDS = (ui_layout.MODIFY_PANEL_ID,)
-STRAIGHT_MODE = "Coupe droite sur la principale"
+STRAIGHT_MODE = "Jonction ajustée sur une barre de référence"
 MITER_MODE = "Coupe d'onglet symétrique"
 
 
@@ -68,8 +68,8 @@ def _evaluate(inputs):
         raise ValueError("Ouvrir une conception Fusion.")
     if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
         raise ValueError("La jonction nécessite l'historique de conception paramétrique activé.")
-    primary = _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale")
-    secondary = _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire")
+    primary = _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "1")
+    secondary = _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "2")
     mode = _selected_mode(inputs)
     if mode == MITER_MODE:
         return design, joint_builder.evaluate_miter_joint(
@@ -89,22 +89,28 @@ def _evaluate(inputs):
 
 
 def _straight_success_report(evaluation):
+    relation_labels = {
+        "overlap": "Chevauchement détecté : coupe nécessaire",
+        "gap": "Espace détecté : prolongement puis coupe",
+        "aligned": "Déjà au plan : aucune matière à prolonger ou retirer",
+    }
     rows = (
-        ("Barre principale", evaluation.primary_occurrence.component.name),
-        ("Profil principal", evaluation.primary_metadata.profile),
-        ("Barre secondaire", evaluation.secondary_occurrence.component.name),
-        ("Profil secondaire", evaluation.secondary_metadata.profile),
+        ("Barre de référence", evaluation.primary_occurrence.component.name),
+        ("Profil de référence", evaluation.primary_metadata.profile),
+        ("Barre ajustée", evaluation.secondary_occurrence.component.name),
+        ("Profil ajusté", evaluation.secondary_metadata.profile),
         (
             "Chemin secondaire",
             "Arc cintré" if evaluation.secondary_metadata.source_curve_type == "arc" else "Ligne droite",
         ),
         ("Angle entre axes", "{:.1f}°".format(evaluation.geometry.angle_degrees)),
         ("Jeu", "{:.3f} mm".format(evaluation.gap_cm * 10.0)),
-        ("Longueur retirée estimée", "{:.3f} mm".format(evaluation.removed_length_cm * 10.0)),
+        ("État initial", relation_labels[evaluation.treatment.relation]),
+        ("Prolongement", "{:.3f} mm".format(evaluation.treatment.extension_cm * 10.0)),
     )
     content = [
         "<b>Prêt — le plan orange montre la coupe.</b><br>",
-        "La barre principale restera intacte.<br><br>",
+        "La barre de référence restera intacte.<br><br>",
     ]
     for label, value in rows:
         content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
@@ -112,6 +118,11 @@ def _straight_success_report(evaluation):
 
 
 def _miter_success_report(evaluation):
+    relation_labels = {
+        "overlap": "coupe",
+        "gap": "prolongement + coupe",
+        "aligned": "déjà au plan",
+    }
     rows = (
         ("Première barre", evaluation.primary_occurrence.component.name),
         ("Premier profil", evaluation.primary_metadata.profile),
@@ -121,6 +132,15 @@ def _miter_success_report(evaluation):
         (
             "Écart entre extrémités",
             "{:.3f} mm".format(evaluation.geometry.endpoint_distance_cm * 10.0),
+        ),
+        ("Traitement barre 1", relation_labels[evaluation.first_treatment.relation]),
+        ("Traitement barre 2", relation_labels[evaluation.second_treatment.relation]),
+        (
+            "Prolongements",
+            "{:.3f} mm / {:.3f} mm".format(
+                evaluation.first_treatment.extension_cm * 10.0,
+                evaluation.second_treatment.extension_cm * 10.0,
+            ),
         ),
     )
     content = [
@@ -169,16 +189,16 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
-                "Barre principale",
-                "Sélectionner la barre principale, ou la première barre de l'onglet.",
+                "Barre 1",
+                "Référence intacte en jonction ajustée ; première barre équivalente en onglet.",
             )
             primary.addSelectionFilter("Occurrences")
             primary.setSelectionLimits(0, 1)
 
             secondary = inputs.addSelectionInput(
                 SECONDARY_SELECTION_ID,
-                "Barre secondaire",
-                "Sélectionner la barre secondaire, ou la seconde barre de l'onglet.",
+                "Barre 2",
+                "Barre modifiée en jonction ajustée ; seconde barre équivalente en onglet.",
             )
             secondary.addSelectionFilter("Occurrences")
             secondary.setSelectionLimits(0, 1)
@@ -195,7 +215,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             report = inputs.addTextBoxCommandInput(
                 REPORT_ID,
                 "Contrôle",
-                "Sélectionner d'abord la barre principale, puis la barre secondaire.",
+                "Sélectionner les deux barres participant à la jonction.",
                 10,
                 True,
             )
@@ -305,7 +325,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             else:
                 joint_builder.create_straight_joint(evaluation)
                 _log(
-                    "Jonction droite créée : principale={}, secondaire={}, jeu={} mm"
+                    "Jonction ajustée créée : référence={}, ajustée={}, jeu={} mm"
                     .format(
                         evaluation.primary_occurrence.component.name,
                         evaluation.secondary_occurrence.component.name,

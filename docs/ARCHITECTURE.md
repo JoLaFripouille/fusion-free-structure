@@ -106,20 +106,29 @@ L'ajout valide le DXF avant de le copier et vérifie que la copie est identique 
 
 La suppression est limitée à cette branche locale. Le DXF, son JSON et un enregistrement de suppression sont déplacés ensemble dans `corbeille_profils/<horodatage>-<profil>`. Les composants Fusion existants ne sont pas effacés ; leur attribut `profile_source` permet d'avertir l'utilisateur avant le retrait du fichier.
 
-## Première jonction droite
+## Modèle général des jonctions
 
-La commande de jonction travaille sur deux occurrences déjà créées par l'extension. La barre principale droite est une référence et n'est jamais modifiée. Une extrémité de la ligne ou de l'arc secondaire doit rejoindre le segment de la ligne principale avec une tolérance de `1 mm`. La tangente secondaire doit être perpendiculaire à la principale à `1°` près.
+La géométrie de référence est le squelette, pas l'état de contact des solides. La commande retrouve les courbes sources enregistrées sur les composants, détermine l'extrémité concernée, la direction orientée depuis l'intérieur vers la rencontre et l'angle réel entre les axes. Les angles presque parallèles, inférieurs à `5°`, restent refusés car ils ne définissent pas un plan de coupe stable.
 
-Pour une ligne, la direction d'approche est son axe. Pour un arc, elle est obtenue par `CurveEvaluator3D.getTangent` à l'extrémité raccordée, avec le sens orienté depuis l'intérieur de l'arc vers le raccord. Un premier plan est créé par `setByDistanceOnPath` à la fraction `0` ou `1` : il reste normal au chemin même si l'arc change. L'enveloppe d'entrée de la barre principale est déterminée par le sommet de son corps dont la projection est minimale dans cette direction. Un plan parallèle au plan tangent est créé à travers ce sommet avec `setByOffsetThroughPoint`, puis un dernier plan applique le jeu.
+Pour une `Jonction ajustée`, la barre 1 est une référence intacte et la barre 2 est ajustée. La normale du plan est la projection de la direction intérieure de la barre 2 sur le plan perpendiculaire à l'axe de la barre 1. Cette construction ne suppose aucun angle droit. Le support extérieur est recherché sur les arêtes réelles du corps de référence avec une discrétisation maximale de `0,0001 mm`, puis conservé comme point paramétrique lié à l'arête. Le jeu décale le plan vers l'extérieur.
 
-Le corps secondaire est séparé par ce plan étendu. Le morceau situé du côté de la barre principale est identifié par sa projection puis retiré avec une fonction Fusion `Retirer`, au lieu d'être simplement masqué. Les plans sont masqués mais restent dans l'historique. Le groupe d'attributs `EI_JHR_StructuralJoint` conserve le type, la barre principale, sa ligne source, le jeu et la version.
+Pour une `Coupe d'onglet symétrique`, aucune barre n'est principale. Les directions des deux barres sont orientées vers la rencontre et la normale commune est leur différence normalisée. Le point de preview est calculé comme un point de l'intersection exacte des deux plans normaux aux axes. Dans chacun des composants, Fusion reconstruit ces deux plans, leur axe d'intersection et le même plan angulaire.
 
-Avant validation, seul un carré graphique orange représente le plan de coupe. Il ne crée aucune entité CAO. Une barre principale cintrée, les jonctions multiples sur une secondaire et les assemblages avec platines ou boulons restent exclus du mode droit.
+## Espace, chevauchement et prolongement
 
-## Première coupe d'onglet
+Chaque corps est classé par rapport au plan résolu :
 
-Le second choix de la même commande accepte deux barres créées sur des lignes droites dont deux extrémités coïncident à `1 mm` près. Les directions sont toujours orientées depuis l'intérieur de chaque barre vers le raccord : le calcul ne dépend donc pas du sens dans lequel les lignes ont été dessinées. La normale du plan commun est la différence normalisée de ces deux directions, ce qui place les intérieurs des deux barres de part et d'autre du plan.
+- `overlap` : le corps traverse le plan et doit être séparé ;
+- `aligned` : sa limite est déjà sur le plan et aucune matière n'est modifiée ;
+- `gap` : le corps reste du côté intérieur et sa face d'extrémité doit être prolongée ;
+- `outside` : le corps est entièrement du mauvais côté, ce qui signale une sélection ou une orientation incohérente.
 
-Dans chacun des deux composants, Fusion crée un plan normal à l'extrémité de chaque ligne avec `setByDistanceOnPath`, puis un axe paramétrique à leur intersection avec `ConstructionAxisInput.setByTwoPlanes`. Le plan d'onglet est créé autour de cet axe avec `ConstructionPlaneInput.setByAngle` et son orientation mondiale est contrôlée avant toute coupe. Chaque corps est ensuite séparé sur son plan local et le petit excédent côté raccord est retiré. Les deux composants conservent des attributs réciproques `EI_JHR_StructuralJoint`.
+En présence d'un espace, la face plane dont la normale sortante correspond à la direction d'approche est extrudée en opération `Joindre`. La distance est calculée pour faire traverser le plan par toute la face, avec une marge géométrique de `0,5 mm`. Le corps obtenu est ensuite séparé par le plan et toutes les parties extérieures sont retirées. En cas de chevauchement initial, le prolongement est omis et la même séparation conserve directement la partie intérieure.
 
-L'aperçu orange montre le plan bissecteur avant exécution et le rapport avertit que les deux corps seront modifiés. Le premier périmètre exclut les arcs, le jeu d'onglet, les lignes sans extrémité commune et les barres possédant déjà une jonction.
+La prévisualisation et la création partagent `cut_point` et `cut_normal`. Après création de chaque plan Fusion, son orientation et sa distance au point de preview sont contrôlées ; une différence supérieure à `0,01 mm` annule l'opération avant la coupe.
+
+## Opérations multiples
+
+Le groupe `EI_JHR_StructuralJoint` n'est plus un verrou binaire. Chaque traitement ajoute un JSON indépendant `operation_0001`, `operation_0002`, etc. contenant notamment le type, l'indice d'extrémité `0` ou `1`, l'autre composant, les courbes sources, l'angle, le jeu, l'état initial et le prolongement. Une barre peut donc recevoir une opération à chaque extrémité et d'autres traitements tant que sa géométrie courante permet la fonction demandée. Les anciens attributs fixes sont conservés mais ne bloquent plus les nouvelles opérations.
+
+Une barre de référence cintrée, les onglets sur arcs, les grugeages, platines et boulons restent en dehors de cette étape.

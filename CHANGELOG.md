@@ -4,6 +4,35 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.16.0] - En validation
+
+### Corrigé
+
+- suppression de l'hypothèse explicite d'un angle droit dans la jonction ajustée ;
+- calcul du plan à partir de l'axe de référence et de la tangente réelle de la barre à ajuster, pour tout angle non parallèle supérieur à `5°` ;
+- recherche de l'enveloppe sur les arêtes réelles du profil de référence, y compris les arcs, sans laisser la longueur de la barre déplacer le plan ;
+- même point et même normale utilisés par la prévisualisation et par la fonction Fusion finale, avec contrôle bloquant si Fusion reconstruit un autre plan ;
+- remplacement du drapeau unique `joint_type` par des enregistrements `operation_0001`, `operation_0002`, etc., contenant chacun l'extrémité concernée ;
+- suppression du refus global d'une barre possédant déjà une jonction ;
+- libellés neutres `Barre 1` et `Barre 2` pour l'onglet, les deux corps restant traités symétriquement ;
+- classement géométrique initial en `chevauchement`, `déjà au plan`, `espace` ou `mauvais côté` ;
+- prolongement paramétrique de la face d'extrémité avant séparation lorsqu'un ancrage laisse un espace entre le corps et le plan ;
+- conservation directe de la partie intérieure lorsque les profils se chevauchent, sans exiger un contact préalable entre les solides.
+
+### Traçabilité
+
+- chaque opération mémorise son type, l'indice d'extrémité, l'autre barre, l'angle, le jeu, l'état initial et la longueur de prolongement ;
+- les anciens attributs V1.12–V1.15 sont ignorés comme verrous et restent conservés pour ne pas altérer les documents existants ;
+- toute erreur pendant une opération symétrique retire les fonctions et enregistrements déjà créés sur les deux composants.
+
+### À valider dans Fusion
+
+- jonctions ajustées à `30°`, `60°`, `90°` et `120°` ;
+- deuxième jonction sur l'extrémité opposée d'une barre déjà traitée ;
+- deux onglets successifs sur les deux extrémités d'une même barre ;
+- profils décalés vers l'extérieur avec espace initial, puis profils centrés avec chevauchement ;
+- superposition exacte entre le plan orange et le plan final dans les plans XY, XZ et YZ.
+
 ## [1.15.0] - En validation
 
 ### Ajouté
