@@ -375,7 +375,7 @@ def _evaluate_treatment(
         )
     extension_face = None
     extension_cm = 0.0
-    if relation == "gap":
+    if relation in ("overlap", "gap"):
         extension_face, face_points = _planar_end_face(
             body,
             occurrence,
@@ -389,6 +389,8 @@ def _evaluate_treatment(
             cut_normal,
             interior_sign,
         )
+        if extension_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+            extension_face = None
     return EndTreatment(
         occurrence=occurrence,
         body=body,

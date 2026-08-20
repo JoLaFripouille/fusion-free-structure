@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.16.0 : jonctions angulaires, multiples et avec prolongement automatique."
+    "": "Profil acier V1.16.1 : onglets complets avec prolongement de toute la face."
   },
-  "version": "1.16.0",
+  "version": "1.16.1",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

@@ -339,8 +339,8 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 ### 21E — Chevauchement dû à l'ancrage centré
 
 1. Créer le même angle avec les profils placés à l'axe afin qu'ils se chevauchent.
-2. Vérifier que le rapport affiche `Chevauchement détecté : coupe nécessaire` et un prolongement nul.
-3. Valider et contrôler que la partie intérieure correcte est conservée et qu'un seul corps reste dans chaque composant modifié.
+2. En mode onglet, vérifier que le rapport peut afficher un prolongement positif : il doit faire dépasser le plan par toute la face, pas seulement par une moitié du corps.
+3. Valider et contrôler que la partie intérieure correcte est conservée, qu'un seul corps reste dans chaque composant et que le coin est fermé sans triangle manquant.
 
 ### 21F — Plans de travail
 

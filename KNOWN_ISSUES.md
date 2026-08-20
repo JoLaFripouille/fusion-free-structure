@@ -61,6 +61,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Résolus pendant la préparation de la V1
 
+### ISSUE-020 — Onglet incomplet avec profils ancrés à l'axe
+
+- **Symptôme :** un coin du cadre conserve une moitié d'extrémité droite et présente un triangle de matière manquant malgré des axes correctement raccordés.
+- **Cause :** le corps traversait déjà partiellement le plan bissecteur et était classé comme `overlap`, mais la partie de sa face d'extrémité restée en retrait n'était prolongée que dans le cas `gap`.
+- **Correction V1.16.1 :** calcul du prolongement nécessaire sur toute la face d'extrémité pour les états `overlap` et `gap`, puis contrôle que le corps prolongé traverse bien le plan avant séparation.
+- **Validation attendue :** quatre onglets d'un cadre ancré au centre doivent fermer complètement les quatre coins, sans triangle manquant ni face droite résiduelle.
+
 ### ISSUE-018 — Aperçu absent sur un chemin déjà occupé
 
 - **Symptôme :** avec une barre existante signalée dans `Utilisation des chemins`, la sélection reste bleue mais aucun profil jaune n'apparaît tant que le remplacement n'est pas activé.

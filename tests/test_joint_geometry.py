@@ -124,6 +124,26 @@ class JointGeometryTests(unittest.TestCase):
         )
         self.assertAlmostEqual(distance, 2.05)
 
+    def test_partial_overlap_extends_the_whole_end_face_before_miter(self):
+        distance = joint_geometry.extension_distance_to_plane(
+            ((-1.0, 0.0, 0.0), (2.0, 0.0, 0.0)),
+            (-1.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            1.0,
+        )
+        self.assertAlmostEqual(distance, 2.05)
+
+    def test_end_face_already_beyond_the_plane_needs_no_extension(self):
+        distance = joint_geometry.extension_distance_to_plane(
+            ((-2.0, 0.0, 0.0), (-1.0, 0.0, 0.0)),
+            (-1.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            1.0,
+        )
+        self.assertEqual(distance, 0.0)
+
     def test_miter_uses_the_common_angle_bisector(self):
         result = joint_geometry.analyze_miter_joint(
             (-10.0, 0.0, 0.0),

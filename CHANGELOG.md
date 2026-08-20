@@ -4,6 +4,21 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.16.1] - En validation
+
+### Corrigé
+
+- correction de l'onglet incomplet lorsque les profils sont ancrés à l'axe : un chevauchement partiel avec le plan ne signifie plus que toute la face d'extrémité l'a dépassé ;
+- calcul du prolongement sur tous les points de la face d'extrémité, aussi bien pour un espace initial que pour un chevauchement partiel ;
+- absence de prolongement lorsque toute la face se trouve déjà au-delà du plan ;
+- conservation du même plan de preview et du même plan de coupe : seul le volume temporairement prolongé est corrigé avant séparation.
+
+### Validation ciblée
+
+- cadre à l'axe avec quatre onglets : chaque coin doit être fermé sur toute la largeur du profil ;
+- cadre décalé vers l'extérieur : le prolongement doit également combler l'espace avant la coupe ;
+- cas déjà suffisamment traversant : aucune fonction de prolongement inutile ne doit être créée.
+
 ## [1.16.0] - En validation
 
 ### Corrigé

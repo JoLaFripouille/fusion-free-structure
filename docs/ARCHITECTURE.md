@@ -123,7 +123,7 @@ Chaque corps est classé par rapport au plan résolu :
 - `gap` : le corps reste du côté intérieur et sa face d'extrémité doit être prolongée ;
 - `outside` : le corps est entièrement du mauvais côté, ce qui signale une sélection ou une orientation incohérente.
 
-En présence d'un espace, la face plane dont la normale sortante correspond à la direction d'approche est extrudée en opération `Joindre`. La distance est calculée pour faire traverser le plan par toute la face, avec une marge géométrique de `0,5 mm`. Le corps obtenu est ensuite séparé par le plan et toutes les parties extérieures sont retirées. En cas de chevauchement initial, le prolongement est omis et la même séparation conserve directement la partie intérieure.
+La face plane dont la normale sortante correspond à la direction d'approche est contrôlée point par point. Si une partie de cette face n'a pas encore dépassé le plan, elle est extrudée en opération `Joindre`, même lorsque le reste du corps chevauche déjà le plan. La distance fait passer toute la face de l'autre côté, avec une marge géométrique de `0,5 mm`. Le corps obtenu est ensuite séparé et toutes les parties extérieures sont retirées. Le prolongement est omis seulement lorsque toute la face d'extrémité dépasse déjà le plan.
 
 La prévisualisation et la création partagent `cut_point` et `cut_normal`. Après création de chaque plan Fusion, son orientation et sa distance au point de preview sont contrôlées ; une différence supérieure à `0,01 mm` annule l'opération avant la coupe.
 

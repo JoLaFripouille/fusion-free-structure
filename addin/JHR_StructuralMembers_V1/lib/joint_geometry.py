@@ -323,8 +323,9 @@ def extension_distance_to_plane(
     plane_normal,
     interior_sign,
     margin_cm=EXTENSION_MARGIN_CM,
+    tolerance_cm=PLANE_RELATION_TOLERANCE_CM,
 ):
-    """Distance positive qui pousse toute la face d'extrémité au-delà du plan."""
+    """Distance qui place toute la face d'extrémité au-delà du plan de coupe."""
     if not end_face_points:
         raise ValueError("La face d'extrémité ne contient aucun sommet exploitable.")
     approach = normalize(approach_direction)
@@ -338,10 +339,10 @@ def extension_distance_to_plane(
     for point in end_face_points:
         distance = interior_sign * plane_signed_distance(point, plane_point, normal)
         crossing_distances.append(-distance / rate)
-    distance_cm = max(crossing_distances) + margin_cm / abs(rate)
-    if distance_cm <= GEOMETRY_TOLERANCE_CM:
-        raise ValueError("Aucun prolongement positif vers le plan n'est nécessaire.")
-    return distance_cm
+    crossing_distance_cm = max(crossing_distances)
+    if crossing_distance_cm < -tolerance_cm:
+        return 0.0
+    return max(0.0, crossing_distance_cm) + margin_cm / abs(rate)
 
 
 def signed_offset_between_planes(reference_point, target_point, plane_normal):
