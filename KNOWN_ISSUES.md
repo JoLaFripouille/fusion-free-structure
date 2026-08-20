@@ -4,14 +4,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
-### ISSUE-023 — Début du grugeage des semelles perpendiculaire à un raccord oblique
+### ISSUE-024 — Grugeage cornière/té à valider dans Fusion
 
-- **État :** défaut V1.19.0 reproduit et correction V1.19.1 prête à valider.
-- **Périmètre :** principale et secondaire droites IPE, HEA ou HEB, axes raccordés et angle non parallèle supérieur à `5°`.
-- **Symptôme :** la coupe de l'âme suit le bon angle, mais le début du retrait des semelles reste sur un plan normal à la secondaire et produit un grugeage droit du côté extérieur.
-- **Cause :** la V1.19.0 utilisait le plan perpendiculaire portant l'esquisse comme limite réelle de départ du retrait.
-- **Correction V1.19.1 :** l'esquisse reste sur un plan de référence sûr, tandis que l'extrusion commence sur un second plan oblique parallèle à l'âme et se termine sur le plan de l'âme.
-- **Validation prévue :** annuler le grugeage V1.19.0 ou utiliser deux nouvelles barres, puis reprendre exactement la principale IPE et la secondaire HEA à `60°` du test 23.
+- **État :** moteur V1.20.0 prêt pour une validation progressive.
+- **Périmètre :** barres droites, axes raccordés et quatre combinaisons `cornière → cornière`, `cornière → té`, `té → cornière` et `té → té`.
+- **Risque contrôlé :** les 57 DXF sont analysés et la preview partage les mêmes limites que la coupe finale, mais le comportement réel de l'extrusion Fusion doit être confirmé pour une seule combinaison à la fois.
+- **Hors périmètre :** mélange I/H ↔ cornière/té, chemins cintrés et profils personnalisés non classés.
+- **Validation prévue :** commencer par une cornière égale secondaire contre une cornière égale principale à `90°`, puis seulement après validation essayer les trois autres combinaisons.
 
 ### ISSUE-022 — Création réelle du grugeage IPE à valider dans Fusion
 
@@ -38,7 +37,7 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 ### ISSUE-019 — Géométries courbes avancées encore limitées
 
 - **État :** périmètre restant après la V1.16.0.
-- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les cornières, les tés, les platines et les boulons ne sont pas encore pris en charge ; le grugeage I/H oblique corrigé en V1.19.1 reste en validation.
+- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les mélanges I/H ↔ cornière/té, les platines et les boulons ne sont pas encore pris en charge ; les quatre grugeages cornière/té de la V1.20.0 restent en validation.
 - **Sécurité :** la position et l'orientation du plan final sont contrôlées contre la prévisualisation avant toute coupe ; les cas hors périmètre sont refusés sans modifier le modèle.
 - **Validation prévue :** terminer les essais du test 21 avant d'étendre le même modèle géométrique aux références cintrées.
 
@@ -91,6 +90,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 - **Suite :** ajouter une restauration contrôlée après validation de l'ajout et de la suppression.
 
 ## Résolus pendant la préparation de la V1
+
+### ISSUE-023 — Début du grugeage des semelles perpendiculaire à un raccord oblique
+
+- **Symptôme :** la coupe de l'âme suivait le bon angle, mais le début du retrait des semelles restait sur un plan normal à la secondaire.
+- **Cause :** la V1.19.0 utilisait le plan perpendiculaire portant l'esquisse comme limite réelle de départ du retrait.
+- **Correction V1.19.1 :** l'esquisse reste sur un plan de référence sûr, tandis que l'extrusion commence sur le plan extérieur oblique et se termine sur le plan d'âme parallèle.
+- **Validation :** fonctionnement confirmé dans Fusion sur le raccord oblique signalé par l'utilisateur.
 
 ### ISSUE-018 — Aperçu absent sur un chemin déjà occupé
 

@@ -47,6 +47,34 @@ class IProfileGeometry:
 
 
 @dataclass(frozen=True)
+class SingleFlangeProfileGeometry:
+    min_x_mm: float
+    min_y_mm: float
+    max_x_mm: float
+    max_y_mm: float
+    web_min_x_mm: float
+    web_max_x_mm: float
+    web_min_y_mm: float
+    web_max_y_mm: float
+
+    @property
+    def bounds_mm(self):
+        return self.min_x_mm, self.min_y_mm, self.max_x_mm, self.max_y_mm
+
+    @property
+    def width_mm(self):
+        return self.max_x_mm - self.min_x_mm
+
+    @property
+    def height_mm(self):
+        return self.max_y_mm - self.min_y_mm
+
+    @property
+    def cope_height_mm(self):
+        return self.web_min_y_mm - self.min_y_mm
+
+
+@dataclass(frozen=True)
 class CopeVolume:
     name: str
     x_min_cm: float
@@ -123,6 +151,79 @@ def analyze_i_profile_dxf(dxf_path):
     return analyze_i_profile_vertices(contours[0])
 
 
+def analyze_single_flange_profile_vertices(vertices):
+    """Déduit la branche verticale et le grugeage simple d'une cornière ou d'un té."""
+    points = tuple((float(x), float(y)) for x, y, *_ in vertices)
+    if len(points) < 6:
+        raise ValueError("Le contour ouvert ne contient pas assez de sommets.")
+    min_x = min(point[0] for point in points)
+    max_x = max(point[0] for point in points)
+    min_y = min(point[1] for point in points)
+    max_y = max(point[1] for point in points)
+
+    vertical_segments = []
+    for first, second in zip(points, points[1:] + points[:1]):
+        if abs(first[0] - second[0]) > PROFILE_TOLERANCE_MM:
+            continue
+        segment_min_y = min(first[1], second[1])
+        segment_max_y = max(first[1], second[1])
+        length = segment_max_y - segment_min_y
+        if length <= PROFILE_TOLERANCE_MM:
+            continue
+        vertical_segments.append(
+            (length, first[0], segment_min_y, segment_max_y)
+        )
+
+    stem_faces = []
+    for segment in sorted(vertical_segments, reverse=True):
+        if any(
+            abs(segment[1] - existing[1]) <= PROFILE_TOLERANCE_MM
+            for existing in stem_faces
+        ):
+            continue
+        stem_faces.append(segment)
+        if len(stem_faces) == 2:
+            break
+    if len(stem_faces) != 2:
+        raise ValueError(
+            "Les deux faces verticales de la cornière ou du té sont indétectables."
+        )
+
+    stem_faces.sort(key=lambda segment: segment[1])
+    web_min_x = stem_faces[0][1]
+    web_max_x = stem_faces[1][1]
+    web_min_y = max(segment[2] for segment in stem_faces)
+    web_max_y = min(segment[3] for segment in stem_faces)
+    if not (
+        min_x <= web_min_x < web_max_x <= max_x
+        and min_y < web_min_y < web_max_y <= max_y
+    ):
+        raise ValueError(
+            "Le contour ne présente pas une branche verticale exploitable."
+        )
+    if web_max_x - web_min_x >= max_x - min_x - PROFILE_TOLERANCE_MM:
+        raise ValueError("La branche horizontale du profil est indétectable.")
+    return SingleFlangeProfileGeometry(
+        min_x_mm=min_x,
+        min_y_mm=min_y,
+        max_x_mm=max_x,
+        max_y_mm=max_y,
+        web_min_x_mm=web_min_x,
+        web_max_x_mm=web_max_x,
+        web_min_y_mm=web_min_y,
+        web_max_y_mm=web_max_y,
+    )
+
+
+def analyze_single_flange_profile_dxf(dxf_path):
+    contours = dxf_geometry.tessellate_profile_contours_mm(dxf_path, 5.0)
+    if len(contours) != 1:
+        raise ValueError(
+            "La cornière ou le té doit contenir un unique contour fermé."
+        )
+    return analyze_single_flange_profile_vertices(contours[0])
+
+
 def web_face_cut_point(
     profile,
     anchor_mm,
@@ -139,7 +240,7 @@ def web_face_cut_point(
     alignment = joint_geometry.dot(profile_x, toward)
     if abs(alignment) < WEB_AXIS_ALIGNMENT_TOLERANCE:
         raise ValueError(
-            "L'âme de la principale n'est pas orientée face à la secondaire."
+            "La branche verticale de la principale n'est pas orientée face à la secondaire."
         )
     anchor_x_mm = float(anchor_mm[0])
     face_x_mm = (
@@ -215,6 +316,54 @@ def double_cope_volumes(
             "Grugeage supérieur",
             *top,
             axial_min,
+            END_OVERRUN_CM,
+        ),
+    )
+
+
+def single_cope_rectangle_bounds(
+    profile,
+    anchor_mm,
+    vertical_clearance_cm,
+):
+    if vertical_clearance_cm < 0.0:
+        raise ValueError("Le jeu vertical du grugeage ne peut pas être négatif.")
+    anchor_x_mm, anchor_y_mm = anchor_mm
+    x_min = (profile.min_x_mm - anchor_x_mm) * MM_TO_CM - SIDE_OVERSIZE_CM
+    x_max = (profile.max_x_mm - anchor_x_mm) * MM_TO_CM + SIDE_OVERSIZE_CM
+    bottom_min = (
+        (profile.min_y_mm - anchor_y_mm) * MM_TO_CM - SIDE_OVERSIZE_CM
+    )
+    bottom_max = (
+        (profile.web_min_y_mm - anchor_y_mm) * MM_TO_CM
+        + vertical_clearance_cm
+    )
+    if bottom_max >= (
+        (profile.web_max_y_mm - anchor_y_mm) * MM_TO_CM
+        - joint_geometry.PLANE_RELATION_TOLERANCE_CM
+    ):
+        raise ValueError("Le jeu vertical supprimerait toute la branche verticale.")
+    return ((x_min, x_max, bottom_min, bottom_max),)
+
+
+def single_cope_volumes(
+    profile,
+    anchor_mm,
+    depth_cm,
+    vertical_clearance_cm,
+):
+    if depth_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise ValueError("La profondeur automatique du grugeage est nulle.")
+    (bottom,) = single_cope_rectangle_bounds(
+        profile,
+        anchor_mm,
+        vertical_clearance_cm,
+    )
+    return (
+        CopeVolume(
+            "Grugeage de la branche horizontale",
+            *bottom,
+            -float(depth_cm),
             END_OVERRUN_CM,
         ),
     )

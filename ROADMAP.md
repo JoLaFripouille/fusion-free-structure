@@ -62,8 +62,9 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] généraliser le moteur de double grugeage aux secondaires HEA et HEB.
 - [x] calculer le plan d'âme et les volumes de grugeage pour les angles non parallèles.
 - [x] corriger le début des retraits de semelles pour qu'il suive la face extérieure oblique de la principale.
-- [ ] valider la V1.19.1 corrigée dans Fusion à `60°`, puis à `30°` et `45°`, avant d'élargir les essais.
-- [ ] généraliser ensuite les grugeages aux autres profils de charpente, cornières et tés.
+- [x] valider la V1.19.1 corrigée dans Fusion sur le raccord oblique signalé ; compléter ensuite les essais séparés à `30°` et `45°`.
+- [x] généraliser le calcul et la création aux quatre combinaisons cornière/té dans la V1.20.0.
+- [ ] valider séparément dans Fusion cornière→cornière, cornière→té, té→cornière et té→té avant d'ajouter d'autres profils ouverts.
 - [ ] ajouter séparément les platines, boulons et assemblages composés.
 
 ## Qualité

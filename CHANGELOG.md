@@ -4,6 +4,23 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.20.0] - En validation
+
+### Ajouté
+
+- commande renommée `Grugeage profils ouverts` et prise en charge des quatre combinaisons `cornière → cornière`, `cornière → té`, `té → cornière` et `té → té` ;
+- détection automatique des deux faces de la branche verticale et de la naissance du congé directement dans les 46 DXF de cornières et les 11 DXF de tés ;
+- retrait simple de la branche horizontale de la secondaire, avec le même angle réel, les mêmes plans obliques, la même preview rouge et les mêmes prolongements que le double grugeage I/H ;
+- face de coupe choisie sur la branche verticale de la principale selon son orientation réelle et le côté depuis lequel arrive la secondaire ;
+- enregistrement du type général `open_profile_cope` et des familles principale/secondaire, tout en reconnaissant les anciens types `double_ipe_cope` et `double_ih_cope`.
+
+### Sécurisé
+
+- les 57 profils cornières/tés fournis possèdent tous une branche verticale et une zone de grugeage détectables ;
+- l'esquisse finale exige maintenant autant de régions fermées que de volumes calculés : deux pour I/H, une pour cornière/té ;
+- les mélanges I/H ↔ cornière/té, les chemins cintrés et les familles non analysées restent refusés sans modification ;
+- les quatre combinaisons L/T doivent être validées séparément dans Fusion avant toute extension supplémentaire.
+
 ## [1.19.1] - En validation
 
 ### Corrigé

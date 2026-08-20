@@ -6,8 +6,8 @@ import adsk.fusion
 from . import addin_info, cope_geometry, joint_builder, joint_geometry, joint_records
 
 
-COPE_TYPE = "double_ih_cope"
-LEGACY_COPE_TYPES = frozenset(("double_ipe_cope",))
+COPE_TYPE = "open_profile_cope"
+LEGACY_COPE_TYPES = frozenset(("double_ipe_cope", "double_ih_cope"))
 KNOWN_COPE_TYPES = LEGACY_COPE_TYPES | frozenset((COPE_TYPE,))
 ENDPOINT_PLANE_NAME = "PLAN_GRUGEAGE_EXTREMITE"
 PRIMARY_STATION_PLANE_NAME = "PLAN_STATION_PRINCIPALE_GRUGEAGE"
@@ -19,7 +19,7 @@ COPE_REFERENCE_PLANE_NAME = "PLAN_REFERENCE_ESQUISSE_GRUGEAGE"
 WEB_SPLIT_FEATURE_NAME = "COUPE_DROITE_AME_PRINCIPALE"
 WEB_REMOVE_FEATURE_NAME = "RETRAIT_APRES_AME_PRINCIPALE"
 COPE_SKETCH_NAME = "ESQUISSE_OUTILS_GRUGEAGE"
-COPE_CUT_FEATURE_NAME = "GRUGEAGE_SEMELLES_IH"
+COPE_CUT_FEATURE_NAME = "GRUGEAGE_PROFIL_OUVERT"
 MINIMUM_REMOVED_VOLUME_CM3 = 1e-8
 
 
@@ -36,7 +36,7 @@ def ensure_endpoint_available(evaluation):
             continue
         if endpoint_index == evaluation.geometry.secondary_joint_endpoint_index:
             raise ValueError(
-                "Cette extrémité possède déjà un grugeage I/H enregistré."
+                "Cette extrémité possède déjà un grugeage enregistré."
             )
 
 
@@ -188,9 +188,11 @@ def _create_cope_cut(
             )
     finally:
         sketch.isComputeDeferred = False
-    if sketch.profiles.count != 2:
+    expected_profile_count = len(evaluation.volumes)
+    if sketch.profiles.count != expected_profile_count:
         raise RuntimeError(
-            "L'esquisse du grugeage doit produire exactement deux régions fermées."
+            "L'esquisse du grugeage doit produire exactement {} région(s) fermée(s)."
+            .format(expected_profile_count)
         )
 
     profiles = adsk.core.ObjectCollection.create()
@@ -204,7 +206,7 @@ def _create_cope_cut(
         adsk.fusion.FeatureOperations.CutFeatureOperation,
     )
     if not extrude_input:
-        raise RuntimeError("Fusion n'a pas pu préparer la coupe des semelles.")
+        raise RuntimeError("Fusion n'a pas pu préparer la coupe du profil.")
     extrude_input.creationOccurrence = occurrence
     extrude_input.participantBodies = [body]
     start_extent = adsk.fusion.FromEntityStartDefinition.create(
@@ -229,11 +231,11 @@ def _create_cope_cut(
         else adsk.fusion.ExtentDirections.NegativeExtentDirection
     )
     if not extrude_input.setOneSideExtent(extent, direction):
-        raise RuntimeError("Fusion n'a pas pu orienter la coupe des semelles.")
+        raise RuntimeError("Fusion n'a pas pu orienter la coupe du profil.")
     extrude_input.startExtent = start_extent
     feature = extrudes.add(extrude_input)
     if not feature:
-        raise RuntimeError("Fusion n'a pas pu créer le grugeage des semelles.")
+        raise RuntimeError("Fusion n'a pas pu créer le grugeage du profil.")
     feature.name = COPE_CUT_FEATURE_NAME
     created_entities.append(feature)
     resulting_body = joint_builder._single_body(
@@ -243,7 +245,7 @@ def _create_cope_cut(
     removed_volume_cm3 = volume_before_cm3 - float(resulting_body.volume)
     if removed_volume_cm3 <= MINIMUM_REMOVED_VOLUME_CM3:
         raise RuntimeError(
-            "La coupe n'a retiré aucune matière mesurable des semelles."
+            "La coupe n'a retiré aucune matière mesurable du profil."
         )
     return feature
 
@@ -253,6 +255,8 @@ def _record_payload(evaluation):
         "joint_type": COPE_TYPE,
         "endpoint_index": evaluation.geometry.secondary_joint_endpoint_index,
         "reference_component": evaluation.primary_occurrence.component.name,
+        "primary_profile_family": evaluation.primary_metadata.profile_family,
+        "secondary_profile_family": evaluation.secondary_metadata.profile_family,
         "reference_occurrence_token": evaluation.primary_occurrence.entityToken,
         "reference_source_curve_token": evaluation.primary_metadata.source_curve_token,
         "adjusted_source_curve_token": evaluation.secondary_metadata.source_curve_token,
@@ -269,8 +273,8 @@ def _record_payload(evaluation):
     }
 
 
-def create_double_ih_cope(evaluation):
-    """Prolonge, coupe sur l'âme puis gruge les deux semelles de la secondaire."""
+def create_profile_cope(evaluation):
+    """Prolonge, coupe sur l'appui puis gruge la secondaire ouverte."""
     ensure_endpoint_available(evaluation)
     created_entities = []
     created_attributes = []
@@ -318,3 +322,8 @@ def create_double_ih_cope(evaluation):
             if entity and entity.isValid:
                 entity.deleteMe()
         raise
+
+
+def create_double_ih_cope(evaluation):
+    """Compatibilité interne avec le nom utilisé jusqu'à la V1.19.1."""
+    return create_profile_cope(evaluation)

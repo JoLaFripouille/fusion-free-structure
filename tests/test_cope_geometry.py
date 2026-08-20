@@ -23,6 +23,18 @@ class CopeGeometryTests(unittest.TestCase):
             if profile.family_id == "IPE" and profile.section_label == "100"
         )
         cls.geometry = cope_geometry.analyze_i_profile_dxf(cls.ipe100.dxf_path)
+        cls.angle50 = next(
+            profile
+            for profile in profiles
+            if profile.family_id == "Corniere_Egale"
+            and profile.section_label == "50 × 50 — ép. 5 mm"
+        )
+        cls.tee50 = next(
+            profile
+            for profile in profiles
+            if profile.family_id == "Te_Egal"
+            and profile.section_label == "50 × 50 — ép. 6 mm"
+        )
 
     def test_ipe100_flange_and_web_limits_come_from_the_original_dxf(self):
         self.assertEqual(self.geometry.bounds_mm, (-27.5, 0.0, 27.5, 100.0))
@@ -60,6 +72,66 @@ class CopeGeometryTests(unittest.TestCase):
             self.assertLess(geometry.web_min_x_mm, geometry.web_max_x_mm)
             self.assertGreater(geometry.web_min_y_mm, geometry.min_y_mm)
             self.assertLess(geometry.web_max_y_mm, geometry.max_y_mm)
+
+    def test_angle_and_tee_stems_come_from_the_original_dxf(self):
+        angle = cope_geometry.analyze_single_flange_profile_dxf(
+            self.angle50.dxf_path
+        )
+        tee = cope_geometry.analyze_single_flange_profile_dxf(self.tee50.dxf_path)
+        for actual, expected in zip(
+            angle.bounds_mm,
+            (-25.0, 0.0, 25.0, 50.0),
+        ):
+            self.assertAlmostEqual(actual, expected)
+        self.assertAlmostEqual(angle.web_min_x_mm, -25.0)
+        self.assertAlmostEqual(angle.web_max_x_mm, -20.0)
+        self.assertAlmostEqual(angle.web_min_y_mm, 12.0)
+        self.assertAlmostEqual(angle.cope_height_mm, 12.0)
+        for actual, expected in zip(
+            tee.bounds_mm,
+            (-25.0, 0.0, 25.0, 50.0),
+        ):
+            self.assertAlmostEqual(actual, expected)
+        self.assertAlmostEqual(tee.web_min_x_mm, -3.0)
+        self.assertAlmostEqual(tee.web_max_x_mm, 3.0)
+        self.assertAlmostEqual(tee.web_min_y_mm, 12.0)
+        self.assertAlmostEqual(tee.cope_height_mm, 12.0)
+
+    def test_every_bundled_angle_and_tee_has_a_detectable_single_cope(self):
+        profiles = profile_catalog.discover_profiles(include_custom=False)
+        open_profiles = [
+            profile
+            for profile in profiles
+            if profile.family_id
+            in ("Corniere_Egale", "Corniere_Inegale", "Te_Egal")
+        ]
+        self.assertEqual(len(open_profiles), 57)
+        for profile in open_profiles:
+            geometry = cope_geometry.analyze_single_flange_profile_dxf(
+                profile.dxf_path
+            )
+            self.assertGreater(geometry.width_mm, 0.0, profile.section_label)
+            self.assertGreater(geometry.cope_height_mm, 0.0, profile.section_label)
+            self.assertLess(
+                geometry.web_min_x_mm,
+                geometry.web_max_x_mm,
+                profile.section_label,
+            )
+
+    def test_single_cope_removes_only_the_horizontal_branch(self):
+        geometry = cope_geometry.analyze_single_flange_profile_dxf(
+            self.angle50.dxf_path
+        )
+        volumes = cope_geometry.single_cope_volumes(
+            geometry,
+            self.angle50.anchor_mm("C"),
+            depth_cm=3.0,
+            vertical_clearance_cm=0.1,
+        )
+        self.assertEqual(len(volumes), 1)
+        self.assertEqual(volumes[0].name, "Grugeage de la branche horizontale")
+        self.assertAlmostEqual(volumes[0].axial_min_cm, -3.0)
+        self.assertAlmostEqual(volumes[0].y_max_cm, -1.2)
 
     def test_double_cope_uses_anchor_depth_and_vertical_clearance(self):
         volumes = cope_geometry.double_cope_volumes(

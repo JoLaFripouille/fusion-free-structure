@@ -11,9 +11,9 @@ from ..lib.cope_preview import CopePreviewManager
 
 
 COMMAND_ID = "EI_JHR_PreviewDoubleIpeCopeV1"
-COMMAND_NAME = "Grugeage I/H V{}".format(addin_info.VERSION)
+COMMAND_NAME = "Grugeage profils ouverts V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Prolonge la principale, coupe la secondaire contre son âme et gruge ses semelles."
+    "Gruge les profils I/H, cornières et tés contre la branche verticale de la principale."
 )
 PRIMARY_SELECTION_ID = "copePrimaryMember"
 SECONDARY_SELECTION_ID = "copeSecondaryMember"
@@ -68,27 +68,46 @@ def _evaluate(inputs):
         raise ValueError("Ouvrir une conception Fusion.")
     if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
         raise ValueError("Le grugeage nécessite l'historique paramétrique activé.")
-    evaluation = cope_builder.evaluate_double_ih_cope(
+    evaluation = cope_builder.evaluate_profile_cope(
         design,
         _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale"),
         _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire"),
         _distance_value(inputs, VERTICAL_CLEARANCE_ID, "Le jeu vertical"),
         _distance_value(inputs, LONGITUDINAL_CLEARANCE_ID, "Le jeu longitudinal"),
-        _distance_value(inputs, WEB_CLEARANCE_ID, "Le jeu contre l'âme"),
+        _distance_value(inputs, WEB_CLEARANCE_ID, "Le jeu contre l'appui"),
     )
     cope_creator.ensure_endpoint_available(evaluation)
     return design, evaluation
 
 
 def _success_report(evaluation):
-    bottom_height_mm = (
-        evaluation.profile_geometry.bottom_cope_height_mm
-        + evaluation.vertical_clearance_cm * 10.0
-    )
-    top_height_mm = (
-        evaluation.profile_geometry.top_cope_height_mm
-        + evaluation.vertical_clearance_cm * 10.0
-    )
+    if evaluation.secondary_metadata.profile_family in cope_builder.I_H_FAMILIES:
+        removed_rows = (
+            (
+                "Hauteur inférieure retirée",
+                "{:.3f} mm".format(
+                    evaluation.profile_geometry.bottom_cope_height_mm
+                    + evaluation.vertical_clearance_cm * 10.0
+                ),
+            ),
+            (
+                "Hauteur supérieure retirée",
+                "{:.3f} mm".format(
+                    evaluation.profile_geometry.top_cope_height_mm
+                    + evaluation.vertical_clearance_cm * 10.0
+                ),
+            ),
+        )
+    else:
+        removed_rows = (
+            (
+                "Hauteur de branche retirée",
+                "{:.3f} mm".format(
+                    evaluation.profile_geometry.cope_height_mm
+                    + evaluation.vertical_clearance_cm * 10.0
+                ),
+            ),
+        )
     extension_text = "Aucun — couverture suffisante"
     if evaluation.primary_extensions:
         extension_text = ", ".join(
@@ -105,11 +124,10 @@ def _success_report(evaluation):
             "Profondeur maximale du grugeage",
             "{:.3f} mm".format(evaluation.depth_cm * 10.0),
         ),
-        ("Coupe droite", "Face de l'âme principale"),
-        ("Jeu contre l'âme", "{:.3f} mm".format(evaluation.web_clearance_cm * 10.0)),
+        ("Coupe droite", "Face de la branche verticale principale"),
+        ("Jeu contre l'appui", "{:.3f} mm".format(evaluation.web_clearance_cm * 10.0)),
         ("Prolongement de la principale", extension_text),
-        ("Hauteur inférieure retirée", "{:.3f} mm".format(bottom_height_mm)),
-        ("Hauteur supérieure retirée", "{:.3f} mm".format(top_height_mm)),
+    ) + removed_rows + (
         ("Jeu vertical", "{:.3f} mm".format(evaluation.vertical_clearance_cm * 10.0)),
         (
             "Jeu longitudinal",
@@ -118,7 +136,7 @@ def _success_report(evaluation):
     )
     content = [
         "<b>Les opérations seront créées après validation avec OK.</b><br>",
-        "Rouge : semelles retirées. Orange : coupe contre l'âme principale. ",
+        "Rouge : matière retirée. Orange : coupe contre la branche verticale principale. ",
         "Vert : prolongement nécessaire de la principale.<br><br>",
     ]
     for label, value in rows:
@@ -152,15 +170,15 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
                 "Barre principale",
-                "Sélectionner une IPE, HEA ou HEB qui sera prolongée si nécessaire.",
+                "Sélectionner une I/H, cornière ou té qui sera prolongé si nécessaire.",
             )
             primary.addSelectionFilter("Occurrences")
             primary.setSelectionLimits(0, 1)
 
             secondary = inputs.addSelectionInput(
                 SECONDARY_SELECTION_ID,
-                "Barre secondaire I/H",
-                "Sélectionner l'IPE, HEA ou HEB dont les deux semelles seront grugées.",
+                "Barre secondaire",
+                "Sélectionner le profil I/H, la cornière ou le té à gruger.",
             )
             secondary.addSelectionFilter("Occurrences")
             secondary.setSelectionLimits(0, 1)
@@ -185,7 +203,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             web_clearance = inputs.addValueInput(
                 WEB_CLEARANCE_ID,
-                "Jeu contre l'âme",
+                "Jeu contre l'appui",
                 "mm",
                 adsk.core.ValueInput.createByString("1 mm"),
             )
@@ -195,7 +213,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             report = inputs.addTextBoxCommandInput(
                 REPORT_ID,
                 "Contrôle",
-                "Sélectionner la principale puis le profil I/H secondaire.",
+                "Sélectionner la principale puis le profil secondaire.",
                 12,
                 True,
             )
@@ -223,7 +241,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         except Exception:
             _, ui = _app_and_ui()
             ui.messageBox(
-                "Échec de l'ouverture du grugeage I/H:\n{}".format(
+                "Échec de l'ouverture du grugeage:\n{}".format(
                     traceback.format_exc()
                 )
             )
@@ -288,7 +306,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
         try:
             self._preview_manager.clear()
             _, evaluation = _evaluate(event_args.command.commandInputs)
-            cope_creator.create_double_ih_cope(evaluation)
+            cope_creator.create_profile_cope(evaluation)
             _log(
                 "Grugeage créé : principale={}, secondaire={}, "
                 "prolongement_principale={} mm, profondeur={} mm"

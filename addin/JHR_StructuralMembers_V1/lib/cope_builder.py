@@ -14,7 +14,9 @@ from . import (
 )
 
 
-PRIMARY_FAMILIES = frozenset(("IPE", "HEA", "HEB"))
+I_H_FAMILIES = frozenset(("IPE", "HEA", "HEB"))
+L_T_FAMILIES = frozenset(("Corniere_Egale", "Corniere_Inegale", "Te_Egal"))
+PRIMARY_FAMILIES = I_H_FAMILIES | L_T_FAMILIES
 SECONDARY_FAMILIES = PRIMARY_FAMILIES
 
 
@@ -27,8 +29,8 @@ class CopeEvaluation:
     primary_curve: object
     secondary_curve: object
     geometry: object
-    primary_profile_geometry: cope_geometry.IProfileGeometry
-    profile_geometry: cope_geometry.IProfileGeometry
+    primary_profile_geometry: object
+    profile_geometry: object
     depth_cm: float
     vertical_clearance_cm: float
     longitudinal_clearance_cm: float
@@ -104,6 +106,7 @@ def _extension_segment(extension, primary_body_points):
 
 def _cope_section_points(
     profile,
+    family_id,
     anchor_mm,
     vertical_clearance_cm,
     origin,
@@ -112,11 +115,20 @@ def _cope_section_points(
     axial_axis,
 ):
     points = []
-    for x_min, x_max, y_min, y_max in cope_geometry.double_cope_rectangle_bounds(
-        profile,
-        anchor_mm,
-        vertical_clearance_cm,
-    ):
+    rectangle_bounds = (
+        cope_geometry.double_cope_rectangle_bounds(
+            profile,
+            anchor_mm,
+            vertical_clearance_cm,
+        )
+        if family_id in I_H_FAMILIES
+        else cope_geometry.single_cope_rectangle_bounds(
+            profile,
+            anchor_mm,
+            vertical_clearance_cm,
+        )
+    )
+    for x_min, x_max, y_min, y_max in rectangle_bounds:
         for x, y in (
             (x_min, y_min),
             (x_max, y_min),
@@ -137,7 +149,31 @@ def _cope_section_points(
     return tuple(points)
 
 
-def evaluate_double_ih_cope(
+def _analyze_profile_geometry(dxf_path, family_id):
+    if family_id in I_H_FAMILIES:
+        return cope_geometry.analyze_i_profile_dxf(dxf_path)
+    if family_id in L_T_FAMILIES:
+        return cope_geometry.analyze_single_flange_profile_dxf(dxf_path)
+    raise ValueError("Cette famille de profil ne prend pas encore en charge le grugeage.")
+
+
+def _cope_volumes(profile, family_id, anchor_mm, depth_cm, clearance_cm):
+    if family_id in I_H_FAMILIES:
+        return cope_geometry.double_cope_volumes(
+            profile,
+            anchor_mm,
+            depth_cm,
+            clearance_cm,
+        )
+    return cope_geometry.single_cope_volumes(
+        profile,
+        anchor_mm,
+        depth_cm,
+        clearance_cm,
+    )
+
+
+def evaluate_profile_cope(
     design,
     primary_occurrence,
     secondary_occurrence,
@@ -158,11 +194,24 @@ def evaluate_double_ih_cope(
     secondary_metadata = joint_builder._member_metadata(secondary_occurrence, "secondaire")
     if primary_metadata.profile_family not in PRIMARY_FAMILIES:
         raise ValueError(
-            "Cette commande accepte une principale IPE, HEA ou HEB uniquement."
+            "La famille de la barre principale ne prend pas encore en charge le grugeage."
         )
     if secondary_metadata.profile_family not in SECONDARY_FAMILIES:
         raise ValueError(
-            "Cette commande accepte une barre secondaire IPE, HEA ou HEB uniquement."
+            "La famille de la barre secondaire ne prend pas encore en charge le grugeage."
+        )
+    both_i_h = (
+        primary_metadata.profile_family in I_H_FAMILIES
+        and secondary_metadata.profile_family in I_H_FAMILIES
+    )
+    both_l_t = (
+        primary_metadata.profile_family in L_T_FAMILIES
+        and secondary_metadata.profile_family in L_T_FAMILIES
+    )
+    if not (both_i_h or both_l_t):
+        raise ValueError(
+            "Cette première version accepte I/H vers I/H ou cornière/té vers "
+            "cornière/té, sans mélange entre ces deux groupes."
         )
 
     primary_curve = joint_builder._linked_curve(
@@ -191,8 +240,14 @@ def evaluate_double_ih_cope(
         raise FileNotFoundError("Le DXF source de la barre principale est introuvable.")
     if not secondary_dxf_path.is_file():
         raise FileNotFoundError("Le DXF source de la barre secondaire est introuvable.")
-    primary_profile_geometry = cope_geometry.analyze_i_profile_dxf(primary_dxf_path)
-    profile_geometry = cope_geometry.analyze_i_profile_dxf(secondary_dxf_path)
+    primary_profile_geometry = _analyze_profile_geometry(
+        primary_dxf_path,
+        primary_metadata.profile_family,
+    )
+    profile_geometry = _analyze_profile_geometry(
+        secondary_dxf_path,
+        secondary_metadata.profile_family,
+    )
     primary_anchor_mm = anchors.point_for_bounds(
         primary_profile_geometry.bounds_mm,
         primary_metadata.anchor,
@@ -213,6 +268,7 @@ def evaluate_double_ih_cope(
     primary_points = joint_builder._body_sample_points(primary_body, primary_occurrence)
     secondary_section_points = _cope_section_points(
         profile_geometry,
+        secondary_metadata.profile_family,
         secondary_anchor_mm,
         float(vertical_clearance_cm),
         geometry.secondary_joint_endpoint,
@@ -253,8 +309,9 @@ def evaluate_double_ih_cope(
         raise ValueError(
             "La profondeur du grugeage atteint toute la longueur de la secondaire."
         )
-    volumes = cope_geometry.double_cope_volumes(
+    volumes = _cope_volumes(
         profile_geometry,
+        secondary_metadata.profile_family,
         secondary_anchor_mm,
         depth_cm,
         float(vertical_clearance_cm),
@@ -273,7 +330,7 @@ def evaluate_double_ih_cope(
     )
     axial_rate = joint_geometry.dot(axial_axis, geometry.plane_normal)
     if abs(axial_rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
-        raise ValueError("L'axe secondaire est parallèle au plan de l'âme principale.")
+        raise ValueError("L'axe secondaire est parallèle au plan d'appui principal.")
     cut_length_cm = -joint_geometry.plane_signed_distance(
         cope_start_point,
         web_cut_point,
@@ -281,7 +338,7 @@ def evaluate_double_ih_cope(
     ) / axial_rate
     if cut_length_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
         raise ValueError(
-            "Le début du grugeage dépasse le plan de coupe contre l'âme."
+            "Le début du grugeage dépasse le plan de coupe contre l'appui."
         )
     treatment = joint_builder._evaluate_treatment(
         secondary_occurrence,
@@ -340,3 +397,8 @@ def evaluate_double_ih_cope(
         primary_extension_segments=primary_extension_segments,
         treatment=treatment,
     )
+
+
+def evaluate_double_ih_cope(*args, **kwargs):
+    """Compatibilité interne avec le nom utilisé jusqu'à la V1.19.1."""
+    return evaluate_profile_cope(*args, **kwargs)

@@ -133,9 +133,9 @@ Pour une jonction ajustée, la principale n'est plus supposée infinie le long d
 
 Le groupe `EI_JHR_StructuralJoint` n'est plus un verrou binaire. Chaque traitement ajoute un JSON indépendant `operation_0001`, `operation_0002`, etc. contenant notamment le type, l'indice d'extrémité `0` ou `1`, l'autre composant, les courbes sources, l'angle, le jeu, l'état initial et le prolongement. Une barre peut donc recevoir une opération à chaque extrémité et d'autres traitements tant que sa géométrie courante permet la fonction demandée. Les anciens attributs fixes sont conservés mais ne bloquent plus les nouvelles opérations.
 
-Une barre de référence cintrée, les onglets sur arcs, les grugeages de cornières ou de tés, les platines et les boulons restent en dehors de cette étape.
+Une barre de référence cintrée, les onglets sur arcs, les grugeages sur chemins cintrés, les mélanges I/H ↔ cornière/té, les platines et les boulons restent en dehors de cette étape.
 
-## Double grugeage I/H
+## Grugeage des profils ouverts
 
 La V1.17 a introduit la prévisualisation, la V1.18.0 a créé le premier grugeage IPE réel à `90°` et la V1.19.0 généralise la même commande aux secondaires IPE, HEA et HEB ainsi qu'aux angles non parallèles supérieurs à `5°`. Les deux barres restent droites et leurs axes doivent se rejoindre.
 
@@ -147,4 +147,8 @@ Deux volumes rouges semi-transparents montrent les semelles proposées au retrai
 
 Après `OK`, la secondaire reçoit les plans de station des deux chemins. Leur intersection produit `AXE_ORIENTATION_COUPE_AME`, autour duquel Fusion construit `PLAN_ORIENTATION_AME_PRINCIPALE`. Ce plan est décalé une première fois sur la face extérieure pour produire `PLAN_DEBUT_GRUGEAGE`, puis une seconde fois sur l'âme pour produire `PLAN_COUPE_AME_PRINCIPALE`. `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, normal au chemin secondaire, est placé derrière toute la limite de départ et porte seulement les deux rectangles fermés des zones de semelle. L'extrusion utilise la première limite oblique comme départ réel et la seconde comme arrivée réelle. La principale est auparavant prolongée si sa couverture est insuffisante ; la secondaire est prolongée puis séparée sur le plan de l'âme si nécessaire.
 
-L'extrusion désigne explicitement le corps secondaire participant. La création est acceptée seulement si un corps unique subsiste et si le volume retiré est mesurable. Les nouveaux traitements utilisent `double_ih_cope`, mais les anciens `double_ipe_cope` restent reconnus pour protéger les documents V1.18.0. Un second grugeage reste possible à l'autre extrémité, tandis qu'un doublon sur la même extrémité est refusé. Si une étape échoue, l'attribut et toutes les entités créées pendant la tentative sont supprimés dans l'ordre inverse.
+La V1.20.0 applique le même moteur aux cornières et aux tés. Les deux plus longues faces verticales droites du contour DXF identifient la branche à conserver ; la naissance la plus haute de ces faces place la limite du retrait au-dessus du congé. Une cornière ou un té secondaire produit donc un seul volume rouge sur sa branche horizontale, tandis qu'un I/H conserve ses deux volumes. La branche verticale d'une cornière ou d'un té principal fournit ses deux faces d'appui possibles, et l'orientation enregistrée détermine automatiquement celle qui regarde la secondaire.
+
+Le périmètre V1.20.0 autorise les quatre combinaisons cornière/té et conserve séparément le mode I/H vers I/H. Les mélanges entre ces deux groupes sont refusés jusqu'à leur validation explicite. Les 46 cornières et 11 tés fournis passent le contrôle géométrique automatique.
+
+L'extrusion désigne explicitement le corps secondaire participant. La création est acceptée seulement si un corps unique subsiste et si le volume retiré est mesurable. Les nouveaux traitements utilisent `open_profile_cope`, mais les anciens `double_ipe_cope` et `double_ih_cope` restent reconnus pour protéger les documents antérieurs. Un second grugeage reste possible à l'autre extrémité, tandis qu'un doublon sur la même extrémité est refusé. Si une étape échoue, l'attribut et toutes les entités créées pendant la tentative sont supprimés dans l'ordre inverse.

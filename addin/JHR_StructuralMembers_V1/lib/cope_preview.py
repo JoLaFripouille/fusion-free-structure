@@ -110,7 +110,7 @@ class CopePreviewManager:
                 plane_coordinates,
                 (0, 1, 2, 0, 2, 3),
                 (0, 1, 1, 2, 2, 3, 3, 0),
-                "Plan orange — coupe contre l'âme principale",
+                "Plan orange — coupe contre l'appui principal",
                 orange,
                 orange_edge,
                 0.32,
