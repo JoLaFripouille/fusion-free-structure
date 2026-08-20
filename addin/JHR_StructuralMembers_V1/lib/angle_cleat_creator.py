@@ -11,6 +11,7 @@ from . import (
     joint_builder,
     joint_geometry,
     member_builder,
+    profile_catalog,
 )
 
 
@@ -76,6 +77,58 @@ def _world_to_local_point(occurrence, point):
     return local
 
 
+def _rebase_sketch_to_anchor(sketch, profile, anchor_code):
+    """Corrige le décalage que Fusion peut ignorer dans un composant orienté."""
+    entities = adsk.core.ObjectCollection.create()
+    boxes = []
+    for collection in (
+        sketch.sketchCurves.sketchLines,
+        sketch.sketchCurves.sketchArcs,
+        sketch.sketchCurves.sketchCircles,
+    ):
+        for index in range(collection.count):
+            entity = collection.item(index)
+            entities.add(entity)
+            boxes.append(entity.boundingBox)
+    if not boxes:
+        raise RuntimeError(
+            "Le DXF {} ne contient aucune courbe à repositionner."
+            .format(profile.designation)
+        )
+
+    current_min_x = min(box.minPoint.x for box in boxes)
+    current_min_y = min(box.minPoint.y for box in boxes)
+    source_min_x, source_min_y, _, _ = profile.bounds_mm
+    anchor_x, anchor_y = profile.anchor_mm(anchor_code)
+    expected_min_x = (
+        source_min_x - anchor_x
+    ) * profile_catalog.MM_TO_CM
+    expected_min_y = (
+        source_min_y - anchor_y
+    ) * profile_catalog.MM_TO_CM
+    delta_x = expected_min_x - current_min_x
+    delta_y = expected_min_y - current_min_y
+    if (
+        abs(delta_x) <= member_builder.DIMENSION_TOLERANCE_CM
+        and abs(delta_y) <= member_builder.DIMENSION_TOLERANCE_CM
+    ):
+        return
+
+    transform = adsk.core.Matrix3D.create()
+    if not transform.setCell(0, 3, delta_x) or not transform.setCell(
+        1, 3, delta_y
+    ):
+        raise RuntimeError(
+            "Fusion n'a pas pu préparer le recalage de l'ancrage {}."
+            .format(anchor_code)
+        )
+    if not sketch.move(entities, transform):
+        raise RuntimeError(
+            "Fusion n'a pas pu ramener la cornière sur l'ancrage {}."
+            .format(anchor_code)
+        )
+
+
 def _import_angle_sketch(component, profile):
     app = adsk.core.Application.get()
     options = app.importManager.createDXF2DImportOptions(
@@ -106,6 +159,7 @@ def _import_angle_sketch(component, profile):
         )
     sketch = sketches[0]
     sketch.name = "ESQUISSE_CORNIERE_DXF_ANCRAGE_BL"
+    _rebase_sketch_to_anchor(sketch, profile, "BL")
     member_builder._validate_profile_sketch(sketch, profile, "BL")
     return sketch, member_builder._select_material_profile(sketch, profile)
 

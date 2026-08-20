@@ -477,8 +477,8 @@ Effectuer uniquement ce cas simple. Ne pas créer d'autres assemblages avant d'a
 Effectuer d'abord un seul assemblage avec les valeurs proposées. Ne pas ajouter de boulon ni essayer un angle oblique pendant ce test.
 
 1. Reprendre le document du test 26 avec une principale IPE 200, une secondaire IPE 160 déjà grugée, deux axes droits à `90°`, ancrage `C`, rotation `0°` et aucun miroir.
-2. Arrêter puis exécuter le complément et vérifier la version `V1.23.0`.
-3. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.23.0`.
+2. Arrêter puis exécuter le complément et vérifier la version `V1.23.1`.
+3. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.23.1`.
 4. Vérifier les valeurs proposées : cornière `50 × 50 — ép. 5 mm`, hauteur `100 mm`, décalage `0 mm`, trous `Ø18 mm`, deux rangées, entraxe vertical `50 mm` et distances `30 mm` sur les deux branches.
 5. Sélectionner la principale puis la secondaire. Vérifier les deux cornières jaunes et quatre rangées de cercles rouges par cornière : deux sur la branche tournée vers la principale et deux sur celle tournée vers la secondaire.
 6. Modifier temporairement le diamètre à `16 mm`, puis l'entraxe à `40 mm`. Vérifier que les cercles rouges changent immédiatement sans déplacer les cornières. Revenir à `Ø18 mm` et `50 mm`.

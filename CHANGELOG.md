@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.23.1] - En validation
+
+### Corrigé
+
+- après l'import DXF dans un composant déjà orienté, la position réellement obtenue est maintenant mesurée puis translatée pour ramener exactement le coin bas-gauche sur l'ancrage local `BL` ;
+- le contrôle strict des dimensions et de l'ancrage reste exécuté après ce recalage : aucune extrusion n'est créée si la section ne correspond toujours pas au DXF ;
+- correction de l'échec Fusion `Le DXF Cornière égale 50 × 50 — ép. 5 mm n'est pas positionné sur l'ancrage BL` rencontré avec la V1.23.0.
+
 ## [1.23.0] - En validation
 
 ### Ajouté
