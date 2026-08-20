@@ -451,6 +451,27 @@ Procéder avec une seule valeur à la fois afin de distinguer la sauvegarde glob
 12. Arrêter puis exécuter de nouveau le complément, répéter les étapes 5, 6 et 10 et vérifier que toutes les valeurs sont toujours conservées.
 13. Vérifier que le fichier `%APPDATA%\EI_JHR\fusion-free-structure\settings.json` existe et ne contient que le numéro de schéma et les distances configurées, sans chemin de document, nom de profil créé ni donnée personnelle.
 
+## Test 26 — Aperçu du premier assemblage par doubles cornières
+
+Effectuer uniquement ce cas simple. Ne pas créer d'autres assemblages avant d'avoir confirmé la position des deux cornières.
+
+1. Dans un document paramétrique, créer une principale IPE 200 et une secondaire IPE 160 droites, ancrage `C`, rotation `0°`, sans miroir, sur deux axes qui se rejoignent exactement à `90°`.
+2. Appliquer le grugeage I/H déjà validé à l'extrémité concernée de la secondaire.
+3. Arrêter puis exécuter le complément et vérifier la version `V1.22.0`.
+4. Dans `STRUCTURE JHR > ASSEMBLAGES`, ouvrir `Assemblage par cornières — aperçu V1.22.0`.
+5. Vérifier que `50 × 50 — ép. 5 mm`, `100 mm` de hauteur et `0 mm` de décalage vertical sont proposés par défaut.
+6. Sélectionner la principale, puis la secondaire.
+7. Vérifier que le rapport affiche les deux profils, un angle de `90°`, `2 × Cornière égale 50 × 50 — ép. 5 mm` et l'épaisseur réelle de l'âme secondaire.
+8. Vérifier l'apparition de deux cornières jaunes, une de chaque côté de l'âme secondaire.
+9. Observer les quatre contacts : la branche arrière de chaque cornière doit être posée contre la face de l'âme principale tournée vers la secondaire ; l'autre branche doit être posée contre l'une des deux faces opposées de l'âme secondaire.
+10. Vérifier que les deux cornières sont symétriques par rapport à l'âme secondaire, sans être toutes les deux du même côté et sans entrer dans les âmes.
+11. Passer la hauteur à `120 mm` : les deux aperçus doivent grandir symétriquement vers le haut et le bas, sans déplacer leur milieu.
+12. Passer le décalage vertical à `20 mm`, puis à `-20 mm` : les deux aperçus doivent se déplacer ensemble suivant la hauteur des profils, sans quitter les faces des âmes.
+13. Changer la section de cornière une seule fois et vérifier la mise à jour immédiate des deux contours jaunes.
+14. Cliquer sur `OK` et vérifier le message `Aperçu validé`.
+15. Vérifier qu'aucun composant, corps, trou, boulon ou élément d'historique n'a été ajouté et que les deux barres sont inchangées.
+16. Refaire uniquement un essai négatif avec des axes à `60°` : le rapport doit refuser clairement ce cas et `OK` doit rester inactif.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -488,5 +509,6 @@ Procéder avec une seule valeur à la fois afin de distinguer la sauvegarde glob
 - deux volumes rouges inchangés pour un profil I/H ; pour une cornière/un té, un retrait droit limité à l'épaisseur et, seulement face à un congé intérieur principal, un dégagement rouge arrondi séparé. Tous se terminent sur la géométrie de la branche verticale principale, avec un éventuel prolongement vert correct avant validation.
 - après `OK`, un corps secondaire unique, la matière réellement grugée et la branche verticale coupée contre l'appui principal avec les jeux saisis.
 - valeurs par défaut conservées après fermeture et redémarrage du complément, appliquées selon la famille secondaire et modifiables ponctuellement sans changer le fichier local.
+- deux cornières d'assemblage jaunes, symétriques sur l'âme secondaire et en contact avec les deux âmes, sans aucune création réelle pendant la phase V1.22.0.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

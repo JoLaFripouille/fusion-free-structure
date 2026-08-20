@@ -4,6 +4,23 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.22.0] - En validation
+
+### Ajouté
+
+- nouveau groupe `ASSEMBLAGES` dans l'onglet `STRUCTURE JHR` et commande `Assemblage par cornières — aperçu` ;
+- première phase volontairement limitée à deux profils IPE/HEA/HEB droits dont les axes se rejoignent à `90°` ;
+- choix d'une cornière égale européenne dans la bibliothèque DXF, avec `50 × 50 — ép. 5 mm` proposé par défaut ;
+- réglages dynamiques de la hauteur des cornières et de leur décalage vertical ;
+- aperçu jaune de deux cornières symétriques, chacune posée sur une face de l'âme secondaire et contre la face de l'âme principale orientée vers elle ;
+- réutilisation des mêmes axes, ancrages et transformations de profils que les jonctions et le grugeage.
+
+### Limité pour validation
+
+- `OK` ferme uniquement la phase d'aperçu : aucun composant, corps, trou, boulon ou historique n'est créé ;
+- les angles obliques, les chemins cintrés, les profils hors IPE/HEA/HEB, les cornières inégales et le dimensionnement de résistance restent refusés ou hors périmètre ;
+- 140 tests automatiques couvrent le contour DXF, les deux placements symétriques, les refus du premier périmètre, le branchement de la commande et les régressions existantes.
+
 ## [1.21.0] - En validation
 
 ### Ajouté

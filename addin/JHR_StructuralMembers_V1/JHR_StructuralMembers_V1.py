@@ -10,6 +10,7 @@ from .commands import (
     inspect_member,
     manage_custom_profiles,
     manage_settings,
+    preview_angle_cleat,
 )
 from .lib import addin_info, structural_materials, ui_layout
 
@@ -37,6 +38,7 @@ def run(context):
         create_members.start()
         create_joint.start()
         create_cope.start()
+        preview_angle_cleat.start()
         inspect_member.start()
         manage_custom_profiles.start()
         manage_settings.start()
@@ -56,6 +58,7 @@ def stop(context):
         manage_settings.stop()
         manage_custom_profiles.stop()
         inspect_member.stop()
+        preview_angle_cleat.stop()
         create_cope.stop()
         create_joint.stop()
         create_members.stop()

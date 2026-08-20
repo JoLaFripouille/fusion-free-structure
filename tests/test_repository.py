@@ -45,6 +45,9 @@ class RepositoryTests(unittest.TestCase):
         settings_source = (ADDIN / "commands" / "manage_settings.py").read_text(
             encoding="utf-8"
         )
+        cleat_source = (
+            ADDIN / "commands" / "preview_angle_cleat.py"
+        ).read_text(encoding="utf-8")
         builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
         self.assertIn("COMMAND_NAME = addin_info.DISPLAY_NAME", command_source)
         self.assertIn('COMMAND_NAME = "Jonctions acier V{}".format(addin_info.VERSION)', joint_source)
@@ -56,6 +59,10 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn(
             'COMMAND_NAME = "Paramètres Structure JHR V{}".format(addin_info.VERSION)',
             settings_source,
+        )
+        self.assertIn(
+            'COMMAND_NAME = "Assemblage par cornières — aperçu V{}".format(addin_info.VERSION)',
+            cleat_source,
         )
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
 
@@ -118,6 +125,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('TAB_NAME = "STRUCTURE JHR"', layout_source)
         self.assertIn('CREATE_PANEL_NAME = "CRÉER"', layout_source)
         self.assertIn('MODIFY_PANEL_NAME = "MODIFIER"', layout_source)
+        self.assertIn('ASSEMBLY_PANEL_NAME = "ASSEMBLAGES"', layout_source)
         self.assertIn('SETTINGS_PANEL_NAME = "PARAMÈTRES"', layout_source)
         self.assertIn("workspace.toolbarTabs.add", layout_source)
         self.assertIn("tab.toolbarPanels.add", layout_source)
@@ -130,6 +138,7 @@ class RepositoryTests(unittest.TestCase):
             "create_joint.py": "ui_layout.MODIFY_PANEL_ID",
             "create_cope.py": "ui_layout.MODIFY_PANEL_ID",
             "inspect_member.py": "ui_layout.MODIFY_PANEL_ID",
+            "preview_angle_cleat.py": "ui_layout.ASSEMBLY_PANEL_ID",
             "manage_settings.py": "ui_layout.SETTINGS_PANEL_ID",
         }
         for filename, panel_id in expected_panels.items():
@@ -138,6 +147,42 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn("SolidCreatePanel", source)
             self.assertNotIn("SolidModifyPanel", source)
             self.assertNotIn("SolidScriptsAddinsPanel", source)
+
+    def test_double_angle_connection_phase_is_preview_only(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
+            encoding="utf-8"
+        )
+        command_source = (
+            ADDIN / "commands" / "preview_angle_cleat.py"
+        ).read_text(encoding="utf-8")
+        builder_source = (
+            ADDIN / "lib" / "angle_cleat_builder.py"
+        ).read_text(encoding="utf-8")
+        geometry_source = (
+            ADDIN / "lib" / "angle_cleat_geometry.py"
+        ).read_text(encoding="utf-8")
+        preview_source = (
+            ADDIN / "lib" / "angle_cleat_preview.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("preview_angle_cleat.start()", entry_source)
+        self.assertIn("preview_angle_cleat.stop()", entry_source)
+        self.assertEqual(command_source.count('addSelectionFilter("Occurrences")'), 2)
+        self.assertIn('"Barre principale"', command_source)
+        self.assertIn('"Barre secondaire"', command_source)
+        self.assertIn('ANGLE_PROFILE_ID = "angleCleatProfile"', command_source)
+        self.assertIn('CLEAT_HEIGHT_ID = "angleCleatHeight"', command_source)
+        self.assertIn('VERTICAL_OFFSET_ID = "angleCleatVerticalOffset"', command_source)
+        self.assertIn("PHASE D'APERÇU UNIQUEMENT", command_source)
+        self.assertNotIn("bRepBodies.add", command_source)
+        self.assertNotIn("extrudeFeatures", command_source)
+        self.assertIn("I_H_FAMILIES", builder_source)
+        self.assertIn("allow_arc=False", builder_source)
+        self.assertIn("web_face_cut_point", builder_source)
+        self.assertIn("build_double_angle_frames", builder_source)
+        self.assertIn("RIGHT_ANGLE_TOLERANCE_DEGREES", geometry_source)
+        self.assertIn("profile_contours_from_outer_corner_cm", geometry_source)
+        self.assertIn("CLEAT_PREVIEW_YELLOW", preview_source)
+        self.assertIn("build_swept_side_mesh", preview_source)
 
     def test_local_default_values_are_managed_and_used_by_operations(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(

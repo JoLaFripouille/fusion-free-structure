@@ -2,7 +2,7 @@
 
 ## Interface Fusion dédiée
 
-Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier, le grugeage I/H et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
+Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis quatre panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier, le grugeage et l'inspecteur. Le panneau `ASSEMBLAGES` reçoit les assemblages composés en cours de validation. Le panneau `PARAMÈTRES` reçoit les réglages locaux. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
 
 L'onglet et les panneaux utilisent des identifiants stables et sont réutilisés s'ils existent déjà. À l'arrêt, les commandes retirent d'abord leurs boutons et leurs définitions, puis l'extension supprime ses panneaux et son onglet. Aucun panneau natif de Fusion n'est supprimé.
 
@@ -164,3 +164,11 @@ Cette séparation n'est jamais appliquée aux IPE, HEA et HEB : leur double grug
 Le périmètre V1.20.2 autorise les quatre combinaisons cornière/té et conserve séparément le mode I/H vers I/H. Les mélanges entre ces deux groupes sont refusés jusqu'à leur validation explicite. Les 46 cornières et 11 tés fournis passent le contrôle géométrique automatique.
 
 L'extrusion désigne explicitement le corps secondaire participant. La création est acceptée seulement si un corps unique subsiste et si le volume retiré est mesurable. Les nouveaux traitements utilisent `open_profile_cope`, mais les anciens `double_ipe_cope` et `double_ih_cope` restent reconnus pour protéger les documents antérieurs. Un second grugeage reste possible à l'autre extrémité, tandis qu'un doublon sur la même extrémité est refusé. Si une étape échoue, l'attribut et toutes les entités créées pendant la tentative sont supprimés dans l'ordre inverse.
+
+## Premier assemblage par doubles cornières
+
+La V1.22.0 ajoute uniquement le calcul et l'affichage du premier assemblage composé. La principale et la secondaire doivent être deux IPE, HEA ou HEB droits, liés à deux axes se rejoignant à `90° ± 0,5°`. La commande réutilise les métadonnées de chaque barre, son DXF, son ancrage, sa rotation, ses miroirs et les repères de section déjà employés par le grugeage.
+
+Le DXF de la cornière égale choisie est discrétisé seulement pour l'affichage puis son coin extérieur est ramené à l'origine locale. La face de l'âme principale tournée vers la secondaire est obtenue par le même calcul que la coupe de grugeage. Les deux faces de l'âme secondaire viennent directement des limites d'âme détectées dans son DXF. Le premier coin de cornière est posé sur la face négative, le second sur la face positive ; leurs axes transversaux sont opposés et leurs axes dirigés vers l'intérieur de la secondaire sont identiques. Leur hauteur est centrée sur le repère vertical de la secondaire, puis déplacée par le décalage saisi.
+
+Le résultat est un maillage jaune temporaire dans le composant racine. Il n'est pas sélectionnable et disparaît à l'annulation ou à la validation. Cette phase ne possède volontairement aucun créateur de composant, aucune extrusion, aucun perçage, aucun boulon et aucun enregistrement d'assemblage. La création réelle sera ajoutée seulement après validation des deux contacts visuels, puis les trous et les boulons feront chacun l'objet d'une étape distincte.

@@ -13,7 +13,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 
 ## Interface profils
 
-- [x] regrouper toutes les commandes dans un onglet Fusion dédié avec panneaux Créer et Modifier ;
+- [x] regrouper toutes les commandes dans un onglet Fusion dédié avec panneaux Créer, Modifier, Assemblages et Paramètres ;
 - [x] afficher les profils par famille puis par dimension ;
 - [x] organiser les profils normalisés par catégorie puis par zone géographique ;
 - [x] exposer la zone Europe sans modifier les 341 DXF existants ;
@@ -67,9 +67,14 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] limiter le retrait droit des cornières/tés à leur épaisseur et ajouter séparément le dégagement arrondi du congé principal dans la V1.20.1, sans modifier les IPE/HEA/HEB.
 - [x] séparer dans la V1.20.2 le jeu sous l'âme secondaire du jeu autour du congé principal, avec des champs propres aux cornières/tés.
 - [x] ajouter dans la V1.21.0 une fenêtre `Paramètres > Valeurs par défaut`, persistée localement et organisée par opération et groupe de profils.
+- [x] ajouter dans la V1.22.0 un aperçu non destructif de deux cornières égales autour de l'âme secondaire, limité aux IPE/HEA/HEB droits à `90°`.
+- [ ] valider dans Fusion la position des deux cornières V1.22.0 sur les deux faces de l'âme secondaire et la face de l'âme principale.
+- [ ] après cette validation seulement, créer les deux composants de cornière indépendants sans trou ni boulon.
+- [ ] ajouter ensuite les perçages paramétrés, puis les boulons, en conservant une phase de validation séparée pour chaque ajout.
+- [ ] intégrer le jeu entre secondaire et principale ainsi que les distances aux bords uniquement après définition des valeurs souhaitées par l'utilisateur ou le calculateur structure.
 - [ ] ajouter de nouveaux onglets de paramètres uniquement lorsque de nouvelles catégories de réglages auront été validées.
 - [ ] valider séparément dans Fusion cornière→cornière, cornière→té, té→cornière et té→té avant d'ajouter d'autres profils ouverts.
-- [ ] ajouter séparément les platines, boulons et assemblages composés.
+- [ ] ajouter séparément les platines et les autres assemblages composés.
 
 ## Qualité
 

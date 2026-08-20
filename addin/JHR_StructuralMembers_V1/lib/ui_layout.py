@@ -10,6 +10,8 @@ CREATE_PANEL_ID = "EI_JHR_StructuralCreatePanel"
 CREATE_PANEL_NAME = "CRÉER"
 MODIFY_PANEL_ID = "EI_JHR_StructuralModifyPanel"
 MODIFY_PANEL_NAME = "MODIFIER"
+ASSEMBLY_PANEL_ID = "EI_JHR_StructuralAssemblyPanel"
+ASSEMBLY_PANEL_NAME = "ASSEMBLAGES"
 SETTINGS_PANEL_ID = "EI_JHR_StructuralSettingsPanel"
 SETTINGS_PANEL_NAME = "PARAMÈTRES"
 
@@ -47,10 +49,16 @@ def start(ui):
     modify_panel = tab.toolbarPanels.itemById(MODIFY_PANEL_ID)
     if not modify_panel:
         modify_panel = tab.toolbarPanels.add(MODIFY_PANEL_ID, MODIFY_PANEL_NAME)
+    assembly_panel = tab.toolbarPanels.itemById(ASSEMBLY_PANEL_ID)
+    if not assembly_panel:
+        assembly_panel = tab.toolbarPanels.add(
+            ASSEMBLY_PANEL_ID,
+            ASSEMBLY_PANEL_NAME,
+        )
     settings_panel = tab.toolbarPanels.itemById(SETTINGS_PANEL_ID)
     if not settings_panel:
         settings_panel = tab.toolbarPanels.add(SETTINGS_PANEL_ID, SETTINGS_PANEL_NAME)
-    if not create_panel or not modify_panel or not settings_panel:
+    if not create_panel or not modify_panel or not assembly_panel or not settings_panel:
         raise RuntimeError("Fusion n'a pas pu créer les groupes de l'onglet STRUCTURE JHR.")
     return tab
 
@@ -60,7 +68,12 @@ def stop(ui):
     tab = _tab(ui)
     if not tab:
         return
-    for panel_id in (SETTINGS_PANEL_ID, MODIFY_PANEL_ID, CREATE_PANEL_ID):
+    for panel_id in (
+        SETTINGS_PANEL_ID,
+        ASSEMBLY_PANEL_ID,
+        MODIFY_PANEL_ID,
+        CREATE_PANEL_ID,
+    ):
         toolbar_panel = tab.toolbarPanels.itemById(panel_id)
         if toolbar_panel and toolbar_panel.isValid:
             toolbar_panel.deleteMe()
