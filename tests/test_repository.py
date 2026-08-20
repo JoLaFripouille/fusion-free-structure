@@ -61,7 +61,7 @@ class RepositoryTests(unittest.TestCase):
             settings_source,
         )
         self.assertIn(
-            'COMMAND_NAME = "Assemblage par cornières — aperçu V{}".format(addin_info.VERSION)',
+            'COMMAND_NAME = "Assemblage par cornières V{}".format(addin_info.VERSION)',
             cleat_source,
         )
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
@@ -148,7 +148,7 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn("SolidModifyPanel", source)
             self.assertNotIn("SolidScriptsAddinsPanel", source)
 
-    def test_double_angle_connection_phase_is_preview_only(self):
+    def test_double_angle_connection_creates_components_and_aligned_holes(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
             encoding="utf-8"
         )
@@ -164,6 +164,9 @@ class RepositoryTests(unittest.TestCase):
         preview_source = (
             ADDIN / "lib" / "angle_cleat_preview.py"
         ).read_text(encoding="utf-8")
+        creator_source = (
+            ADDIN / "lib" / "angle_cleat_creator.py"
+        ).read_text(encoding="utf-8")
         self.assertIn("preview_angle_cleat.start()", entry_source)
         self.assertIn("preview_angle_cleat.stop()", entry_source)
         self.assertEqual(command_source.count('addSelectionFilter("Occurrences")'), 2)
@@ -172,9 +175,14 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('ANGLE_PROFILE_ID = "angleCleatProfile"', command_source)
         self.assertIn('CLEAT_HEIGHT_ID = "angleCleatHeight"', command_source)
         self.assertIn('VERTICAL_OFFSET_ID = "angleCleatVerticalOffset"', command_source)
-        self.assertIn("PHASE D'APERÇU UNIQUEMENT", command_source)
+        self.assertIn('HOLE_DIAMETER_ID = "angleCleatHoleDiameter"', command_source)
+        self.assertIn('HOLE_ROW_COUNT_ID = "angleCleatHoleRowCount"', command_source)
+        self.assertIn('PRIMARY_GAUGE_ID = "angleCleatPrimaryGauge"', command_source)
+        self.assertIn('SECONDARY_GAUGE_ID = "angleCleatSecondaryGauge"', command_source)
+        self.assertIn("CRÉATION PARAMÉTRIQUE", command_source)
         self.assertNotIn("bRepBodies.add", command_source)
         self.assertNotIn("extrudeFeatures", command_source)
+        self.assertIn("create_double_angle_assembly", command_source)
         self.assertIn("I_H_FAMILIES", builder_source)
         self.assertIn("allow_arc=False", builder_source)
         self.assertIn("web_face_cut_point", builder_source)
@@ -182,7 +190,14 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("RIGHT_ANGLE_TOLERANCE_DEGREES", geometry_source)
         self.assertIn("profile_contours_from_outer_corner_cm", geometry_source)
         self.assertIn("CLEAT_PREVIEW_YELLOW", preview_source)
+        self.assertIn("HOLE_PREVIEW_RED", preview_source)
         self.assertIn("build_swept_side_mesh", preview_source)
+        self.assertIn("occurrences.addNewComponent", creator_source)
+        self.assertIn("createDXF2DImportOptions", creator_source)
+        self.assertIn("component.features.holeFeatures", creator_source)
+        self.assertIn("setPositionBySketchPoints", creator_source)
+        self.assertIn("setAllExtent", creator_source)
+        self.assertIn("participantBodies = [body]", creator_source)
 
     def test_local_default_values_are_managed_and_used_by_operations(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(

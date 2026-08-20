@@ -56,6 +56,24 @@ class PreviewGeometryTests(unittest.TestCase):
         self.assertLess(max(triangles), coordinate_count)
         self.assertLess(max(wire), coordinate_count)
 
+    def test_hole_preview_circle_is_closed_in_the_requested_plane(self):
+        coordinates, indices = preview_geometry.build_circle_wire(
+            center=(1.0, 2.0, 3.0),
+            first_axis=(1.0, 0.0, 0.0),
+            second_axis=(0.0, 0.0, 1.0),
+            radius=0.9,
+            segments=24,
+        )
+        self.assertEqual(len(coordinates), 24 * 3)
+        self.assertEqual(len(indices), 24 * 2)
+        self.assertEqual(indices[-2:], [23, 0])
+        self.assertTrue(
+            all(
+                abs(coordinates[index] - 2.0) < 1e-9
+                for index in range(1, len(coordinates), 3)
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

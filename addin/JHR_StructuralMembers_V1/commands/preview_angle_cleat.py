@@ -6,20 +6,31 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from ..lib import addin_info, angle_cleat_builder, profile_catalog, ui_layout
+from ..lib import (
+    addin_info,
+    angle_cleat_builder,
+    angle_cleat_creator,
+    profile_catalog,
+    ui_layout,
+)
 from ..lib.angle_cleat_preview import DoubleAnglePreviewManager
 
 
 COMMAND_ID = "EI_JHR_PreviewDoubleAngleCleatV1"
-COMMAND_NAME = "Assemblage par cornières — aperçu V{}".format(addin_info.VERSION)
+COMMAND_NAME = "Assemblage par cornières V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
-    "Prévisualise deux cornières boulonnées de part et d'autre de l'âme secondaire."
+    "Crée deux cornières percées de part et d'autre de l'âme secondaire."
 )
 PRIMARY_SELECTION_ID = "angleCleatPrimaryMember"
 SECONDARY_SELECTION_ID = "angleCleatSecondaryMember"
 ANGLE_PROFILE_ID = "angleCleatProfile"
 CLEAT_HEIGHT_ID = "angleCleatHeight"
 VERTICAL_OFFSET_ID = "angleCleatVerticalOffset"
+HOLE_DIAMETER_ID = "angleCleatHoleDiameter"
+HOLE_ROW_COUNT_ID = "angleCleatHoleRowCount"
+HOLE_PITCH_ID = "angleCleatHolePitch"
+PRIMARY_GAUGE_ID = "angleCleatPrimaryGauge"
+SECONDARY_GAUGE_ID = "angleCleatSecondaryGauge"
 REPORT_ID = "angleCleatReport"
 PANEL_IDS = (ui_layout.ASSEMBLY_PANEL_ID,)
 
@@ -80,6 +91,24 @@ def _vertical_offset_value(inputs):
     return value_input.value
 
 
+def _positive_distance_value(inputs, input_id, label):
+    value_input = inputs.itemById(input_id)
+    if not value_input or not value_input.isValidExpression:
+        raise ValueError("{} n'est pas valide.".format(label))
+    if value_input.value <= 0.0:
+        raise ValueError("{} doit être strictement positif.".format(label))
+    return value_input.value
+
+
+def _hole_row_count(inputs):
+    value_input = adsk.core.IntegerSpinnerCommandInput.cast(
+        inputs.itemById(HOLE_ROW_COUNT_ID)
+    )
+    if not value_input or value_input.value < 1:
+        raise ValueError("Le nombre de rangées de perçages est invalide.")
+    return int(value_input.value)
+
+
 def _evaluate(inputs, profiles):
     app, _ = _app_and_ui()
     design = adsk.fusion.Design.cast(app.activeProduct)
@@ -100,6 +129,27 @@ def _evaluate(inputs, profiles):
         angle_profile=_selected_angle_profile(inputs, profiles),
         cleat_height_cm=_height_value(inputs),
         vertical_offset_cm=_vertical_offset_value(inputs),
+        hole_diameter_cm=_positive_distance_value(
+            inputs,
+            HOLE_DIAMETER_ID,
+            "Le diamètre des perçages",
+        ),
+        hole_row_count=_hole_row_count(inputs),
+        hole_pitch_cm=_positive_distance_value(
+            inputs,
+            HOLE_PITCH_ID,
+            "L'entraxe vertical",
+        ),
+        primary_hole_gauge_cm=_positive_distance_value(
+            inputs,
+            PRIMARY_GAUGE_ID,
+            "La distance de perçage sur la branche principale",
+        ),
+        secondary_hole_gauge_cm=_positive_distance_value(
+            inputs,
+            SECONDARY_GAUGE_ID,
+            "La distance de perçage sur la branche secondaire",
+        ),
     )
     return design, evaluation
 
@@ -124,11 +174,36 @@ def _success_report(evaluation):
                 - evaluation.secondary_profile_geometry.web_min_x_mm
             ),
         ),
+        (
+            "Perçages",
+            "Ø {:.3f} mm — {} rangée(s)".format(
+                evaluation.hole_pattern.diameter_cm * 10.0,
+                evaluation.hole_pattern.row_count,
+            ),
+        ),
+        (
+            "Entraxe vertical",
+            "{:.3f} mm".format(evaluation.hole_pattern.pitch_cm * 10.0),
+        ),
+        (
+            "Distance branche principale",
+            "{:.3f} mm".format(
+                evaluation.hole_pattern.primary_gauge_cm * 10.0
+            ),
+        ),
+        (
+            "Distance branche secondaire",
+            "{:.3f} mm".format(
+                evaluation.hole_pattern.secondary_gauge_cm * 10.0
+            ),
+        ),
     )
     content = [
-        "<b>PHASE D'APERÇU UNIQUEMENT</b><br>",
+        "<b>CRÉATION PARAMÉTRIQUE</b><br>",
         "Jaune : deux cornières issues du DXF sélectionné.<br>",
-        "OK fermera ce test sans créer de pièce, trou ou boulon et sans modifier les barres.<br><br>",
+        "Rouge : centres et diamètres des futurs perçages.<br>",
+        "OK créera deux composants et les trous alignés dans les cornières et les deux âmes.<br>",
+        "Aucun boulon n'est créé et ces valeurs ne constituent pas un dimensionnement de résistance.<br><br>",
     ]
     for label, value in rows:
         content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
@@ -205,6 +280,51 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 adsk.core.ValueInput.createByString("0 mm"),
             )
 
+            diameter = inputs.addValueInput(
+                HOLE_DIAMETER_ID,
+                "Diamètre des perçages",
+                "mm",
+                adsk.core.ValueInput.createByString("18 mm"),
+            )
+            diameter.minimumValue = 0.0
+            diameter.isMinimumInclusive = False
+
+            inputs.addIntegerSpinnerCommandInput(
+                HOLE_ROW_COUNT_ID,
+                "Nombre de rangées",
+                1,
+                6,
+                1,
+                2,
+            )
+
+            pitch = inputs.addValueInput(
+                HOLE_PITCH_ID,
+                "Entraxe vertical",
+                "mm",
+                adsk.core.ValueInput.createByString("50 mm"),
+            )
+            pitch.minimumValue = 0.0
+            pitch.isMinimumInclusive = False
+
+            primary_gauge = inputs.addValueInput(
+                PRIMARY_GAUGE_ID,
+                "Distance sur branche principale",
+                "mm",
+                adsk.core.ValueInput.createByString("30 mm"),
+            )
+            primary_gauge.minimumValue = 0.0
+            primary_gauge.isMinimumInclusive = False
+
+            secondary_gauge = inputs.addValueInput(
+                SECONDARY_GAUGE_ID,
+                "Distance sur branche secondaire",
+                "mm",
+                adsk.core.ValueInput.createByString("30 mm"),
+            )
+            secondary_gauge.minimumValue = 0.0
+            secondary_gauge.isMinimumInclusive = False
+
             report = inputs.addTextBoxCommandInput(
                 REPORT_ID,
                 "Contrôle",
@@ -240,11 +360,11 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             destroy = DestroyHandler(preview_manager)
             command.destroy.add(destroy)
             _handlers.append(destroy)
-            _log("Commande d'aperçu ouverte")
+            _log("Commande de création ouverte")
         except Exception:
             _, ui = _app_and_ui()
             ui.messageBox(
-                "Échec de l'ouverture de l'aperçu d'assemblage:\n{}"
+                "Échec de l'ouverture de l'assemblage par cornières:\n{}"
                 .format(traceback.format_exc())
             )
 
@@ -265,6 +385,11 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             ANGLE_PROFILE_ID,
             CLEAT_HEIGHT_ID,
             VERTICAL_OFFSET_ID,
+            HOLE_DIAMETER_ID,
+            HOLE_ROW_COUNT_ID,
+            HOLE_PITCH_ID,
+            PRIMARY_GAUGE_ID,
+            SECONDARY_GAUGE_ID,
         ):
             _refresh(
                 event_args.inputs,
@@ -321,30 +446,43 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
         try:
-            _, evaluation = _evaluate(
+            design, evaluation = _evaluate(
                 event_args.command.commandInputs,
                 self._profiles,
             )
             self._preview_manager.clear()
+            result = angle_cleat_creator.create_double_angle_assembly(
+                design.rootComponent,
+                evaluation,
+            )
             _log(
-                "Aperçu validé sans création : principale={}, secondaire={}, cornière={}, hauteur={} mm"
+                "Assemblage créé : principale={}, secondaire={}, cornière={}, hauteur={} mm, trous=Ø{} mm x {} rangées"
                 .format(
                     evaluation.primary_occurrence.component.name,
                     evaluation.secondary_occurrence.component.name,
                     evaluation.angle_profile.designation,
                     evaluation.cleat_height_cm * 10.0,
+                    evaluation.hole_pattern.diameter_cm * 10.0,
+                    evaluation.hole_pattern.row_count,
                 )
             )
             _, ui = _app_and_ui()
             ui.messageBox(
-                "Aperçu validé.\n\n"
-                "Cette phase n'a créé aucune pièce, aucun trou et aucun boulon."
+                "Assemblage créé.\n\n"
+                "Composants :\n- {}\n- {}\n\n"
+                "Perçages traversants ajoutés dans les deux cornières, "
+                "l'âme principale et l'âme secondaire.\n"
+                "Aucun boulon n'a été créé."
+                .format(
+                    result.left_occurrence.component.name,
+                    result.right_occurrence.component.name,
+                )
             )
         except Exception as error:
             event_args.executeFailed = True
             _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
             _, ui = _app_and_ui()
-            ui.messageBox("L'aperçu a été annulé :\n{}".format(error))
+            ui.messageBox("La création a été annulée :\n{}".format(error))
 
 
 class DestroyHandler(adsk.core.CommandEventHandler):

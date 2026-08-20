@@ -68,9 +68,10 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] séparer dans la V1.20.2 le jeu sous l'âme secondaire du jeu autour du congé principal, avec des champs propres aux cornières/tés.
 - [x] ajouter dans la V1.21.0 une fenêtre `Paramètres > Valeurs par défaut`, persistée localement et organisée par opération et groupe de profils.
 - [x] ajouter dans la V1.22.0 un aperçu non destructif de deux cornières égales autour de l'âme secondaire, limité aux IPE/HEA/HEB droits à `90°`.
-- [ ] valider dans Fusion la position des deux cornières V1.22.0 sur les deux faces de l'âme secondaire et la face de l'âme principale.
-- [ ] après cette validation seulement, créer les deux composants de cornière indépendants sans trou ni boulon.
-- [ ] ajouter ensuite les perçages paramétrés, puis les boulons, en conservant une phase de validation séparée pour chaque ajout.
+- [x] valider dans Fusion la position des deux cornières V1.22.0 sur les deux faces de l'âme secondaire et la face de l'âme principale.
+- [x] créer dans la V1.23.0 deux composants de cornière indépendants et les perçages paramétrés alignés dans les deux âmes, à la demande de l'utilisateur.
+- [ ] valider dans Fusion la création et les perçages V1.23.0 avant d'ajouter les boulons.
+- [ ] ajouter ensuite les boulons dans une phase distincte.
 - [ ] intégrer le jeu entre secondaire et principale ainsi que les distances aux bords uniquement après définition des valeurs souhaitées par l'utilisateur ou le calculateur structure.
 - [ ] ajouter de nouveaux onglets de paramètres uniquement lorsque de nouvelles catégories de réglages auront été validées.
 - [ ] valider séparément dans Fusion cornière→cornière, cornière→té, té→cornière et té→té avant d'ajouter d'autres profils ouverts.

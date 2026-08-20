@@ -4,13 +4,14 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
-### ISSUE-026 — Premier assemblage par cornières limité à la prévisualisation
+### ISSUE-026 — Création et perçages du premier assemblage par cornières à valider
 
-- **État :** aperçu V1.22.0 prêt pour un premier essai Fusion ; aucune pièce d'assemblage n'est encore créée.
-- **Périmètre :** une principale et une secondaire IPE/HEA/HEB droites, axes raccordés à `90°`, cornière égale européenne, hauteur et décalage vertical réglables.
-- **Comportement volontaire :** deux cornières jaunes sont placées symétriquement sur les faces opposées de l'âme secondaire et contre la face de l'âme principale tournée vers elle. `OK` ferme la fenêtre sans ajouter de composant, de corps, de trou, de boulon ni d'entrée d'historique.
-- **Hors périmètre :** calcul de résistance, choix automatique d'une cornière, angles obliques, chemins cintrés, profils non I/H, création réelle, perçages et boulons.
-- **Validation prévue :** utiliser une IPE principale et une IPE secondaire déjà grugée, sans rotation ni miroir, choisir `50 × 50 — ép. 5 mm`, `100 mm` de hauteur et `0 mm` de décalage, puis contrôler visuellement les quatre faces de contact avant toute création réelle.
+- **État :** position des deux aperçus V1.22.0 validée dans Fusion ; création et perçages V1.23.0 prêts pour un premier essai limité.
+- **Périmètre :** une principale et une secondaire IPE/HEA/HEB droites, axes raccordés à `90°`, cornière égale européenne, hauteur, décalage vertical et motif de perçage réglables.
+- **Comportement attendu :** deux composants de cornière reprennent exactement l'aperçu jaune. Les cercles rouges deviennent des trous traversants alignés dans les deux branches des cornières, l'âme principale et l'âme secondaire.
+- **Sécurité :** les perçages sont refusés s'ils sortent d'une branche, de la hauteur de cornière ou de la hauteur libre d'une âme. Une erreur de création doit retirer tous les trous et composants de la tentative.
+- **Hors périmètre :** calcul de résistance, choix automatique d'une cornière, boulons, angles obliques, chemins cintrés et profils non I/H.
+- **Validation prévue :** réaliser uniquement le test 27 avec les valeurs proposées, contrôler l'alignement et mesurer le diamètre avant d'essayer une autre section.
 
 ### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
 

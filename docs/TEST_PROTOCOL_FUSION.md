@@ -472,6 +472,27 @@ Effectuer uniquement ce cas simple. Ne pas créer d'autres assemblages avant d'a
 15. Vérifier qu'aucun composant, corps, trou, boulon ou élément d'historique n'a été ajouté et que les deux barres sont inchangées.
 16. Refaire uniquement un essai négatif avec des axes à `60°` : le rapport doit refuser clairement ce cas et `OK` doit rester inactif.
 
+## Test 27 — Création des cornières et perçages alignés
+
+Effectuer d'abord un seul assemblage avec les valeurs proposées. Ne pas ajouter de boulon ni essayer un angle oblique pendant ce test.
+
+1. Reprendre le document du test 26 avec une principale IPE 200, une secondaire IPE 160 déjà grugée, deux axes droits à `90°`, ancrage `C`, rotation `0°` et aucun miroir.
+2. Arrêter puis exécuter le complément et vérifier la version `V1.23.0`.
+3. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.23.0`.
+4. Vérifier les valeurs proposées : cornière `50 × 50 — ép. 5 mm`, hauteur `100 mm`, décalage `0 mm`, trous `Ø18 mm`, deux rangées, entraxe vertical `50 mm` et distances `30 mm` sur les deux branches.
+5. Sélectionner la principale puis la secondaire. Vérifier les deux cornières jaunes et quatre rangées de cercles rouges par cornière : deux sur la branche tournée vers la principale et deux sur celle tournée vers la secondaire.
+6. Modifier temporairement le diamètre à `16 mm`, puis l'entraxe à `40 mm`. Vérifier que les cercles rouges changent immédiatement sans déplacer les cornières. Revenir à `Ø18 mm` et `50 mm`.
+7. Essayer temporairement une distance de `45 mm` sur une branche avec `Ø18 mm` : le rapport doit signaler que le trou sort de la branche et `OK` doit rester inactif. Revenir à `30 mm`.
+8. Cliquer sur `OK` une seule fois.
+9. Vérifier la création de deux composants distincts nommés `ASSEMBLAGE_CORNIERES_001_GAUCHE` et `ASSEMBLAGE_CORNIERES_001_DROITE`, chacun contenant un corps unique issu du DXF choisi.
+10. Vérifier que les deux corps possèdent le même matériau physique que la barre secondaire.
+11. Mesurer un trou : diamètre `18 mm`. Mesurer l'entraxe vertical : `50 mm`. Mesurer chaque distance depuis le coin extérieur de la cornière : `30 mm`.
+12. Masquer successivement les deux cornières et contrôler les perçages correspondants dans l'âme principale : deux colonnes de deux trous, symétriques autour de l'âme secondaire.
+13. Masquer la principale et contrôler l'âme secondaire : deux trous traversants communs aux deux cornières, alignés avec les quatre trous des branches secondaires.
+14. Vérifier dans l'historique la présence des extrusions et perçages, sans composant de boulon.
+15. Annuler l'opération complète avec l'historique Fusion, puis la rétablir ; les deux composants et tous les trous doivent disparaître puis revenir ensemble sans erreur.
+16. Faire un seul essai d'échec en déplaçant le motif hors de la hauteur libre de l'âme : `OK` doit rester inactif et aucune nouvelle entité ne doit apparaître.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -509,6 +530,7 @@ Effectuer uniquement ce cas simple. Ne pas créer d'autres assemblages avant d'a
 - deux volumes rouges inchangés pour un profil I/H ; pour une cornière/un té, un retrait droit limité à l'épaisseur et, seulement face à un congé intérieur principal, un dégagement rouge arrondi séparé. Tous se terminent sur la géométrie de la branche verticale principale, avec un éventuel prolongement vert correct avant validation.
 - après `OK`, un corps secondaire unique, la matière réellement grugée et la branche verticale coupée contre l'appui principal avec les jeux saisis.
 - valeurs par défaut conservées après fermeture et redémarrage du complément, appliquées selon la famille secondaire et modifiables ponctuellement sans changer le fichier local.
-- deux cornières d'assemblage jaunes, symétriques sur l'âme secondaire et en contact avec les deux âmes, sans aucune création réelle pendant la phase V1.22.0.
+- deux cornières d'assemblage jaunes, symétriques sur l'âme secondaire et en contact avec les deux âmes pendant la phase V1.22.0.
+- en V1.23.0, deux composants de cornière indépendants reproduisant cet aperçu et des perçages traversants alignés, conformes aux valeurs saisies, sans boulon ni dimensionnement automatique de résistance.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

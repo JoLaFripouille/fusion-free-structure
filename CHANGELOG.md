@@ -4,7 +4,25 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
-## [1.22.0] - En validation
+## [1.23.0] - En validation
+
+### Ajouté
+
+- création réelle de deux composants de cornière indépendants depuis le DXF sélectionné, avec matériau physique repris sur la barre secondaire ;
+- perçages traversants alignés dans les deux branches de chaque cornière, dans l'âme principale et dans l'âme secondaire ;
+- réglages dynamiques du diamètre, du nombre de rangées, de l'entraxe vertical et des distances de perçage sur les deux branches ;
+- cercles rouges dans l'aperçu, calculés à partir des mêmes centres et du même diamètre que les trous finaux ;
+- noms prévisibles `ASSEMBLAGE_CORNIERES_###_GAUCHE/DROITE` et attributs relatifs décrivant la section et le motif de perçage.
+
+### Sécurisé
+
+- refus avant création lorsque le trou sort d'une branche, de la hauteur de cornière ou de la hauteur libre d'une âme ;
+- les valeurs proposées (`Ø18`, deux rangées, entraxe `50 mm`, distances `30 mm`) sont identifiées comme valeurs de dessin modifiables et non comme un dimensionnement de résistance ;
+- si Fusion refuse une extrusion ou un perçage, les trous déjà ajoutés aux barres et les deux nouveaux composants sont supprimés dans l'ordre inverse ;
+- aucun boulon n'est créé dans cette étape ; les angles obliques, chemins cintrés et profils hors IPE/HEA/HEB restent refusés ;
+- 145 tests automatiques couvrent le repère direct des deux composants, le motif centré, l'alignement des trous, les limites de matière, l'aperçu rouge et les régressions existantes.
+
+## [1.22.0] - Validée dans Fusion
 
 ### Ajouté
 

@@ -80,3 +80,27 @@ def build_wire_indices(profile_count, frame_count):
                 (frame_index + 1) * profile_count + point_index,
             ))
     return indices
+
+
+def build_circle_wire(center, first_axis, second_axis, radius, segments=32):
+    """Construit un cercle 3D fermé pour matérialiser un futur perçage."""
+    import math
+
+    if radius <= 0.0 or segments < 8:
+        raise ValueError("Le cercle d'aperçu du perçage est invalide.")
+    coordinates = []
+    for index in range(segments):
+        angle = 2.0 * math.pi * index / segments
+        first = radius * math.cos(angle)
+        second = radius * math.sin(angle)
+        coordinates.extend(
+            (
+                center[0] + first_axis[0] * first + second_axis[0] * second,
+                center[1] + first_axis[1] * first + second_axis[1] * second,
+                center[2] + first_axis[2] * first + second_axis[2] * second,
+            )
+        )
+    indices = []
+    for index in range(segments):
+        indices.extend((index, (index + 1) % segments))
+    return coordinates, indices

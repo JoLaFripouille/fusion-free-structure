@@ -3,11 +3,12 @@ from __future__ import annotations
 import adsk.core
 import adsk.fusion
 
-from . import preview_geometry
+from . import angle_cleat_geometry, joint_geometry, preview_geometry
 
 
 CLEAT_PREVIEW_YELLOW = (255, 205, 0)
 CLEAT_PREVIEW_EDGE = (170, 105, 0)
+HOLE_PREVIEW_RED = (235, 55, 45)
 
 
 def _color_effect(color):
@@ -37,6 +38,7 @@ class DoubleAnglePreviewManager:
         self._group = group
         yellow = _color_effect(CLEAT_PREVIEW_YELLOW)
         edge = _color_effect(CLEAT_PREVIEW_EDGE)
+        hole_red = _color_effect(HOLE_PREVIEW_RED)
         try:
             for placement in evaluation.placements:
                 for contour_index, contour in enumerate(
@@ -72,6 +74,46 @@ class DoubleAnglePreviewManager:
                     lines.color = edge
                     lines.weight = 2.0
                     lines.isSelectable = False
+
+                primary_centers, secondary_centers = (
+                    angle_cleat_geometry.hole_centers_for_placement(
+                        placement,
+                        evaluation.hole_pattern,
+                    )
+                )
+                bottom = placement.frames[0][0]
+                top = placement.frames[-1][0]
+                vertical = joint_geometry.normalize(
+                    joint_geometry.subtract(top, bottom)
+                )
+                outward = placement.frames[0][1]
+                toward_secondary = placement.frames[0][2]
+                for branch, centers, first_axis in (
+                    ("principale", primary_centers, outward),
+                    ("secondaire", secondary_centers, toward_secondary),
+                ):
+                    for row_index, center in enumerate(centers, start=1):
+                        coordinates, indices = preview_geometry.build_circle_wire(
+                            center,
+                            first_axis,
+                            vertical,
+                            evaluation.hole_pattern.diameter_cm / 2.0,
+                        )
+                        graphics_coordinates = (
+                            adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
+                        )
+                        ring = group.addLines(
+                            graphics_coordinates,
+                            indices,
+                            False,
+                        )
+                        ring.name = (
+                            "Perçage rouge — cornière {} branche {} rangée {}"
+                            .format(placement.side, branch, row_index)
+                        )
+                        ring.color = hole_red
+                        ring.weight = 3.0
+                        ring.isSelectable = False
         except Exception:
             self.clear()
             raise

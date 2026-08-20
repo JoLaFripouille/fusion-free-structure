@@ -1,0 +1,388 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import adsk.core
+import adsk.fusion
+
+from . import (
+    addin_info,
+    angle_cleat_geometry,
+    joint_builder,
+    joint_geometry,
+    member_builder,
+)
+
+
+ATTRIBUTE_GROUP = "EI_JHR_AngleCleat"
+FACE_ALIGNMENT_TOLERANCE = 0.995
+
+
+@dataclass(frozen=True)
+class DoubleAngleCreationResult:
+    left_occurrence: object
+    right_occurrence: object
+    primary_hole_feature: object
+    secondary_hole_feature: object
+
+
+def _point_tuple(point):
+    return float(point.x), float(point.y), float(point.z)
+
+
+def _vector_tuple(vector):
+    return float(vector.x), float(vector.y), float(vector.z)
+
+
+def _next_assembly_index(root_component):
+    prefix = "ASSEMBLAGE_CORNIERES_"
+    used = set()
+    for occurrence in root_component.allOccurrences:
+        name = occurrence.component.name
+        if not name.startswith(prefix):
+            continue
+        suffix = name[len(prefix):].split("_", 1)[0]
+        if suffix.isdigit():
+            used.add(int(suffix))
+    index = 1
+    while index in used:
+        index += 1
+    return index
+
+
+def _matrix_for_frame(frame):
+    matrix = adsk.core.Matrix3D.create()
+    if not matrix.setWithCoordinateSystem(
+        adsk.core.Point3D.create(*frame.origin),
+        adsk.core.Vector3D.create(*frame.x_axis),
+        adsk.core.Vector3D.create(*frame.y_axis),
+        adsk.core.Vector3D.create(*frame.z_axis),
+    ):
+        raise RuntimeError("Fusion n'a pas pu préparer le repère de la cornière.")
+    return matrix
+
+
+def _inverse_occurrence_transform(occurrence):
+    transform = occurrence.transform2.copy()
+    if not transform.invert():
+        raise RuntimeError("Le repère du composant n'est pas inversible.")
+    return transform
+
+
+def _world_to_local_point(occurrence, point):
+    local = adsk.core.Point3D.create(*point)
+    if not local.transformBy(_inverse_occurrence_transform(occurrence)):
+        raise RuntimeError("Fusion n'a pas pu convertir un centre de perçage.")
+    return local
+
+
+def _import_angle_sketch(component, profile):
+    app = adsk.core.Application.get()
+    options = app.importManager.createDXF2DImportOptions(
+        str(profile.dxf_path),
+        component.xYConstructionPlane,
+    )
+    if not options:
+        raise RuntimeError(
+            "Fusion n'a pas pu préparer l'import de la cornière {}."
+            .format(profile.designation)
+        )
+    options.isViewFit = False
+    options.isSingleSketchResult = True
+    options.position = adsk.core.Point2D.create(
+        *profile.import_offset_cm_for_anchor("BL")
+    )
+    imported = app.importManager.importToTarget2(options, component)
+    sketches = []
+    if imported:
+        for index in range(imported.count):
+            sketch = adsk.fusion.Sketch.cast(imported.item(index))
+            if sketch:
+                sketches.append(sketch)
+    if len(sketches) != 1:
+        raise RuntimeError(
+            "L'import de la cornière devait produire une seule esquisse ({} détectée(s))."
+            .format(len(sketches))
+        )
+    sketch = sketches[0]
+    sketch.name = "ESQUISSE_CORNIERE_DXF_ANCRAGE_BL"
+    member_builder._validate_profile_sketch(sketch, profile, "BL")
+    return sketch, member_builder._select_material_profile(sketch, profile)
+
+
+def _create_angle_body(component, occurrence, profile, height_cm, material):
+    sketch, section = _import_angle_sketch(component, profile)
+    extrudes = component.features.extrudeFeatures
+    extrude_input = extrudes.createInput(
+        section,
+        adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
+    )
+    if not extrude_input:
+        raise RuntimeError("Fusion n'a pas pu préparer l'extrusion de la cornière.")
+    extrude_input.creationOccurrence = occurrence
+    extent = adsk.fusion.DistanceExtentDefinition.create(
+        adsk.core.ValueInput.createByReal(float(height_cm))
+    )
+    if not extrude_input.setOneSideExtent(
+        extent,
+        adsk.fusion.ExtentDirections.PositiveExtentDirection,
+    ):
+        raise RuntimeError("Fusion n'a pas pu orienter l'extrusion de la cornière.")
+    feature = extrudes.add(extrude_input)
+    if not feature or feature.bodies.count != 1:
+        raise RuntimeError("La cornière n'a pas produit un corps unique.")
+    feature.name = "CORNIERE_EXTRUDEE"
+    body = feature.bodies.item(0)
+    body.name = "CORPS_CORNIERE_ASSEMBLAGE"
+    body.material = material
+    assigned = body.material
+    if not assigned or not assigned.isValid:
+        raise RuntimeError("Fusion n'a pas conservé le matériau sur la cornière.")
+    sketch.isVisible = False
+    return body
+
+
+def _planar_face_for_holes(body, occurrence, axis_world, centers_world):
+    proxy = body.createForAssemblyContext(occurrence) or body
+    axis = joint_geometry.normalize(axis_world)
+    reference = centers_world[0]
+    candidates = []
+    for index in range(proxy.faces.count):
+        face = proxy.faces.item(index)
+        if not adsk.core.Plane.cast(face.geometry):
+            continue
+        point = face.pointOnFace
+        if not point:
+            continue
+        success, normal = face.evaluator.getNormalAtPoint(point)
+        if not success:
+            continue
+        alignment = abs(
+            joint_geometry.dot(
+                joint_geometry.normalize(_vector_tuple(normal)),
+                axis,
+            )
+        )
+        if alignment < FACE_ALIGNMENT_TOLERANCE:
+            continue
+        station_error = abs(
+            joint_geometry.dot(
+                joint_geometry.subtract(_point_tuple(point), reference),
+                axis,
+            )
+        )
+        candidates.append((station_error, -alignment, face))
+    if not candidates:
+        raise RuntimeError("La face plane portant les perçages est introuvable.")
+    _, _, face = min(candidates, key=lambda item: (item[0], item[1]))
+    return face.nativeObject if face.nativeObject else face
+
+
+def _create_hole_group(
+    component,
+    occurrence,
+    body,
+    centers_world,
+    axis_world,
+    diameter_cm,
+    feature_name,
+    sketch_name,
+):
+    if not centers_world:
+        raise ValueError("Le groupe de perçages ne contient aucun centre.")
+    face = _planar_face_for_holes(
+        body,
+        occurrence,
+        axis_world,
+        centers_world,
+    )
+    sketch = component.sketches.add(face)
+    if not sketch:
+        raise RuntimeError("Fusion n'a pas pu créer l'esquisse des perçages.")
+    sketch.name = sketch_name
+    points = adsk.core.ObjectCollection.create()
+    for center_world in centers_world:
+        local_point = _world_to_local_point(occurrence, center_world)
+        sketch_point = sketch.sketchPoints.add(
+            sketch.modelToSketchSpace(local_point)
+        )
+        if not sketch_point:
+            sketch.deleteMe()
+            raise RuntimeError("Fusion n'a pas pu placer un centre de perçage.")
+        points.add(sketch_point)
+
+    holes = component.features.holeFeatures
+    failures = []
+    for label, direction in (
+        ("positive", adsk.fusion.ExtentDirections.PositiveExtentDirection),
+        ("négative", adsk.fusion.ExtentDirections.NegativeExtentDirection),
+    ):
+        try:
+            hole_input = holes.createSimpleInput(
+                adsk.core.ValueInput.createByReal(float(diameter_cm))
+            )
+            if not hole_input:
+                raise RuntimeError("entrée de perçage indisponible")
+            hole_input.creationOccurrence = occurrence
+            if not hole_input.setPositionBySketchPoints(points):
+                raise RuntimeError("centres de perçage refusés")
+            if not hole_input.setAllExtent(direction):
+                raise RuntimeError("profondeur traversante refusée")
+            hole_input.participantBodies = [body]
+            feature = holes.add(hole_input)
+            if not feature:
+                raise RuntimeError("fonction de perçage non créée")
+            feature.name = feature_name
+            sketch.isVisible = False
+            return feature, sketch
+        except Exception as error:
+            failures.append("direction {}: {}".format(label, error))
+    if sketch and sketch.isValid:
+        sketch.deleteMe()
+    raise RuntimeError(
+        "Fusion n'a pas pu créer les perçages traversants ({})"
+        .format(" ; ".join(failures))
+    )
+
+
+def _add_attributes(component, evaluation, side):
+    values = {
+        "assembly_type": "double_angle_cleat",
+        "side": side,
+        "profile": evaluation.angle_profile.designation,
+        "profile_source": evaluation.angle_profile.relative_path,
+        "height_mm": "{:.6f}".format(evaluation.cleat_height_cm * 10.0),
+        "vertical_offset_mm": "{:.6f}".format(
+            evaluation.vertical_offset_cm * 10.0
+        ),
+        "hole_diameter_mm": "{:.6f}".format(
+            evaluation.hole_pattern.diameter_cm * 10.0
+        ),
+        "hole_rows": str(evaluation.hole_pattern.row_count),
+        "hole_pitch_mm": "{:.6f}".format(
+            evaluation.hole_pattern.pitch_cm * 10.0
+        ),
+        "primary_gauge_mm": "{:.6f}".format(
+            evaluation.hole_pattern.primary_gauge_cm * 10.0
+        ),
+        "secondary_gauge_mm": "{:.6f}".format(
+            evaluation.hole_pattern.secondary_gauge_cm * 10.0
+        ),
+        "primary_component": evaluation.primary_occurrence.component.name,
+        "secondary_component": evaluation.secondary_occurrence.component.name,
+        "extension_version": addin_info.VERSION,
+    }
+    for name, value in values.items():
+        component.attributes.add(ATTRIBUTE_GROUP, name, value)
+
+
+def _delete_valid(entities):
+    for entity in reversed(entities):
+        try:
+            if entity and entity.isValid:
+                entity.deleteMe()
+        except Exception:
+            pass
+
+
+def create_double_angle_assembly(root_component, evaluation):
+    """Crée les deux cornières puis les trous alignés dans les quatre pièces."""
+    primary_body = joint_builder._single_body(
+        evaluation.primary_occurrence,
+        "principale",
+    )
+    secondary_body = joint_builder._single_body(
+        evaluation.secondary_occurrence,
+        "secondaire",
+    )
+    material = secondary_body.material
+    if not material or not material.isValid:
+        raise ValueError(
+            "Le matériau physique de la barre secondaire est invalide."
+        )
+
+    assembly_index = _next_assembly_index(root_component)
+    created_occurrences = []
+    created_on_members = []
+    angle_occurrences = []
+    try:
+        for placement in evaluation.placements:
+            rigid_frame = angle_cleat_geometry.rigid_frame_for_placement(placement)
+            occurrence = root_component.occurrences.addNewComponent(
+                _matrix_for_frame(rigid_frame)
+            )
+            created_occurrences.append(occurrence)
+            component = occurrence.component
+            component.name = "ASSEMBLAGE_CORNIERES_{:03d}_{}".format(
+                assembly_index,
+                placement.side.upper(),
+            )
+            body = _create_angle_body(
+                component,
+                occurrence,
+                evaluation.angle_profile,
+                evaluation.cleat_height_cm,
+                material,
+            )
+            primary_centers, secondary_centers = (
+                angle_cleat_geometry.hole_centers_for_placement(
+                    placement,
+                    evaluation.hole_pattern,
+                )
+            )
+            _create_hole_group(
+                component,
+                occurrence,
+                body,
+                primary_centers,
+                placement.frames[0][2],
+                evaluation.hole_pattern.diameter_cm,
+                "PERCAGES_VERS_AME_PRINCIPALE",
+                "CENTRES_PERCAGES_PRINCIPALE",
+            )
+            _create_hole_group(
+                component,
+                occurrence,
+                body,
+                secondary_centers,
+                placement.frames[0][1],
+                evaluation.hole_pattern.diameter_cm,
+                "PERCAGES_VERS_AME_SECONDAIRE",
+                "CENTRES_PERCAGES_SECONDAIRE",
+            )
+            _add_attributes(component, evaluation, placement.side)
+            angle_occurrences.append(occurrence)
+
+        primary_feature, primary_sketch = _create_hole_group(
+            evaluation.primary_occurrence.component,
+            evaluation.primary_occurrence,
+            primary_body,
+            evaluation.primary_hole_centers_world,
+            evaluation.geometry.plane_normal,
+            evaluation.hole_pattern.diameter_cm,
+            "PERCAGES_ASSEMBLAGE_CORNIERES_PRINCIPALE",
+            "CENTRES_ASSEMBLAGE_CORNIERES_PRINCIPALE",
+        )
+        created_on_members.extend((primary_sketch, primary_feature))
+
+        secondary_feature, secondary_sketch = _create_hole_group(
+            evaluation.secondary_occurrence.component,
+            evaluation.secondary_occurrence,
+            secondary_body,
+            evaluation.secondary_hole_centers_world,
+            evaluation.secondary_profile_x_axis,
+            evaluation.hole_pattern.diameter_cm,
+            "PERCAGES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
+            "CENTRES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
+        )
+        created_on_members.extend((secondary_sketch, secondary_feature))
+        return DoubleAngleCreationResult(
+            left_occurrence=angle_occurrences[0],
+            right_occurrence=angle_occurrences[1],
+            primary_hole_feature=primary_feature,
+            secondary_hole_feature=secondary_feature,
+        )
+    except Exception:
+        _delete_valid(created_on_members)
+        _delete_valid(created_occurrences)
+        raise

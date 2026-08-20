@@ -94,6 +94,87 @@ class AngleCleatGeometryTests(unittest.TestCase):
                 vertical_offset_cm=0.0,
             )
 
+    def test_rigid_frames_are_right_handed_and_follow_both_physical_heights(self):
+        placements = angle_cleat_geometry.build_double_angle_frames(
+            primary_web_face_point=(0.0, 0.3, 0.0),
+            secondary_profile_x_axis=(1.0, 0.0, 0.0),
+            vertical_axis=(0.0, 0.0, 1.0),
+            toward_secondary_axis=(0.0, 1.0, 0.0),
+            secondary_web_face_offsets_cm=(-0.25, 0.25),
+            cleat_height_cm=10.0,
+            vertical_offset_cm=0.0,
+        )
+        left = angle_cleat_geometry.rigid_frame_for_placement(placements[0])
+        right = angle_cleat_geometry.rigid_frame_for_placement(placements[1])
+        self.assertEqual(left.origin, placements[0].frames[-1][0])
+        self.assertEqual(left.z_axis, (0.0, 0.0, -1.0))
+        self.assertEqual(right.origin, placements[1].frames[0][0])
+        self.assertEqual(right.z_axis, (0.0, 0.0, 1.0))
+        for frame in (left, right):
+            self.assertEqual(
+                angle_cleat_geometry.joint_geometry.cross(
+                    frame.x_axis,
+                    frame.y_axis,
+                ),
+                frame.z_axis,
+            )
+
+    def test_default_hole_pattern_is_centered_and_stays_inside_a_50_mm_angle(self):
+        pattern = angle_cleat_geometry.build_hole_pattern(
+            cleat_height_cm=10.0,
+            angle_width_cm=5.0,
+            angle_height_cm=5.0,
+            diameter_cm=1.8,
+            row_count=2,
+            pitch_cm=5.0,
+            primary_gauge_cm=3.0,
+            secondary_gauge_cm=3.0,
+        )
+        self.assertEqual(pattern.row_positions_cm, (2.5, 7.5))
+        self.assertEqual(pattern.row_count, 2)
+
+    def test_hole_centers_are_aligned_through_both_angles_and_the_secondary_web(self):
+        placements = angle_cleat_geometry.build_double_angle_frames(
+            primary_web_face_point=(0.0, 0.3, 0.0),
+            secondary_profile_x_axis=(1.0, 0.0, 0.0),
+            vertical_axis=(0.0, 0.0, 1.0),
+            toward_secondary_axis=(0.0, 1.0, 0.0),
+            secondary_web_face_offsets_cm=(-0.25, 0.25),
+            cleat_height_cm=10.0,
+            vertical_offset_cm=0.0,
+        )
+        pattern = angle_cleat_geometry.build_hole_pattern(
+            10.0, 5.0, 5.0, 1.8, 2, 5.0, 3.0, 3.0
+        )
+        left = angle_cleat_geometry.hole_centers_for_placement(
+            placements[0], pattern
+        )
+        right = angle_cleat_geometry.hole_centers_for_placement(
+            placements[1], pattern
+        )
+        self.assertEqual(left[1][0][1:], right[1][0][1:])
+        self.assertEqual(left[1][1][1:], right[1][1][1:])
+        self.assertEqual(left[0][0], (-3.25, 0.3, -2.5))
+        self.assertEqual(right[0][0], (3.25, 0.3, -2.5))
+
+    def test_invalid_hole_patterns_are_rejected_before_fusion_creation(self):
+        with self.assertRaisesRegex(ValueError, "sort de la branche"):
+            angle_cleat_geometry.build_hole_pattern(
+                10.0, 5.0, 5.0, 1.8, 2, 5.0, 4.5, 3.0
+            )
+        with self.assertRaisesRegex(ValueError, "motif vertical"):
+            angle_cleat_geometry.build_hole_pattern(
+                6.0, 5.0, 5.0, 1.8, 2, 5.0, 3.0, 3.0
+            )
+        with self.assertRaisesRegex(ValueError, "âme secondaire"):
+            angle_cleat_geometry.validate_hole_rows_in_web(
+                (-3.0, 3.0),
+                0.9,
+                -3.73,
+                3.73,
+                "secondaire",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
