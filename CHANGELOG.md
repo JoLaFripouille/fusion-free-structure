@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.23.5] - En validation
+
+### Corrigé
+
+- les cercles de coupe des cornières sont maintenant dessinés sur les plans locaux d'origine `XZ` et `YZ`, perpendiculaires aux axes de perçage concernés ;
+- aucune face du solide n'est utilisée comme support de ces deux esquisses : Fusion ne peut donc plus ajouter la région de fond de la face aux deux disques de coupe ;
+- correction de l'annulation V1.23.4 `3 régions circulaires obtenues au lieu de 2` pour le groupe `PERCAGES_VERS_AME_PRINCIPALE`.
+
 ## [1.23.4] - En validation
 
 ### Corrigé
@@ -11,6 +19,10 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 - les trous propres aux deux branches des cornières sont maintenant produits par des coupes cylindriques symétriques traversantes, centrées sur les mêmes coordonnées et avec le même diamètre que l'aperçu rouge ;
 - la coupe traverse volontairement les deux côtés du plan porteur et limite explicitement le corps participant, ce qui évite les erreurs Fusion `ZERO_DISTANCE_ERROR`, `NO_TARGET_BODY` et `HOLE_CANNOT_CREATE_TOOLBODY` rencontrées avec la fonction native de perçage sur une face locale ;
 - les perçages des âmes principale et secondaire conservent la fonction native de perçage, et leur éventuel message d'échec indique maintenant le groupe concerné.
+
+### Bloqué pendant la validation
+
+- une esquisse créée directement sur la face extérieure exposait également la région de fond de cette face ; Fusion retournait donc trois profils pour deux cercles et la création était annulée avant la coupe.
 
 ## [1.23.3] - En validation
 

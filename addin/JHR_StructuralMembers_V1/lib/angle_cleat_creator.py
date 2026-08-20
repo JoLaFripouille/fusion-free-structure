@@ -362,10 +362,9 @@ def _create_hole_group(
 
 def _create_local_cut_group(
     component,
-    occurrence,
     body,
     centers_local,
-    axis_local,
+    sketch_plane,
     diameter_cm,
     cut_span_cm,
     feature_name,
@@ -374,13 +373,7 @@ def _create_local_cut_group(
     """Coupe des cylindres symétriques dans une cornière encore à l'identité."""
     if not centers_local:
         raise ValueError("Le groupe de coupes ne contient aucun centre.")
-    face = _planar_face_for_holes(
-        body,
-        occurrence,
-        axis_local,
-        centers_local,
-    )
-    sketch = component.sketches.add(face)
+    sketch = component.sketches.add(sketch_plane)
     if not sketch:
         raise RuntimeError("Fusion n'a pas pu créer l'esquisse des coupes.")
     sketch.name = sketch_name
@@ -536,10 +529,9 @@ def create_double_angle_assembly(root_component, evaluation):
             ) * profile_catalog.MM_TO_CM
             _create_local_cut_group(
                 component,
-                occurrence,
                 body,
                 primary_centers_local,
-                (0.0, 1.0, 0.0),
+                component.xZConstructionPlane,
                 evaluation.hole_pattern.diameter_cm,
                 cut_span_cm,
                 "PERCAGES_VERS_AME_PRINCIPALE",
@@ -547,10 +539,9 @@ def create_double_angle_assembly(root_component, evaluation):
             )
             _create_local_cut_group(
                 component,
-                occurrence,
                 body,
                 secondary_centers_local,
-                (1.0, 0.0, 0.0),
+                component.yZConstructionPlane,
                 evaluation.hole_pattern.diameter_cm,
                 cut_span_cm,
                 "PERCAGES_VERS_AME_SECONDAIRE",
