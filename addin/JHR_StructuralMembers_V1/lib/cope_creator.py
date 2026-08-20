@@ -20,7 +20,9 @@ WEB_SPLIT_FEATURE_NAME = "COUPE_DROITE_AME_PRINCIPALE"
 WEB_REMOVE_FEATURE_NAME = "RETRAIT_APRES_AME_PRINCIPALE"
 COPE_SKETCH_NAME = "ESQUISSE_OUTILS_GRUGEAGE"
 COPE_CUT_FEATURE_NAME = "GRUGEAGE_PROFIL_OUVERT"
+ROOT_RELIEF_FEATURE_NAME = "DEGAGEMENT_CONGE_PRINCIPAL"
 MINIMUM_REMOVED_VOLUME_CM3 = 1e-8
+RELIEF_EDGE_TOLERANCE_CM = 0.01
 
 
 def ensure_endpoint_available(evaluation):
@@ -250,6 +252,104 @@ def _create_cope_cut(
     return feature
 
 
+def _relief_edge(evaluation, body):
+    proxy = joint_builder._body_proxy(body, evaluation.secondary_occurrence)
+    expected_start, expected_end = evaluation.relief_edge_points
+    expected_midpoint = tuple(
+        (expected_start[index] + expected_end[index]) / 2.0
+        for index in range(3)
+    )
+    expected_length = joint_geometry.length(
+        joint_geometry.subtract(expected_end, expected_start)
+    )
+    candidates = []
+    for index in range(proxy.edges.count):
+        edge = proxy.edges.item(index)
+        if not adsk.core.Line3D.cast(edge.geometry):
+            continue
+        points = joint_builder._edge_points(edge)
+        if len(points) < 2:
+            continue
+        if any(
+            abs(
+                joint_geometry.plane_signed_distance(
+                    point,
+                    evaluation.web_cut_point,
+                    evaluation.web_cut_normal,
+                )
+            ) > RELIEF_EDGE_TOLERANCE_CM
+            for point in points
+        ):
+            continue
+        if any(
+            abs(
+                joint_geometry.plane_signed_distance(
+                    point,
+                    expected_start,
+                    evaluation.profile_y_axis,
+                )
+            ) > RELIEF_EDGE_TOLERANCE_CM
+            for point in points
+        ):
+            continue
+        start = points[0]
+        end = points[-1]
+        midpoint = tuple((start[item] + end[item]) / 2.0 for item in range(3))
+        length = joint_geometry.length(joint_geometry.subtract(end, start))
+        score = (
+            joint_geometry.length(
+                joint_geometry.subtract(midpoint, expected_midpoint)
+            )
+            + abs(length - expected_length)
+        )
+        candidates.append((score, edge))
+    if not candidates:
+        raise RuntimeError(
+            "Fusion n'a pas retrouvé l'arête destinée au dégagement arrondi."
+        )
+    _, proxy_edge = min(candidates, key=lambda item: item[0])
+    return proxy_edge.nativeObject if proxy_edge.nativeObject else proxy_edge
+
+
+def _create_root_relief(evaluation, created_entities):
+    if evaluation.relief_radius_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        return None
+    component = evaluation.secondary_occurrence.component
+    body = joint_builder._single_body(
+        evaluation.secondary_occurrence,
+        "secondaire avant dégagement arrondi",
+    )
+    volume_before_cm3 = float(body.volume)
+    edge = _relief_edge(evaluation, body)
+    edges = adsk.core.ObjectCollection.create()
+    edges.add(edge)
+    fillets = component.features.filletFeatures
+    fillet_input = fillets.createInput()
+    if not fillet_input:
+        raise RuntimeError("Fusion n'a pas pu préparer le dégagement arrondi.")
+    if not fillet_input.addConstantRadiusEdgeSet(
+        edges,
+        adsk.core.ValueInput.createByReal(evaluation.relief_radius_cm),
+        False,
+    ):
+        raise RuntimeError("Fusion n'a pas pu définir le rayon du dégagement.")
+    feature = fillets.add(fillet_input)
+    if not feature:
+        raise RuntimeError("Fusion n'a pas pu créer le dégagement arrondi.")
+    feature.name = ROOT_RELIEF_FEATURE_NAME
+    created_entities.append(feature)
+    resulting_body = joint_builder._single_body(
+        evaluation.secondary_occurrence,
+        "secondaire après dégagement arrondi",
+    )
+    removed_volume_cm3 = volume_before_cm3 - float(resulting_body.volume)
+    if removed_volume_cm3 <= MINIMUM_REMOVED_VOLUME_CM3:
+        raise RuntimeError(
+            "Le dégagement arrondi n'a retiré aucune matière mesurable."
+        )
+    return feature
+
+
 def _record_payload(evaluation):
     return {
         "joint_type": COPE_TYPE,
@@ -265,6 +365,7 @@ def _record_payload(evaluation):
         "longitudinal_clearance_mm": evaluation.longitudinal_clearance_cm * 10.0,
         "web_clearance_mm": evaluation.web_clearance_cm * 10.0,
         "cope_depth_mm": evaluation.depth_cm * 10.0,
+        "root_relief_radius_mm": evaluation.relief_radius_cm * 10.0,
         "primary_extensions_mm": [
             extension.extension_cm * 10.0
             for extension in evaluation.primary_extensions
@@ -307,6 +408,7 @@ def create_profile_cope(evaluation):
             web_cut_plane,
             created_entities,
         )
+        _create_root_relief(evaluation, created_entities)
         created_attributes.append(
             joint_builder._add_record(
                 evaluation.secondary_occurrence,

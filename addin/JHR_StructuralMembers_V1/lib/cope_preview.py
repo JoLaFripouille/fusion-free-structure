@@ -92,6 +92,24 @@ class CopePreviewManager:
                     0.38,
                 )
 
+            if evaluation.relief_radius_cm > joint_geometry.GEOMETRY_TOLERANCE_CM:
+                coordinates, triangles, wires = cope_geometry.fillet_relief_mesh(
+                    evaluation.relief_edge_points,
+                    evaluation.web_cut_normal,
+                    evaluation.profile_y_axis,
+                    evaluation.relief_radius_cm,
+                )
+                _add_graphics(
+                    group,
+                    coordinates,
+                    triangles,
+                    wires,
+                    "Retrait rouge — dégagement arrondi du congé principal",
+                    red,
+                    red_edge,
+                    0.45,
+                )
+
             plane_points = joint_geometry.plane_square(
                 evaluation.web_cut_point,
                 evaluation.web_cut_normal,

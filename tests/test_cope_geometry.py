@@ -86,7 +86,10 @@ class CopeGeometryTests(unittest.TestCase):
         self.assertAlmostEqual(angle.web_min_x_mm, -25.0)
         self.assertAlmostEqual(angle.web_max_x_mm, -20.0)
         self.assertAlmostEqual(angle.web_min_y_mm, 12.0)
-        self.assertAlmostEqual(angle.cope_height_mm, 12.0)
+        self.assertAlmostEqual(angle.flange_thickness_mm, 5.0)
+        self.assertAlmostEqual(angle.cope_height_mm, 5.0)
+        self.assertAlmostEqual(angle.negative_root_radius_mm, 0.0)
+        self.assertAlmostEqual(angle.positive_root_radius_mm, 7.0)
         for actual, expected in zip(
             tee.bounds_mm,
             (-25.0, 0.0, 25.0, 50.0),
@@ -95,7 +98,14 @@ class CopeGeometryTests(unittest.TestCase):
         self.assertAlmostEqual(tee.web_min_x_mm, -3.0)
         self.assertAlmostEqual(tee.web_max_x_mm, 3.0)
         self.assertAlmostEqual(tee.web_min_y_mm, 12.0)
-        self.assertAlmostEqual(tee.cope_height_mm, 12.0)
+        self.assertAlmostEqual(tee.flange_thickness_mm, 6.0)
+        self.assertAlmostEqual(tee.cope_height_mm, 6.0)
+        self.assertAlmostEqual(tee.negative_root_radius_mm, 6.0)
+        self.assertAlmostEqual(tee.positive_root_radius_mm, 6.0)
+        self.assertAlmostEqual(angle.root_radius_toward(1.0), 7.0)
+        self.assertAlmostEqual(angle.root_radius_toward(-1.0), 0.0)
+        self.assertAlmostEqual(tee.root_radius_toward(1.0), 6.0)
+        self.assertAlmostEqual(tee.root_radius_toward(-1.0), 6.0)
 
     def test_every_bundled_angle_and_tee_has_a_detectable_single_cope(self):
         profiles = profile_catalog.discover_profiles(include_custom=False)
@@ -131,7 +141,51 @@ class CopeGeometryTests(unittest.TestCase):
         self.assertEqual(len(volumes), 1)
         self.assertEqual(volumes[0].name, "Grugeage de la branche horizontale")
         self.assertAlmostEqual(volumes[0].axial_min_cm, -3.0)
-        self.assertAlmostEqual(volumes[0].y_max_cm, -1.2)
+        self.assertAlmostEqual(volumes[0].y_max_cm, -2.0)
+
+    def test_root_relief_uses_only_the_facing_primary_fillet(self):
+        angle = cope_geometry.analyze_single_flange_profile_dxf(
+            self.angle50.dxf_path
+        )
+        self.assertAlmostEqual(
+            cope_geometry.root_relief_radius_cm(
+                angle,
+                (1.0, 0.0, 0.0),
+                (1.0, 0.0, 0.0),
+                0.1,
+            ),
+            0.8,
+        )
+        self.assertEqual(
+            cope_geometry.root_relief_radius_cm(
+                angle,
+                (1.0, 0.0, 0.0),
+                (-1.0, 0.0, 0.0),
+                0.1,
+            ),
+            0.0,
+        )
+
+    def test_fillet_relief_preview_mesh_contains_the_requested_quadrant(self):
+        coordinates, triangles, wires = cope_geometry.fillet_relief_mesh(
+            ((-1.0, 0.0, 0.0), (1.0, 0.0, 0.0)),
+            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),
+            0.5,
+            subdivisions=4,
+        )
+        points = tuple(
+            zip(coordinates[0::3], coordinates[1::3], coordinates[2::3])
+        )
+        self.assertEqual(len(points), 12)
+        self.assertAlmostEqual(min(point[0] for point in points), -1.0)
+        self.assertAlmostEqual(max(point[0] for point in points), 1.0)
+        self.assertAlmostEqual(min(point[1] for point in points), 0.0)
+        self.assertAlmostEqual(max(point[1] for point in points), 0.5)
+        self.assertAlmostEqual(min(point[2] for point in points), 0.0)
+        self.assertAlmostEqual(max(point[2] for point in points), 0.5)
+        self.assertGreater(len(triangles), 0)
+        self.assertGreater(len(wires), 0)
 
     def test_double_cope_uses_anchor_depth_and_vertical_clearance(self):
         volumes = cope_geometry.double_cope_volumes(

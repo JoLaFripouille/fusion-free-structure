@@ -40,6 +40,8 @@ class CopeEvaluation:
     flange_start_point: tuple
     web_cut_point: tuple
     web_cut_normal: tuple
+    relief_radius_cm: float
+    relief_edge_points: tuple
     primary_anchor_mm: tuple
     secondary_anchor_mm: tuple
     primary_profile_source: object
@@ -324,6 +326,47 @@ def evaluate_profile_cope(
         geometry.plane_normal,
         float(web_clearance_cm),
     )
+    relief_radius_cm = 0.0
+    relief_edge_points = ()
+    if secondary_metadata.profile_family in L_T_FAMILIES:
+        relief_radius_cm = cope_geometry.root_relief_radius_cm(
+            primary_profile_geometry,
+            primary_profile_x_axis,
+            geometry.plane_normal,
+            float(vertical_clearance_cm),
+        )
+        if relief_radius_cm > joint_geometry.GEOMETRY_TOLERANCE_CM:
+            available_relief_depth_cm = abs(
+                joint_geometry.plane_signed_distance(
+                    flange_start_point,
+                    web_cut_point,
+                    geometry.plane_normal,
+                )
+            )
+            available_relief_height_cm = (
+                profile_geometry.max_y_mm - profile_geometry.flange_top_y_mm
+            ) * cope_geometry.MM_TO_CM
+            maximum_radius_cm = min(
+                available_relief_depth_cm,
+                available_relief_height_cm,
+            )
+            if relief_radius_cm >= (
+                maximum_radius_cm - joint_geometry.PLANE_RELATION_TOLERANCE_CM
+            ):
+                raise ValueError(
+                    "Le rayon du dégagement arrondi dépasse la matière disponible "
+                    "sur la barre secondaire."
+                )
+            relief_edge_points = cope_geometry.relief_edge_points(
+                profile_geometry,
+                secondary_anchor_mm,
+                geometry.secondary_joint_endpoint,
+                profile_x_axis,
+                profile_y_axis,
+                axial_axis,
+                web_cut_point,
+                geometry.plane_normal,
+            )
     cope_start_point = joint_geometry.add(
         geometry.secondary_joint_endpoint,
         joint_geometry.scale(axial_axis, -reference_depth_cm),
@@ -384,6 +427,8 @@ def evaluate_profile_cope(
         flange_start_point=flange_start_point,
         web_cut_point=web_cut_point,
         web_cut_normal=geometry.plane_normal,
+        relief_radius_cm=relief_radius_cm,
+        relief_edge_points=relief_edge_points,
         primary_anchor_mm=primary_anchor_mm,
         secondary_anchor_mm=secondary_anchor_mm,
         primary_profile_source=primary_dxf_path,

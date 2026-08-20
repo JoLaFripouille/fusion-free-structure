@@ -159,6 +159,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("WEB_CUT_ORANGE", preview_source)
         self.assertIn("PRIMARY_EXTENSION_GREEN", preview_source)
         self.assertIn("bounded_volume_mesh", preview_source)
+        self.assertIn("fillet_relief_mesh", preview_source)
         self.assertIn("evaluation.web_cut_normal", preview_source)
         cope_builder_source = (ADDIN / "lib" / "cope_builder.py").read_text(
             encoding="utf-8"
@@ -199,6 +200,13 @@ class RepositoryTests(unittest.TestCase):
             creator_source,
         )
         self.assertIn("expected_profile_count = len(evaluation.volumes)", creator_source)
+        self.assertIn(
+            'ROOT_RELIEF_FEATURE_NAME = "DEGAGEMENT_CONGE_PRINCIPAL"',
+            creator_source,
+        )
+        self.assertIn("component.features.filletFeatures", creator_source)
+        self.assertIn("addConstantRadiusEdgeSet", creator_source)
+        self.assertIn("_create_root_relief", creator_source)
         self.assertIn("FromEntityStartDefinition.create", creator_source)
         self.assertIn("extrude_input.startExtent = start_extent", creator_source)
         self.assertIn("removed_volume_cm3", creator_source)

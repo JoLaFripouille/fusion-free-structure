@@ -27,7 +27,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
 - commande `Jonctions acier` : jonction ajustée à l'enveloppe d'une barre de référence, quel que soit l'angle non parallèle, ou coupe d'onglet symétrique entre deux barres droites ; détection des espaces et chevauchements, prolongement automatique, opérations multiples par barre et aperçu orange identique au plan final.
-- commande `Grugeage profils ouverts` : double grugeage IPE/HEA/HEB ou grugeage simple pour les quatre combinaisons cornière/té, à tout angle non parallèle ; la preview rouge montre la matière retirée entre deux plans obliques parallèles, le plan orange indique la face de la branche verticale principale et le vert son éventuel prolongement.
+- commande `Grugeage profils ouverts` : double grugeage IPE/HEA/HEB ou grugeage simple pour les quatre combinaisons cornière/té, à tout angle non parallèle ; uniquement pour les cornières et les tés, le retrait droit suit l'épaisseur de la branche secondaire et un retrait rouge arrondi distinct échappe le congé intérieur de la principale. Le plan orange indique la face d'appui réelle et le vert son éventuel prolongement.
 
 Dans l'onglet dédié, `CRÉER` contient **Profil acier** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonctions acier**, **Grugeage profils ouverts** et **Inspecter un profil acier**. Les commandes ne sont plus ajoutées aux panneaux généraux de Fusion.
 

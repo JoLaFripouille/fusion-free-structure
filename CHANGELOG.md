@@ -4,6 +4,21 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.20.1] - En validation
+
+### Corrigé
+
+- pour les cornières et les tés uniquement, le retrait droit de la secondaire s'arrête maintenant à l'épaisseur exacte de sa branche horizontale, sans englober son congé intérieur ;
+- un dégagement arrondi séparé retire la matière nécessaire pour échapper le congé intérieur de la cornière ou du té principal ; son rayon correspond au rayon détecté dans le DXF principal augmenté du jeu demandé ;
+- le côté réellement tourné vers la secondaire est pris en compte : aucune découpe arrondie n'est ajoutée contre la face extérieure d'une cornière dépourvue de congé intérieur ;
+- la preview rouge distingue le retrait droit et le dégagement arrondi, puis la création Fusion ajoute la fonction `DEGAGEMENT_CONGE_PRINCIPAL` après `GRUGEAGE_PROFIL_OUVERT`.
+
+### Régression couverte
+
+- les 46 cornières et 11 tés fournis conservent une épaisseur et un rayon intérieur détectables ;
+- le double grugeage des IPE, HEA et HEB ne passe pas par cette nouvelle logique et conserve ses limites, ses jeux et ses deux volumes existants ;
+- 127 tests automatiques valident la géométrie, les profils fournis et le câblage du complément avant le premier essai Fusion.
+
 ## [1.20.0] - En validation
 
 ### Ajouté

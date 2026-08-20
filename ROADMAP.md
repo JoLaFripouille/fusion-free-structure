@@ -64,6 +64,7 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] corriger le début des retraits de semelles pour qu'il suive la face extérieure oblique de la principale.
 - [x] valider la V1.19.1 corrigée dans Fusion sur le raccord oblique signalé ; compléter ensuite les essais séparés à `30°` et `45°`.
 - [x] généraliser le calcul et la création aux quatre combinaisons cornière/té dans la V1.20.0.
+- [x] limiter le retrait droit des cornières/tés à leur épaisseur et ajouter séparément le dégagement arrondi du congé principal dans la V1.20.1, sans modifier les IPE/HEA/HEB.
 - [ ] valider séparément dans Fusion cornière→cornière, cornière→té, té→cornière et té→té avant d'ajouter d'autres profils ouverts.
 - [ ] ajouter séparément les platines, boulons et assemblages composés.
 

@@ -99,14 +99,22 @@ def _success_report(evaluation):
             ),
         )
     else:
+        relief_text = "Aucun — face extérieure sans congé intérieur"
+        if evaluation.relief_radius_cm > 0.0:
+            relief_text = "{:.3f} mm + {:.3f} mm de jeu = {:.3f} mm".format(
+                evaluation.relief_radius_cm * 10.0
+                - evaluation.vertical_clearance_cm * 10.0,
+                evaluation.vertical_clearance_cm * 10.0,
+                evaluation.relief_radius_cm * 10.0,
+            )
         removed_rows = (
             (
-                "Hauteur de branche retirée",
+                "Épaisseur de branche retirée",
                 "{:.3f} mm".format(
                     evaluation.profile_geometry.cope_height_mm
-                    + evaluation.vertical_clearance_cm * 10.0
                 ),
             ),
+            ("Dégagement du congé principal", relief_text),
         )
     extension_text = "Aucun — couverture suffisante"
     if evaluation.primary_extensions:
@@ -128,7 +136,13 @@ def _success_report(evaluation):
         ("Jeu contre l'appui", "{:.3f} mm".format(evaluation.web_clearance_cm * 10.0)),
         ("Prolongement de la principale", extension_text),
     ) + removed_rows + (
-        ("Jeu vertical", "{:.3f} mm".format(evaluation.vertical_clearance_cm * 10.0)),
+        (
+            "Jeu vertical"
+            if evaluation.secondary_metadata.profile_family
+            in cope_builder.I_H_FAMILIES
+            else "Jeu du dégagement arrondi",
+            "{:.3f} mm".format(evaluation.vertical_clearance_cm * 10.0),
+        ),
         (
             "Jeu longitudinal",
             "{:.3f} mm".format(evaluation.longitudinal_clearance_cm * 10.0),
@@ -185,7 +199,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             vertical = inputs.addValueInput(
                 VERTICAL_CLEARANCE_ID,
-                "Jeu vertical",
+                "Jeu vertical / congé",
                 "mm",
                 adsk.core.ValueInput.createByString("1 mm"),
             )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from . import dxf_geometry, joint_geometry
@@ -56,6 +57,9 @@ class SingleFlangeProfileGeometry:
     web_max_x_mm: float
     web_min_y_mm: float
     web_max_y_mm: float
+    flange_top_y_mm: float
+    negative_root_radius_mm: float
+    positive_root_radius_mm: float
 
     @property
     def bounds_mm(self):
@@ -71,7 +75,26 @@ class SingleFlangeProfileGeometry:
 
     @property
     def cope_height_mm(self):
-        return self.web_min_y_mm - self.min_y_mm
+        return self.flange_thickness_mm
+
+    @property
+    def flange_thickness_mm(self):
+        return self.flange_top_y_mm - self.min_y_mm
+
+    @property
+    def relief_min_x_mm(self):
+        return self.web_min_x_mm - self.negative_root_radius_mm
+
+    @property
+    def relief_max_x_mm(self):
+        return self.web_max_x_mm + self.positive_root_radius_mm
+
+    def root_radius_toward(self, alignment):
+        return (
+            self.positive_root_radius_mm
+            if float(alignment) > 0.0
+            else self.negative_root_radius_mm
+        )
 
 
 @dataclass(frozen=True)
@@ -203,6 +226,32 @@ def analyze_single_flange_profile_vertices(vertices):
         )
     if web_max_x - web_min_x >= max_x - min_x - PROFILE_TOLERANCE_MM:
         raise ValueError("La branche horizontale du profil est indétectable.")
+
+    horizontal_levels = []
+    for first, second in zip(points, points[1:] + points[:1]):
+        if abs(first[1] - second[1]) > PROFILE_TOLERANCE_MM:
+            continue
+        if abs(first[0] - second[0]) <= PROFILE_TOLERANCE_MM:
+            continue
+        level = (first[1] + second[1]) / 2.0
+        if min_y + PROFILE_TOLERANCE_MM < level < web_min_y - PROFILE_TOLERANCE_MM:
+            horizontal_levels.append(level)
+    if not horizontal_levels:
+        raise ValueError("L'épaisseur de la branche horizontale est indétectable.")
+    flange_top_y = max(horizontal_levels)
+    root_radius = web_min_y - flange_top_y
+    if root_radius <= PROFILE_TOLERANCE_MM:
+        raise ValueError("Le congé intérieur du profil est indétectable.")
+    negative_root_radius = (
+        root_radius
+        if web_min_x - min_x > PROFILE_TOLERANCE_MM
+        else 0.0
+    )
+    positive_root_radius = (
+        root_radius
+        if max_x - web_max_x > PROFILE_TOLERANCE_MM
+        else 0.0
+    )
     return SingleFlangeProfileGeometry(
         min_x_mm=min_x,
         min_y_mm=min_y,
@@ -212,6 +261,9 @@ def analyze_single_flange_profile_vertices(vertices):
         web_max_x_mm=web_max_x,
         web_min_y_mm=web_min_y,
         web_max_y_mm=web_max_y,
+        flange_top_y_mm=flange_top_y,
+        negative_root_radius_mm=negative_root_radius,
+        positive_root_radius_mm=positive_root_radius,
     )
 
 
@@ -335,8 +387,7 @@ def single_cope_rectangle_bounds(
         (profile.min_y_mm - anchor_y_mm) * MM_TO_CM - SIDE_OVERSIZE_CM
     )
     bottom_max = (
-        (profile.web_min_y_mm - anchor_y_mm) * MM_TO_CM
-        + vertical_clearance_cm
+        (profile.flange_top_y_mm - anchor_y_mm) * MM_TO_CM
     )
     if bottom_max >= (
         (profile.web_max_y_mm - anchor_y_mm) * MM_TO_CM
@@ -367,6 +418,167 @@ def single_cope_volumes(
             END_OVERRUN_CM,
         ),
     )
+
+
+def root_relief_radius_cm(
+    profile,
+    profile_x_axis,
+    toward_secondary,
+    clearance_cm,
+):
+    """Retourne le rayon du congé principal regardant la secondaire, plus son jeu."""
+    if clearance_cm < 0.0:
+        raise ValueError("Le jeu du dégagement arrondi ne peut pas être négatif.")
+    profile_x = joint_geometry.normalize(profile_x_axis)
+    toward = joint_geometry.normalize(toward_secondary)
+    alignment = joint_geometry.dot(profile_x, toward)
+    if abs(alignment) < WEB_AXIS_ALIGNMENT_TOLERANCE:
+        raise ValueError(
+            "La branche verticale de la principale n'est pas orientée face à la secondaire."
+        )
+    root_radius_mm = profile.root_radius_toward(alignment)
+    if root_radius_mm <= PROFILE_TOLERANCE_MM:
+        return 0.0
+    return root_radius_mm * MM_TO_CM + float(clearance_cm)
+
+
+def relief_edge_points(
+    profile,
+    anchor_mm,
+    reference_origin,
+    profile_x_axis,
+    profile_y_axis,
+    axial_axis,
+    cut_point,
+    cut_normal,
+):
+    """Projette les deux extrémités de l'arête à arrondir sur le plan final."""
+    anchor_x_mm, anchor_y_mm = anchor_mm
+    local_y_cm = (profile.flange_top_y_mm - anchor_y_mm) * MM_TO_CM
+    axial_axis = joint_geometry.normalize(axial_axis)
+    cut_normal = joint_geometry.normalize(cut_normal)
+    rate = joint_geometry.dot(axial_axis, cut_normal)
+    if abs(rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise ValueError("L'axe secondaire est parallèle au plan du dégagement.")
+    points = []
+    for x_mm in (profile.relief_min_x_mm, profile.relief_max_x_mm):
+        reference = world_point(
+            reference_origin,
+            profile_x_axis,
+            profile_y_axis,
+            axial_axis,
+            (x_mm - anchor_x_mm) * MM_TO_CM,
+            local_y_cm,
+            0.0,
+        )
+        extent_cm = -joint_geometry.plane_signed_distance(
+            reference,
+            cut_point,
+            cut_normal,
+        ) / rate
+        points.append(
+            joint_geometry.add(
+                reference,
+                joint_geometry.scale(axial_axis, extent_cm),
+            )
+        )
+    if joint_geometry.length(joint_geometry.subtract(points[1], points[0])) <= (
+        joint_geometry.GEOMETRY_TOLERANCE_CM
+    ):
+        raise ValueError("L'arête du dégagement arrondi est de longueur nulle.")
+    return tuple(points)
+
+
+def fillet_relief_mesh(
+    edge_points,
+    inward_axis,
+    up_axis,
+    radius_cm,
+    subdivisions=12,
+):
+    """Construit le quartier retiré par un congé sur l'arête de grugeage."""
+    if len(edge_points) != 2:
+        raise ValueError("Le dégagement arrondi exige exactement deux extrémités.")
+    if radius_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise ValueError("Le rayon du dégagement arrondi doit être positif.")
+    subdivisions = max(2, int(subdivisions))
+    edge_axis = joint_geometry.normalize(
+        joint_geometry.subtract(edge_points[1], edge_points[0])
+    )
+
+    def transverse(axis):
+        axis = joint_geometry.normalize(axis)
+        return joint_geometry.normalize(
+            joint_geometry.subtract(
+                axis,
+                joint_geometry.scale(edge_axis, joint_geometry.dot(axis, edge_axis)),
+            )
+        )
+
+    inward = transverse(inward_axis)
+    up = transverse(up_axis)
+    if abs(joint_geometry.dot(inward, up)) > 1e-4:
+        raise ValueError("Les deux faces du dégagement arrondi ne sont pas orthogonales.")
+
+    local_polygon = [(0.0, 0.0)]
+    for step in range(subdivisions + 1):
+        angle = -math.pi / 2.0 - math.pi * step / (2.0 * subdivisions)
+        local_polygon.append(
+            (
+                radius_cm + radius_cm * math.cos(angle),
+                radius_cm + radius_cm * math.sin(angle),
+            )
+        )
+    polygon_size = len(local_polygon)
+    points = []
+    for edge_point in edge_points:
+        for inward_distance, up_distance in local_polygon:
+            points.append(
+                joint_geometry.add(
+                    edge_point,
+                    joint_geometry.add(
+                        joint_geometry.scale(inward, inward_distance),
+                        joint_geometry.scale(up, up_distance),
+                    ),
+                )
+            )
+
+    triangles = []
+    for index in range(1, polygon_size - 1):
+        triangles.extend((0, index, index + 1))
+        triangles.extend(
+            (
+                polygon_size,
+                polygon_size + index + 1,
+                polygon_size + index,
+            )
+        )
+    for index in range(polygon_size):
+        next_index = (index + 1) % polygon_size
+        triangles.extend(
+            (
+                index,
+                polygon_size + index,
+                polygon_size + next_index,
+                index,
+                polygon_size + next_index,
+                next_index,
+            )
+        )
+
+    wires = []
+    for end_offset in (0, polygon_size):
+        for index in range(polygon_size):
+            wires.extend(
+                (
+                    end_offset + index,
+                    end_offset + (index + 1) % polygon_size,
+                )
+            )
+    for index in range(polygon_size):
+        wires.extend((index, polygon_size + index))
+    coordinates = tuple(value for point in points for value in point)
+    return coordinates, tuple(triangles), tuple(wires)
 
 
 def depth_to_facing_support(
