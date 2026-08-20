@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.23.2 : correction du repère des cornières."
+    "": "Profil acier V1.23.3 : placement local contrôlé des cornières."
   },
-  "version": "1.23.2",
+  "version": "1.23.3",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

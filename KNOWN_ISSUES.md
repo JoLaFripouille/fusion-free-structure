@@ -6,14 +6,15 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ### ISSUE-026 — Création et perçages du premier assemblage par cornières à valider
 
-- **État :** position des deux aperçus V1.22.0 validée dans Fusion ; le recalage `BL` V1.23.1 permet la création, mais l'extrusion et les trous internes réappliquaient la transformation de l'occurrence, ce qui décalait les corps par rapport aux trous des poutres ; correction V1.23.2 prête à retester.
+- **État :** position des deux aperçus V1.22.0 validée dans Fusion ; les V1.23.1 et V1.23.2 créent encore des corps décalés malgré des trous monde corrects. La V1.23.3 sépare complètement la création locale du placement final et refuse toute enveloppe différente de l'aperçu.
 - **Périmètre :** une principale et une secondaire IPE/HEA/HEB droites, axes raccordés à `90°`, cornière égale européenne, hauteur, décalage vertical et motif de perçage réglables.
 - **Comportement attendu :** deux composants de cornière reprennent exactement l'aperçu jaune. Les cercles rouges deviennent des trous traversants alignés dans les deux branches des cornières, l'âme principale et l'âme secondaire.
 - **Sécurité :** les perçages sont refusés s'ils sortent d'une branche, de la hauteur de cornière ou de la hauteur libre d'une âme. Une erreur de création doit retirer tous les trous et composants de la tentative.
 - **Correction V1.23.1 :** le contour importé est mesuré dans son esquisse locale, déplacé jusqu'à l'ancrage `BL`, puis soumis au même contrôle strict avant extrusion.
 - **Correction V1.23.2 :** l'extrusion et les perçages propres à une cornière restent dans le repère local de son composant ; seule l'occurrence applique le placement dans l'assemblage.
+- **Correction V1.23.3 :** le composant reste à l'identité pendant l'import, l'extrusion et les perçages ; les centres de l'aperçu sont convertis en coordonnées locales, puis la position initiale de l'occurrence terminée est définie et contrôlée par son enveloppe précise.
 - **Hors périmètre :** calcul de résistance, choix automatique d'une cornière, boulons, angles obliques, chemins cintrés et profils non I/H.
-- **Validation prévue :** annuler complètement la tentative V1.23.1, puis relancer uniquement le test 27 en V1.23.2 avec les valeurs proposées et contrôler l'alignement des deux corps avec tous les trous avant d'essayer une autre section.
+- **Validation prévue :** annuler complètement la tentative précédente, puis relancer uniquement le test 27 en V1.23.3 avec les valeurs proposées et contrôler l'alignement des deux corps avec tous les trous avant d'essayer une autre section.
 
 ### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
 

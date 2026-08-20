@@ -119,6 +119,43 @@ class AngleCleatGeometryTests(unittest.TestCase):
                 frame.z_axis,
             )
 
+    def test_preview_hole_centers_map_to_each_local_angle_before_placement(self):
+        placements = angle_cleat_geometry.build_double_angle_frames(
+            primary_web_face_point=(0.0, 0.3, 0.0),
+            secondary_profile_x_axis=(1.0, 0.0, 0.0),
+            vertical_axis=(0.0, 0.0, 1.0),
+            toward_secondary_axis=(0.0, 1.0, 0.0),
+            secondary_web_face_offsets_cm=(-0.25, 0.25),
+            cleat_height_cm=10.0,
+            vertical_offset_cm=0.0,
+        )
+        pattern = angle_cleat_geometry.build_hole_pattern(
+            10.0, 5.0, 5.0, 1.8, 2, 5.0, 3.0, 3.0
+        )
+        expected_z = ((7.5, 2.5), (2.5, 7.5))
+        for placement, rows in zip(placements, expected_z):
+            frame = angle_cleat_geometry.rigid_frame_for_placement(placement)
+            primary, secondary = angle_cleat_geometry.hole_centers_for_placement(
+                placement,
+                pattern,
+            )
+            primary_local = tuple(
+                angle_cleat_geometry.world_point_in_rigid_frame(frame, point)
+                for point in primary
+            )
+            secondary_local = tuple(
+                angle_cleat_geometry.world_point_in_rigid_frame(frame, point)
+                for point in secondary
+            )
+            self.assertEqual(
+                primary_local,
+                ((3.0, 0.0, rows[0]), (3.0, 0.0, rows[1])),
+            )
+            self.assertEqual(
+                secondary_local,
+                ((0.0, 3.0, rows[0]), (0.0, 3.0, rows[1])),
+            )
+
     def test_default_hole_pattern_is_centered_and_stays_inside_a_50_mm_angle(self):
         pattern = angle_cleat_geometry.build_hole_pattern(
             cleat_height_cm=10.0,

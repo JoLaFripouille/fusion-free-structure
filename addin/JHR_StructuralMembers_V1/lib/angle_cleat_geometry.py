@@ -170,6 +170,19 @@ def rigid_frame_for_placement(placement):
     )
 
 
+def world_point_in_rigid_frame(frame, point):
+    """Convertit un point monde dans le repère local exact de la cornière."""
+    delta = joint_geometry.subtract(
+        tuple(float(value) for value in point),
+        frame.origin,
+    )
+    return (
+        joint_geometry.dot(delta, frame.x_axis),
+        joint_geometry.dot(delta, frame.y_axis),
+        joint_geometry.dot(delta, frame.z_axis),
+    )
+
+
 def build_hole_pattern(
     cleat_height_cm,
     angle_width_cm,

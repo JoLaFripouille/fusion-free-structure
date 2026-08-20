@@ -17,6 +17,7 @@ from . import (
 
 ATTRIBUTE_GROUP = "EI_JHR_AngleCleat"
 FACE_ALIGNMENT_TOLERANCE = 0.995
+PLACEMENT_TOLERANCE_CM = 1e-4
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,68 @@ def _world_to_local_point(occurrence, point):
     if not local.transformBy(_inverse_occurrence_transform(occurrence)):
         raise RuntimeError("Fusion n'a pas pu convertir un centre de perçage.")
     return local
+
+
+def _point_from_rigid_frame(frame, local_point):
+    point = tuple(float(value) for value in frame.origin)
+    for coordinate, axis in zip(
+        tuple(float(value) for value in local_point),
+        (frame.x_axis, frame.y_axis, frame.z_axis),
+    ):
+        point = joint_geometry.add(
+            point,
+            joint_geometry.scale(axis, coordinate),
+        )
+    return point
+
+
+def _expected_occurrence_bounds(frame, profile, height_cm):
+    width_cm = profile.width_mm * profile_catalog.MM_TO_CM
+    depth_cm = profile.height_mm * profile_catalog.MM_TO_CM
+    points = tuple(
+        _point_from_rigid_frame(frame, (x, y, z))
+        for x in (0.0, width_cm)
+        for y in (0.0, depth_cm)
+        for z in (0.0, float(height_cm))
+    )
+    return (
+        tuple(min(point[index] for point in points) for index in range(3)),
+        tuple(max(point[index] for point in points) for index in range(3)),
+    )
+
+
+def _place_completed_occurrence(occurrence, frame, profile, height_cm):
+    """Place une cornière terminée et vérifie son enveloppe dans l'assemblage."""
+    transform = _matrix_for_frame(frame)
+    if getattr(occurrence, "isValidForEditInitialPosition", False):
+        occurrence.initialTransform = transform
+    else:
+        occurrence.transform2 = transform
+
+    bounds = occurrence.preciseBoundingBox
+    if not bounds:
+        raise RuntimeError(
+            "Fusion n'a pas retourné l'enveloppe de la cornière placée."
+        )
+    expected_min, expected_max = _expected_occurrence_bounds(
+        frame,
+        profile,
+        height_cm,
+    )
+    actual_min = _point_tuple(bounds.minPoint)
+    actual_max = _point_tuple(bounds.maxPoint)
+    if any(
+        abs(actual - expected) > PLACEMENT_TOLERANCE_CM
+        for actual, expected in zip(
+            actual_min + actual_max,
+            expected_min + expected_max,
+        )
+    ):
+        raise RuntimeError(
+            "Fusion a décalé la cornière après sa création "
+            "(enveloppe obtenue {} -> {}, attendue {} -> {})."
+            .format(actual_min, actual_max, expected_min, expected_max)
+        )
 
 
 def _rebase_sketch_to_anchor(sketch, profile, anchor_code):
@@ -361,7 +424,7 @@ def create_double_angle_assembly(root_component, evaluation):
         for placement in evaluation.placements:
             rigid_frame = angle_cleat_geometry.rigid_frame_for_placement(placement)
             occurrence = root_component.occurrences.addNewComponent(
-                _matrix_for_frame(rigid_frame)
+                adsk.core.Matrix3D.create()
             )
             created_occurrences.append(occurrence)
             component = occurrence.component
@@ -381,12 +444,26 @@ def create_double_angle_assembly(root_component, evaluation):
                     evaluation.hole_pattern,
                 )
             )
+            primary_centers_local = tuple(
+                angle_cleat_geometry.world_point_in_rigid_frame(
+                    rigid_frame,
+                    center,
+                )
+                for center in primary_centers
+            )
+            secondary_centers_local = tuple(
+                angle_cleat_geometry.world_point_in_rigid_frame(
+                    rigid_frame,
+                    center,
+                )
+                for center in secondary_centers
+            )
             _create_hole_group(
                 component,
                 occurrence,
                 body,
-                primary_centers,
-                placement.frames[0][2],
+                primary_centers_local,
+                (0.0, 1.0, 0.0),
                 evaluation.hole_pattern.diameter_cm,
                 "PERCAGES_VERS_AME_PRINCIPALE",
                 "CENTRES_PERCAGES_PRINCIPALE",
@@ -395,11 +472,17 @@ def create_double_angle_assembly(root_component, evaluation):
                 component,
                 occurrence,
                 body,
-                secondary_centers,
-                placement.frames[0][1],
+                secondary_centers_local,
+                (1.0, 0.0, 0.0),
                 evaluation.hole_pattern.diameter_cm,
                 "PERCAGES_VERS_AME_SECONDAIRE",
                 "CENTRES_PERCAGES_SECONDAIRE",
+            )
+            _place_completed_occurrence(
+                occurrence,
+                rigid_frame,
+                evaluation.angle_profile,
+                evaluation.cleat_height_cm,
             )
             _add_attributes(component, evaluation, placement.side)
             angle_occurrences.append(occurrence)

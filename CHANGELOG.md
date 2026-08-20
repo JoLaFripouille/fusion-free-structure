@@ -4,11 +4,23 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.23.3] - En validation
+
+### Corrigé
+
+- chaque cornière est maintenant importée, extrudée et percée dans un composant encore placé à l'identité ; son placement final n'est appliqué qu'après la création de toutes ses fonctions locales ;
+- les centres rouges validés dans l'aperçu sont convertis mathématiquement dans le repère rigide de chaque cornière avant les perçages locaux ;
+- l'enveloppe réelle de chaque occurrence est comparée à l'enveloppe attendue après placement ; une divergence annule toute la tentative au lieu de conserver un assemblage décalé.
+
+### Diagnostic
+
+- la V1.23.2 supprimait le contexte de création redondant, mais conservait l'import DXF dans une occurrence déjà orientée ; ce chemin Fusion produisait encore un résultat différent du repère direct utilisé par l'aperçu.
+
 ## [1.23.2] - En validation
 
 ### Corrigé
 
-- la transformation d'occurrence n'est plus réappliquée aux extrusions et perçages créés nativement dans chaque composant de cornière ;
+- la transformation d'occurrence n'est plus réappliquée aux extrusions et perçages créés nativement dans chaque composant de cornière ; cette correction seule n'a pas supprimé le décalage constaté dans Fusion ;
 - les deux corps de cornière et leurs trous utilisent maintenant un seul repère : leurs fonctions restent locales et l'occurrence porte seule leur position dans l'assemblage ;
 - les centres mondiaux des trous dans les âmes et le calcul validé de l'aperçu restent inchangés.
 
