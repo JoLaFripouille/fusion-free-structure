@@ -2,7 +2,7 @@
 
 ## Interface Fusion dédiée
 
-Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
+Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis deux panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier, le prototype de grugeage IPE et l'inspecteur. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
 
 L'onglet et les panneaux utilisent des identifiants stables et sont réutilisés s'ils existent déjà. À l'arrêt, les commandes retirent d'abord leurs boutons et leurs définitions, puis l'extension supprime ses panneaux et son onglet. Aucun panneau natif de Fusion n'est supprimé.
 
@@ -133,4 +133,12 @@ Pour une jonction ajustée, la principale n'est plus supposée infinie le long d
 
 Le groupe `EI_JHR_StructuralJoint` n'est plus un verrou binaire. Chaque traitement ajoute un JSON indépendant `operation_0001`, `operation_0002`, etc. contenant notamment le type, l'indice d'extrémité `0` ou `1`, l'autre composant, les courbes sources, l'angle, le jeu, l'état initial et le prolongement. Une barre peut donc recevoir une opération à chaque extrémité et d'autres traitements tant que sa géométrie courante permet la fonction demandée. Les anciens attributs fixes sont conservés mais ne bloquent plus les nouvelles opérations.
 
-Une barre de référence cintrée, les onglets sur arcs, les grugeages, platines et boulons restent en dehors de cette étape.
+Une barre de référence cintrée, les onglets sur arcs, la coupe réelle des grugeages, les platines et les boulons restent en dehors de cette étape.
+
+## Prototype de double grugeage IPE
+
+La V1.17.0 ajoute une commande séparée de prévisualisation, sans réutiliser une coupe de jonction comme approximation. La principale peut être une IPE, HEA ou HEB et reste intacte. La secondaire doit être une IPE droite dont l'axe rejoint celui de la principale à `90°`.
+
+Les limites des deux semelles et de l'âme sont déduites du contour fermé du DXF source de la secondaire. La position des deux volumes tient ensuite compte du point d'ancrage enregistré, de la rotation et des miroirs appliqués lors de la création de la barre. La profondeur part de l'axe commun et s'arrête sur la face extérieure réelle de la principale orientée vers la secondaire ; elle ne dépend donc pas de la longueur totale de la principale.
+
+Deux boîtes rouges semi-transparentes montrent la matière proposée au retrait, avec un jeu vertical autour des raccords d'âme et un jeu longitudinal devant la principale. Ces boîtes sont des graphismes temporaires : elles ne créent ni corps outil, ni fonction, ni entrée d'historique. Le bouton `OK` est masqué dans cette phase. La géométrie de coupe réelle ne sera ajoutée qu'après validation visuelle sur plusieurs tailles et orientations IPE.

@@ -54,7 +54,10 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] adapter la jonction ajustée aux angles non droits à partir des axes réels.
 - [x] prolonger automatiquement une barre séparée du plan et couper une barre qui le chevauche.
 - [ ] étendre la coupe d'onglet aux cas cintrés après validation du mode droit.
-- [ ] ajouter séparément les grugeages, platines, boulons et assemblages composés.
+- [x] ajouter un premier aperçu non destructif du double grugeage pour une secondaire IPE à 90°.
+- [ ] valider cet aperçu sur plusieurs tailles, ancrages, rotations et miroirs avant d'activer la coupe réelle.
+- [ ] généraliser ensuite les grugeages aux autres profils de charpente, cornières et tés.
+- [ ] ajouter séparément les platines, boulons et assemblages composés.
 
 ## Qualité
 

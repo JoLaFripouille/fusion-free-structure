@@ -356,6 +356,25 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 4. Contrôler que la principale couvre toute la largeur de la section secondaire sans vide et que seule l'extrémité nécessaire a été prolongée.
 5. Refaire l'essai avec la même jonction au milieu d'une principale suffisamment longue : le rapport doit afficher `Suffisante — aucune modification` et ne créer aucun prolongement principal.
 
+## Test 22 — Premier aperçu du double grugeage IPE
+
+Cette validation est volontairement visuelle et non destructive. Aucun solide ne doit être modifié pendant ce test.
+
+1. Créer une barre principale IPE, HEA ou HEB et une barre secondaire IPE droite dont les axes se rejoignent exactement à `90°`.
+2. Arrêter puis exécuter le complément et vérifier `Grugeage IPE — aperçu V1.17.0` dans `STRUCTURE JHR > MODIFIER`.
+3. Ouvrir la commande, sélectionner la principale puis la secondaire IPE.
+4. Vérifier l'apparition de deux volumes rouges semi-transparents, l'un sur la semelle supérieure de la secondaire et l'autre sur sa semelle inférieure.
+5. Vérifier que les volumes partent de l'extrémité située sur l'axe principal et se terminent sur la face extérieure de la principale orientée vers la secondaire.
+6. Vérifier dans le rapport la famille et la section des deux barres, l'angle de `90°`, la profondeur automatique et les hauteurs retirées.
+7. Passer le `Jeu vertical` de `1 mm` à `0 mm`, puis à `2 mm` : les limites rouges proches de l'âme doivent suivre immédiatement la valeur.
+8. Passer le `Jeu longitudinal` de `1 mm` à `0 mm`, puis à `2 mm` : la profondeur rouge doit suivre immédiatement la valeur.
+9. Fermer la commande et vérifier que les volumes rouges disparaissent, sans nouvelle entrée dans l'historique et sans modification du corps IPE.
+10. Refaire l'essai avec au moins trois sections IPE différentes, dont `IPE 100`, une section intermédiaire et une grande section.
+11. Refaire un cas avec rotation, miroir X, miroir Y et un point d'ancrage non centré ; les volumes doivent rester attachés aux deux semelles de l'IPE secondaire.
+12. Vérifier qu'une secondaire HEA, un arc ou un angle différent de `90°` est refusé avec un message clair et sans aucun graphisme résiduel.
+
+Le bouton `OK` ne doit pas être affiché dans la V1.17.0. La coupe réelle ne sera implémentée qu'après validation de ces douze points.
+
 ## Critères de validation
 
 - aucune erreur dans le journal Fusion ;
@@ -390,5 +409,6 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 - prolongement automatique si le corps est séparé du plan et coupe directe s'il le chevauche.
 - point et normale de la preview identiques au plan final contrôlé par le complément.
 - jeu de jonction mesurable et conforme à la valeur saisie.
+- deux volumes rouges de grugeage alignés sur les semelles de l'IPE secondaire, sans aucune modification du modèle.
 
 Tout écart doit être ajouté à `KNOWN_ISSUES.md` avant correction. Toute correction livrée doit apparaître dans `CHANGELOG.md`.

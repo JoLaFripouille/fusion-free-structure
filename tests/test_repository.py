@@ -40,10 +40,12 @@ class RepositoryTests(unittest.TestCase):
     def test_visible_command_name_uses_the_manifest_version(self):
         command_source = (ADDIN / "commands" / "create_members.py").read_text(encoding="utf-8")
         joint_source = (ADDIN / "commands" / "create_joint.py").read_text(encoding="utf-8")
+        cope_source = (ADDIN / "commands" / "create_cope.py").read_text(encoding="utf-8")
         inspection_source = (ADDIN / "commands" / "inspect_member.py").read_text(encoding="utf-8")
         builder_source = (ADDIN / "lib" / "member_builder.py").read_text(encoding="utf-8")
         self.assertIn("COMMAND_NAME = addin_info.DISPLAY_NAME", command_source)
         self.assertIn('COMMAND_NAME = "Jonctions acier V{}".format(addin_info.VERSION)', joint_source)
+        self.assertIn('COMMAND_NAME = "Grugeage IPE — aperçu V{}".format(addin_info.VERSION)', cope_source)
         self.assertIn('COMMAND_NAME = "Inspecter un profil acier V{}".format(addin_info.VERSION)', inspection_source)
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
 
@@ -115,6 +117,7 @@ class RepositoryTests(unittest.TestCase):
             "create_members.py": "ui_layout.CREATE_PANEL_ID",
             "manage_custom_profiles.py": "ui_layout.CREATE_PANEL_ID",
             "create_joint.py": "ui_layout.MODIFY_PANEL_ID",
+            "create_cope.py": "ui_layout.MODIFY_PANEL_ID",
             "inspect_member.py": "ui_layout.MODIFY_PANEL_ID",
         }
         for filename, panel_id in expected_panels.items():
@@ -123,6 +126,29 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn("SolidCreatePanel", source)
             self.assertNotIn("SolidModifyPanel", source)
             self.assertNotIn("SolidScriptsAddinsPanel", source)
+
+    def test_double_ipe_cope_is_registered_as_preview_only(self):
+        entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(
+            encoding="utf-8"
+        )
+        command_source = (ADDIN / "commands" / "create_cope.py").read_text(
+            encoding="utf-8"
+        )
+        preview_source = (ADDIN / "lib" / "cope_preview.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("create_cope.start()", entry_source)
+        self.assertIn("create_cope.stop()", entry_source)
+        self.assertEqual(command_source.count('addSelectionFilter("Occurrences")'), 2)
+        self.assertIn('"Barre principale"', command_source)
+        self.assertIn('"Barre secondaire IPE"', command_source)
+        self.assertIn("evaluate_double_ipe_cope", command_source)
+        self.assertIn("CopePreviewManager", command_source)
+        self.assertIn("command.isOKButtonVisible = False", command_source)
+        self.assertIn("aucune coupe ne sera créée", command_source)
+        self.assertIn("COPE_PREVIEW_RED", preview_source)
+        self.assertNotIn("combineFeatures", command_source)
+        self.assertNotIn("splitBodyFeatures", command_source)
 
     def test_github_installation_guide_covers_profiles_and_updates(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

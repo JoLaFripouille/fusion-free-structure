@@ -3,7 +3,13 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from .commands import create_joint, create_members, inspect_member, manage_custom_profiles
+from .commands import (
+    create_cope,
+    create_joint,
+    create_members,
+    inspect_member,
+    manage_custom_profiles,
+)
 from .lib import addin_info, structural_materials, ui_layout
 
 
@@ -29,6 +35,7 @@ def run(context):
         ui_layout.start(ui)
         create_members.start()
         create_joint.start()
+        create_cope.start()
         inspect_member.start()
         manage_custom_profiles.start()
     except Exception:
@@ -46,6 +53,7 @@ def stop(context):
         ui = app.userInterface
         manage_custom_profiles.stop()
         inspect_member.stop()
+        create_cope.stop()
         create_joint.stop()
         create_members.stop()
         ui_layout.stop(ui)

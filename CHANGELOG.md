@@ -4,6 +4,24 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.17.0] - En validation
+
+### Ajouté
+
+- nouvelle commande `Grugeage IPE — aperçu` dans `STRUCTURE JHR > MODIFIER` ;
+- premier périmètre volontairement limité à une principale IPE, HEA ou HEB, une secondaire IPE droite et des axes à `90°` ;
+- détection automatique des limites des semelles et de l'âme directement dans chacun des 18 DXF IPE d'origine ;
+- deux volumes rouges semi-transparents représentant la matière proposée au retrait au-dessus et au-dessous de l'âme ;
+- profondeur calculée depuis l'axe commun jusqu'à la face réelle de la principale, sans dépendre de sa longueur totale ;
+- prise en compte de l'ancrage, de la rotation et des miroirs enregistrés sur l'IPE secondaire ;
+- jeux vertical et longitudinal réglables avec rafraîchissement dynamique du rapport et de l'aperçu.
+
+### Sécurité de validation
+
+- cette première livraison ne crée aucune fonction, aucune coupe et aucune entrée d'historique Fusion ;
+- le bouton `OK` est volontairement masqué : la fenêtre se ferme uniquement avec `Fermer` ;
+- la coupe réelle restera bloquée jusqu'à la validation visuelle du test 22 dans Fusion.
+
 ## [1.16.3] - En validation
 
 ### Corrigé

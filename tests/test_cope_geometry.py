@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import sys
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+ADDIN = ROOT / "addin" / "JHR_StructuralMembers_V1"
+sys.path.insert(0, str(ADDIN))
+
+from lib import cope_geometry, profile_catalog
+
+
+class CopeGeometryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        profiles = profile_catalog.discover_profiles(include_custom=False)
+        cls.ipe100 = next(
+            profile
+            for profile in profiles
+            if profile.family_id == "IPE" and profile.section_label == "100"
+        )
+        cls.geometry = cope_geometry.analyze_i_profile_dxf(cls.ipe100.dxf_path)
+
+    def test_ipe100_flange_and_web_limits_come_from_the_original_dxf(self):
+        self.assertEqual(self.geometry.bounds_mm, (-27.5, 0.0, 27.5, 100.0))
+        self.assertAlmostEqual(self.geometry.web_min_y_mm, 12.7)
+        self.assertAlmostEqual(self.geometry.web_max_y_mm, 87.3)
+        self.assertAlmostEqual(self.geometry.bottom_cope_height_mm, 12.7)
+        self.assertAlmostEqual(self.geometry.top_cope_height_mm, 12.7)
+
+    def test_every_bundled_ipe_has_a_detectable_double_cope_geometry(self):
+        profiles = profile_catalog.discover_profiles(include_custom=False)
+        ipe_profiles = [profile for profile in profiles if profile.family_id == "IPE"]
+        self.assertEqual(len(ipe_profiles), 18)
+        for profile in ipe_profiles:
+            geometry = cope_geometry.analyze_i_profile_dxf(profile.dxf_path)
+            self.assertGreater(geometry.width_mm, 0.0, profile.section_label)
+            self.assertGreater(geometry.bottom_cope_height_mm, 0.0, profile.section_label)
+            self.assertGreater(geometry.top_cope_height_mm, 0.0, profile.section_label)
+
+    def test_double_cope_uses_anchor_depth_and_vertical_clearance(self):
+        volumes = cope_geometry.double_cope_volumes(
+            self.geometry,
+            self.ipe100.anchor_mm("C"),
+            depth_cm=3.0,
+            vertical_clearance_cm=0.1,
+        )
+        self.assertEqual(len(volumes), 2)
+        bottom, top = volumes
+        self.assertEqual(bottom.name, "Grugeage inférieur")
+        self.assertEqual(top.name, "Grugeage supérieur")
+        self.assertAlmostEqual(bottom.axial_min_cm, -3.0)
+        self.assertAlmostEqual(bottom.y_max_cm, -3.63)
+        self.assertAlmostEqual(top.y_min_cm, 3.63)
+        self.assertLess(bottom.y_max_cm, top.y_min_cm)
+
+    def test_red_preview_box_mesh_is_closed_and_has_eight_vertices(self):
+        volume = cope_geometry.double_cope_volumes(
+            self.geometry,
+            self.ipe100.anchor_mm("C"),
+            depth_cm=3.0,
+            vertical_clearance_cm=0.1,
+        )[0]
+        coordinates, triangles, wires = cope_geometry.volume_mesh(
+            volume,
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),
+        )
+        self.assertEqual(len(coordinates), 24)
+        self.assertEqual(len(triangles), 36)
+        self.assertEqual(len(wires), 24)
+
+    def test_depth_uses_the_facing_support_not_the_primary_length(self):
+        primary_points = (
+            (-100.0, -2.0, -4.0),
+            (100.0, -2.0, -4.0),
+            (-100.0, 2.0, 4.0),
+            (100.0, 2.0, 4.0),
+        )
+        depth = cope_geometry.depth_to_facing_support(
+            joint_point=(0.0, 0.0, 0.0),
+            approach_direction=(0.0, 1.0, 0.0),
+            plane_normal=(0.0, -1.0, 0.0),
+            primary_body_points=primary_points,
+        )
+        self.assertAlmostEqual(depth, 2.0)
+
+
+if __name__ == "__main__":
+    unittest.main()
