@@ -4,13 +4,14 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
-### ISSUE-023 — Grugeage I/H oblique à valider dans Fusion
+### ISSUE-023 — Début du grugeage des semelles perpendiculaire à un raccord oblique
 
-- **État :** candidate V1.19.0 prête pour un premier essai contrôlé.
+- **État :** défaut V1.19.0 reproduit et correction V1.19.1 prête à valider.
 - **Périmètre :** principale et secondaire droites IPE, HEA ou HEB, axes raccordés et angle non parallèle supérieur à `5°`.
-- **Impact :** les calculs hors Fusion confirment que la profondeur couvre toute la section et que le volume de preview se termine sur le plan oblique. La création des plans orientés, le prolongement et la coupe doivent encore être confirmés dans l'application.
-- **Sécurité :** la preview et la création partagent le même point et la même normale ; les fonctions de la tentative sont retirées en sens inverse à la moindre erreur.
-- **Validation prévue :** commencer par une principale IPE suffisamment longue et une secondaire HEA à `60°`, sans rotation ni miroir, conformément au test 23.
+- **Symptôme :** la coupe de l'âme suit le bon angle, mais le début du retrait des semelles reste sur un plan normal à la secondaire et produit un grugeage droit du côté extérieur.
+- **Cause :** la V1.19.0 utilisait le plan perpendiculaire portant l'esquisse comme limite réelle de départ du retrait.
+- **Correction V1.19.1 :** l'esquisse reste sur un plan de référence sûr, tandis que l'extrusion commence sur un second plan oblique parallèle à l'âme et se termine sur le plan de l'âme.
+- **Validation prévue :** annuler le grugeage V1.19.0 ou utiliser deux nouvelles barres, puis reprendre exactement la principale IPE et la secondaire HEA à `60°` du test 23.
 
 ### ISSUE-022 — Création réelle du grugeage IPE à valider dans Fusion
 
@@ -37,7 +38,7 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 ### ISSUE-019 — Géométries courbes avancées encore limitées
 
 - **État :** périmètre restant après la V1.16.0.
-- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les cornières, les tés, les platines et les boulons ne sont pas encore pris en charge ; le grugeage I/H oblique de la V1.19.0 reste en validation.
+- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les cornières, les tés, les platines et les boulons ne sont pas encore pris en charge ; le grugeage I/H oblique corrigé en V1.19.1 reste en validation.
 - **Sécurité :** la position et l'orientation du plan final sont contrôlées contre la prévisualisation avant toute coupe ; les cas hors périmètre sont refusés sans modifier le modèle.
 - **Validation prévue :** terminer les essais du test 21 avant d'étendre le même modèle géométrique aux références cintrées.
 

@@ -155,7 +155,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("COPE_PREVIEW_RED", preview_source)
         self.assertIn("WEB_CUT_ORANGE", preview_source)
         self.assertIn("PRIMARY_EXTENSION_GREEN", preview_source)
-        self.assertIn("clipped_volume_mesh", preview_source)
+        self.assertIn("bounded_volume_mesh", preview_source)
         self.assertIn("evaluation.web_cut_normal", preview_source)
         cope_builder_source = (ADDIN / "lib" / "cope_builder.py").read_text(
             encoding="utf-8"
@@ -179,8 +179,14 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('LEGACY_COPE_TYPES = frozenset(("double_ipe_cope",))', creator_source)
         self.assertIn('ENDPOINT_PLANE_NAME = "PLAN_GRUGEAGE_EXTREMITE"', creator_source)
         self.assertIn('WEB_CUT_PLANE_NAME = "PLAN_COUPE_AME_PRINCIPALE"', creator_source)
-        self.assertIn('COPE_START_PLANE_NAME = "PLAN_DEBUT_GRUGEAGE"', creator_source)
+        self.assertIn('FLANGE_START_PLANE_NAME = "PLAN_DEBUT_GRUGEAGE"', creator_source)
+        self.assertIn(
+            'COPE_REFERENCE_PLANE_NAME = "PLAN_REFERENCE_ESQUISSE_GRUGEAGE"',
+            creator_source,
+        )
         self.assertIn('COPE_CUT_FEATURE_NAME = "GRUGEAGE_SEMELLES_IH"', creator_source)
+        self.assertIn("FromEntityStartDefinition.create", creator_source)
+        self.assertIn("extrude_input.startExtent = start_extent", creator_source)
         self.assertIn("removed_volume_cm3", creator_source)
         self.assertIn("for entity in reversed(created_entities)", creator_source)
         self.assertIn("for attribute in reversed(created_attributes)", creator_source)

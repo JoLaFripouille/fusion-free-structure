@@ -61,7 +61,8 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [ ] compléter la validation V1.18.0 sur plusieurs tailles, ancrages, rotations et miroirs.
 - [x] généraliser le moteur de double grugeage aux secondaires HEA et HEB.
 - [x] calculer le plan d'âme et les volumes de grugeage pour les angles non parallèles.
-- [ ] valider la V1.19.0 dans Fusion à `60°`, puis à `30°` et `45°`, avant d'élargir les essais.
+- [x] corriger le début des retraits de semelles pour qu'il suive la face extérieure oblique de la principale.
+- [ ] valider la V1.19.1 corrigée dans Fusion à `60°`, puis à `30°` et `45°`, avant d'élargir les essais.
 - [ ] généraliser ensuite les grugeages aux autres profils de charpente, cornières et tés.
 - [ ] ajouter séparément les platines, boulons et assemblages composés.
 

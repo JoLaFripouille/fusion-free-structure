@@ -35,6 +35,7 @@ class CopeEvaluation:
     web_clearance_cm: float
     origin: tuple
     cope_start_point: tuple
+    flange_start_point: tuple
     web_cut_point: tuple
     web_cut_normal: tuple
     primary_anchor_mm: tuple
@@ -227,13 +228,28 @@ def evaluate_double_ih_cope(
         secondary_section_points,
     )
     depth_cm = automatic_depth_cm + float(longitudinal_clearance_cm)
+    reference_depth_cm = depth_cm + cope_geometry.COPE_REFERENCE_MARGIN_CM
+    outer_support_point = cope_geometry.facing_support_plane_point(
+        geometry.secondary_joint_endpoint,
+        geometry.plane_normal,
+        primary_points,
+    )
+    flange_start_point = joint_geometry.add(
+        outer_support_point,
+        joint_geometry.scale(
+            axial_axis,
+            -float(longitudinal_clearance_cm),
+        ),
+    )
     available_length_cm = joint_geometry.length(
         joint_geometry.subtract(
             geometry.secondary_joint_endpoint,
             geometry.secondary_inner_endpoint,
         )
     )
-    if depth_cm >= available_length_cm - joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+    if reference_depth_cm >= (
+        available_length_cm - joint_geometry.PLANE_RELATION_TOLERANCE_CM
+    ):
         raise ValueError(
             "La profondeur du grugeage atteint toute la longueur de la secondaire."
         )
@@ -253,7 +269,7 @@ def evaluate_double_ih_cope(
     )
     cope_start_point = joint_geometry.add(
         geometry.secondary_joint_endpoint,
-        joint_geometry.scale(axial_axis, -depth_cm),
+        joint_geometry.scale(axial_axis, -reference_depth_cm),
     )
     axial_rate = joint_geometry.dot(axial_axis, geometry.plane_normal)
     if abs(axial_rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
@@ -308,6 +324,7 @@ def evaluate_double_ih_cope(
         web_clearance_cm=float(web_clearance_cm),
         origin=geometry.secondary_joint_endpoint,
         cope_start_point=cope_start_point,
+        flange_start_point=flange_start_point,
         web_cut_point=web_cut_point,
         web_cut_normal=geometry.plane_normal,
         primary_anchor_mm=primary_anchor_mm,

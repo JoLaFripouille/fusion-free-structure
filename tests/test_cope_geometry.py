@@ -159,17 +159,20 @@ class CopeGeometryTests(unittest.TestCase):
             -depth,
             0.05,
         )
-        coordinates, triangles, wires = cope_geometry.clipped_volume_mesh(
+        coordinates, triangles, wires = cope_geometry.bounded_volume_mesh(
             volume,
             start,
             profile_x,
             (0.0, 0.0, 1.0),
             approach,
+            (0.0, -2.0, 0.0),
+            (0.0, -1.0, 0.0),
             (0.0, -0.2, 0.0),
             (0.0, -1.0, 0.0),
         )
         points = tuple(zip(coordinates[0::3], coordinates[1::3], coordinates[2::3]))
         self.assertEqual(len(points), 8)
+        self.assertTrue(all(abs(point[1] + 2.0) < 1e-9 for point in points[:4]))
         self.assertTrue(all(abs(point[1] + 0.2) < 1e-9 for point in points[4:]))
         self.assertEqual(len(triangles), 36)
         self.assertEqual(len(wires), 24)
@@ -203,17 +206,23 @@ class CopeGeometryTests(unittest.TestCase):
                 -depth,
                 0.05,
             )
-            coordinates, _, _ = cope_geometry.clipped_volume_mesh(
+            coordinates, _, _ = cope_geometry.bounded_volume_mesh(
                 volume,
                 start,
                 profile_x,
                 (0.0, 0.0, 1.0),
                 approach,
+                (0.0, -2.0, 0.0),
+                cut_normal,
                 cut_point,
                 cut_normal,
             )
             points = tuple(
                 zip(coordinates[0::3], coordinates[1::3], coordinates[2::3])
+            )
+            self.assertTrue(
+                all(abs(point[1] + 2.0) < 1e-9 for point in points[:4]),
+                angle_degrees,
             )
             self.assertTrue(
                 all(abs(point[1] + 0.2) < 1e-9 for point in points[4:]),

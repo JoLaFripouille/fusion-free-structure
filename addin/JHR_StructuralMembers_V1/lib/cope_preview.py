@@ -70,12 +70,14 @@ class CopePreviewManager:
         green_edge = _color_effect(PRIMARY_EXTENSION_EDGE)
         try:
             for volume in evaluation.volumes:
-                coordinates, triangles, wires = cope_geometry.clipped_volume_mesh(
+                coordinates, triangles, wires = cope_geometry.bounded_volume_mesh(
                     volume,
                     evaluation.cope_start_point,
                     evaluation.profile_x_axis,
                     evaluation.profile_y_axis,
                     evaluation.axial_axis,
+                    evaluation.flange_start_point,
+                    evaluation.web_cut_normal,
                     evaluation.web_cut_point,
                     evaluation.web_cut_normal,
                 )

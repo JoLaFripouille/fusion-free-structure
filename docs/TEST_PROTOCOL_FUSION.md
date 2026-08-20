@@ -361,7 +361,7 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 Procéder en deux temps : contrôler d'abord la preview déjà validée, puis créer une seule opération et inspecter son résultat avant de multiplier les essais.
 
 1. Créer une barre principale IPE, HEA ou HEB et une barre secondaire IPE, HEA ou HEB droite dont les axes se rejoignent exactement à `90°`.
-2. Arrêter puis exécuter le complément et vérifier `Grugeage I/H V1.19.0` dans `STRUCTURE JHR > MODIFIER`.
+2. Arrêter puis exécuter le complément et vérifier `Grugeage I/H V1.19.1` dans `STRUCTURE JHR > MODIFIER`.
 3. Ouvrir la commande, sélectionner la principale puis le profil I/H secondaire.
 4. Vérifier l'apparition de deux volumes rouges semi-transparents, l'un sur la semelle supérieure de la secondaire et l'autre sur sa semelle inférieure.
 5. Vérifier que les volumes rouges partent de l'extrémité située sur l'axe principal et se terminent sur la face extérieure de la principale orientée vers la secondaire.
@@ -373,7 +373,7 @@ Procéder en deux temps : contrôler d'abord la preview déjà validée, puis cr
 11. Placer le raccord au milieu d'une principale suffisamment longue : le rapport doit indiquer `Aucun — couverture suffisante` et aucun ajout vert ne doit apparaître.
 12. Refaire le raccord près de l'extrémité d'une principale trop courte : une section verte doit prolonger uniquement cette extrémité jusqu'à couvrir la section secondaire, avec la même longueur dans le rapport.
 13. Cliquer sur `OK` et vérifier que la principale n'est modifiée que si sa couverture était insuffisante.
-14. Dans le composant secondaire, vérifier la présence de `PLAN_GRUGEAGE_EXTREMITE`, `PLAN_COUPE_AME_PRINCIPALE`, `PLAN_DEBUT_GRUGEAGE`, `COUPE_DROITE_AME_PRINCIPALE`, `RETRAIT_APRES_AME_PRINCIPALE`, `ESQUISSE_OUTILS_GRUGEAGE` et `GRUGEAGE_SEMELLES_IH`.
+14. Dans le composant secondaire, vérifier la présence de `PLAN_GRUGEAGE_EXTREMITE`, `PLAN_DEBUT_GRUGEAGE`, `PLAN_COUPE_AME_PRINCIPALE`, `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, `COUPE_DROITE_AME_PRINCIPALE`, `RETRAIT_APRES_AME_PRINCIPALE`, `ESQUISSE_OUTILS_GRUGEAGE` et `GRUGEAGE_SEMELLES_IH`.
 15. Vérifier qu'il reste exactement un corps dans la secondaire, que son âme s'arrête contre l'âme principale avec le jeu choisi et que ses deux semelles s'arrêtent suivant les volumes rouges de la preview.
 16. Si la principale était trop courte, vérifier `PROLONGEMENT_BARRE_PRINCIPALE` et l'absence de vide sur toute la largeur de la secondaire. Dans un raccord situé au milieu d'une principale assez longue, cette fonction ne doit pas être créée.
 17. Mesurer les jeux vertical, longitudinal et contre l'âme ; ils doivent correspondre aux valeurs saisies.
@@ -388,12 +388,12 @@ Procéder en deux temps : contrôler d'abord la preview déjà validée, puis cr
 Effectuer d'abord uniquement le cas `60°`. Les autres angles ne seront testés qu'après ce premier résultat.
 
 1. Créer une principale IPE suffisamment longue et une secondaire HEA, sans rotation ni miroir, dont les axes se rejoignent à `60°`.
-2. Ouvrir `Grugeage I/H V1.19.0`, sélectionner la principale puis la secondaire et vérifier `Angle entre axes : 60°`.
+2. Ouvrir `Grugeage I/H V1.19.1`, sélectionner la principale puis la secondaire et vérifier `Angle entre axes : 60°`.
 3. Vérifier que le plan orange suit exactement le plan de l'âme principale et qu'il est visiblement incliné par rapport à la face d'extrémité de la secondaire.
-4. Vérifier que les deux volumes rouges commencent sur un même plan normal à la secondaire et que leurs faces obliques se terminent entièrement sur le plan orange.
+4. Vérifier que les faces de départ des deux volumes rouges suivent la face extérieure oblique de la principale et que leurs faces d'arrivée se terminent entièrement sur le plan orange de l'âme ; les deux limites doivent être parallèles.
 5. Vérifier que la profondeur maximale augmente suffisamment pour placer le début du grugeage derrière les deux côtés de la face extérieure principale.
 6. Modifier séparément les trois jeux et vérifier que la preview reste cohérente : hauteur rouge pour le jeu vertical, plan de départ pour le jeu longitudinal et plan orange pour le jeu contre l'âme.
-7. Cliquer sur `OK` puis contrôler `PLAN_STATION_PRINCIPALE_GRUGEAGE`, `PLAN_GRUGEAGE_EXTREMITE`, `AXE_ORIENTATION_COUPE_AME`, `PLAN_ORIENTATION_AME_PRINCIPALE` et `PLAN_COUPE_AME_PRINCIPALE`.
+7. Cliquer sur `OK` puis contrôler `PLAN_STATION_PRINCIPALE_GRUGEAGE`, `PLAN_GRUGEAGE_EXTREMITE`, `AXE_ORIENTATION_COUPE_AME`, `PLAN_ORIENTATION_AME_PRINCIPALE`, `PLAN_DEBUT_GRUGEAGE`, `PLAN_COUPE_AME_PRINCIPALE` et `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`.
 8. Vérifier que le plan final se superpose à la preview, qu'il reste un seul corps secondaire, que l'âme est coupée suivant le plan oblique et que les deux semelles sont grugées jusqu'à ce même plan.
 9. Vérifier qu'aucun prolongement principal n'a été créé dans ce premier cas suffisamment long.
 10. Après validation du cas `60°`, répéter séparément à `30°` puis `45°`, sans modifier plusieurs paramètres à la fois.

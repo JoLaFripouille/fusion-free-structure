@@ -4,6 +4,22 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.19.1] - En validation
+
+### Corrigé
+
+- correction du grugeage oblique dont la coupe d'âme suivait le bon angle mais dont le début du retrait des semelles restait perpendiculaire à la secondaire ;
+- création de `PLAN_DEBUT_GRUGEAGE` parallèle au plan de l'âme et placé sur la face extérieure de la principale, avec le jeu longitudinal mesuré suivant l'axe secondaire ;
+- conservation d'un plan séparé `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, normal à la secondaire et placé derrière toute la limite oblique, uniquement pour porter les deux profils fermés ;
+- retrait supplémentaire de `0,5 mm` du plan de référence afin qu'il ne soit jamais tangent au plan de départ oblique ;
+- extrusion en retrait limitée au départ par `FromEntityStartDefinition` sur le plan extérieur oblique et à l'arrivée par `ToEntityExtentDefinition` sur le plan d'âme oblique ;
+- preview rouge reconstruite entre ces deux plans parallèles : ses faces de départ et d'arrivée suivent maintenant le même angle réel.
+
+### Régression couverte
+
+- aux angles `30°`, `45°` et `60°`, les quatre sommets de départ appartiennent au plan extérieur et les quatre sommets d'arrivée au plan de l'âme ;
+- le comportement à `90°` reste le cas particulier où ces deux plans sont également normaux à la secondaire.
+
 ## [1.19.0] - En validation
 
 ### Ajouté

@@ -14,7 +14,8 @@ PRIMARY_STATION_PLANE_NAME = "PLAN_STATION_PRINCIPALE_GRUGEAGE"
 WEB_CUT_AXIS_NAME = "AXE_ORIENTATION_COUPE_AME"
 WEB_ORIENTATION_PLANE_NAME = "PLAN_ORIENTATION_AME_PRINCIPALE"
 WEB_CUT_PLANE_NAME = "PLAN_COUPE_AME_PRINCIPALE"
-COPE_START_PLANE_NAME = "PLAN_DEBUT_GRUGEAGE"
+FLANGE_START_PLANE_NAME = "PLAN_DEBUT_GRUGEAGE"
+COPE_REFERENCE_PLANE_NAME = "PLAN_REFERENCE_ESQUISSE_GRUGEAGE"
 WEB_SPLIT_FEATURE_NAME = "COUPE_DROITE_AME_PRINCIPALE"
 WEB_REMOVE_FEATURE_NAME = "RETRAIT_APRES_AME_PRINCIPALE"
 COPE_SKETCH_NAME = "ESQUISSE_OUTILS_GRUGEAGE"
@@ -75,6 +76,20 @@ def _add_cut_planes(evaluation, created_entities):
         WEB_ORIENTATION_PLANE_NAME,
         created_entities,
     )
+    flange_start_plane = joint_builder._add_offset_to_point(
+        component,
+        occurrence,
+        web_orientation_plane,
+        evaluation.flange_start_point,
+        FLANGE_START_PLANE_NAME,
+    )
+    created_entities.append(flange_start_plane)
+    joint_builder._validate_plane_match(
+        flange_start_plane,
+        occurrence,
+        evaluation.flange_start_point,
+        evaluation.web_cut_normal,
+    )
     web_cut_plane = joint_builder._add_offset_to_point(
         component,
         occurrence,
@@ -89,21 +104,21 @@ def _add_cut_planes(evaluation, created_entities):
         evaluation.web_cut_point,
         evaluation.web_cut_normal,
     )
-    cope_start_plane = joint_builder._add_offset_to_point(
+    cope_reference_plane = joint_builder._add_offset_to_point(
         component,
         occurrence,
         endpoint_plane,
         evaluation.cope_start_point,
-        COPE_START_PLANE_NAME,
+        COPE_REFERENCE_PLANE_NAME,
     )
-    created_entities.append(cope_start_plane)
+    created_entities.append(cope_reference_plane)
     joint_builder._validate_plane_match(
-        cope_start_plane,
+        cope_reference_plane,
         occurrence,
         evaluation.cope_start_point,
         evaluation.axial_axis,
     )
-    return web_cut_plane, cope_start_plane
+    return web_cut_plane, flange_start_plane, cope_reference_plane
 
 
 def _point3d(point):
@@ -151,13 +166,14 @@ def _add_closed_rectangle(sketch, world_points):
 
 def _create_cope_cut(
     evaluation,
-    cope_start_plane,
+    cope_reference_plane,
+    flange_start_plane,
     web_cut_plane,
     created_entities,
 ):
     component = evaluation.secondary_occurrence.component
     occurrence = evaluation.secondary_occurrence
-    sketch = component.sketches.add(cope_start_plane, occurrence)
+    sketch = component.sketches.add(cope_reference_plane, occurrence)
     if not sketch:
         raise RuntimeError("Fusion n'a pas pu créer l'esquisse du grugeage.")
     sketch.name = COPE_SKETCH_NAME
@@ -191,12 +207,20 @@ def _create_cope_cut(
         raise RuntimeError("Fusion n'a pas pu préparer la coupe des semelles.")
     extrude_input.creationOccurrence = occurrence
     extrude_input.participantBodies = [body]
+    start_extent = adsk.fusion.FromEntityStartDefinition.create(
+        flange_start_plane,
+        adsk.core.ValueInput.createByReal(0.0),
+    )
+    if not start_extent:
+        raise RuntimeError(
+            "Fusion n'a pas pu limiter le début du grugeage à la face extérieure."
+        )
     extent = adsk.fusion.ToEntityExtentDefinition.create(web_cut_plane, False)
     if not extent:
         raise RuntimeError("Fusion n'a pas pu limiter le grugeage au plan de l'âme.")
     extent.directionHint = adsk.core.Vector3D.create(*evaluation.axial_axis)
     _, plane_normal = joint_builder._world_plane_system(
-        cope_start_plane,
+        cope_reference_plane,
         occurrence,
     )
     direction = (
@@ -206,6 +230,7 @@ def _create_cope_cut(
     )
     if not extrude_input.setOneSideExtent(extent, direction):
         raise RuntimeError("Fusion n'a pas pu orienter la coupe des semelles.")
+    extrude_input.startExtent = start_extent
     feature = extrudes.add(extrude_input)
     if not feature:
         raise RuntimeError("Fusion n'a pas pu créer le grugeage des semelles.")
@@ -250,7 +275,7 @@ def create_double_ih_cope(evaluation):
     created_entities = []
     created_attributes = []
     try:
-        web_cut_plane, cope_start_plane = _add_cut_planes(
+        web_cut_plane, flange_start_plane, cope_reference_plane = _add_cut_planes(
             evaluation,
             created_entities,
         )
@@ -273,7 +298,8 @@ def create_double_ih_cope(evaluation):
         )
         _create_cope_cut(
             evaluation,
-            cope_start_plane,
+            cope_reference_plane,
+            flange_start_plane,
             web_cut_plane,
             created_entities,
         )

@@ -11,6 +11,7 @@ SIDE_OVERSIZE_CM = 0.05
 END_OVERRUN_CM = 0.05
 WEB_AXIS_ALIGNMENT_TOLERANCE = 0.995
 PLANE_MARGIN_CM = 0.5
+COPE_REFERENCE_MARGIN_CM = 0.05
 
 
 @dataclass(frozen=True)
@@ -252,6 +253,23 @@ def depth_to_facing_support(
     return depth_cm
 
 
+def facing_support_plane_point(joint_point, plane_normal, primary_body_points):
+    """Projette le raccord sur la face extérieure principale orientée vers la secondaire."""
+    if not primary_body_points:
+        raise ValueError("La barre principale ne contient aucun point exploitable.")
+    normal = joint_geometry.normalize(plane_normal)
+    facing_station = max(
+        joint_geometry.dot(point, normal) for point in primary_body_points
+    )
+    return joint_geometry.add(
+        joint_point,
+        joint_geometry.scale(
+            normal,
+            facing_station - joint_geometry.dot(joint_point, normal),
+        ),
+    )
+
+
 def world_point(origin, x_axis, y_axis, axial_axis, x, y, axial):
     return tuple(
         origin[index]
@@ -305,32 +323,41 @@ def volume_mesh(volume, origin, x_axis, y_axis, axial_axis):
     return coordinates, BOX_TRIANGLES, BOX_WIRES
 
 
-def clipped_volume_mesh(
+def bounded_volume_mesh(
     volume,
-    start_origin,
+    reference_origin,
     x_axis,
     y_axis,
     axial_axis,
-    cut_point,
-    cut_normal,
+    start_point,
+    start_normal,
+    end_point,
+    end_normal,
 ):
-    """Construit l'outil rouge réel, du plan de départ au plan d'âme oblique."""
+    """Construit l'outil rouge entre deux plans obliques parallèles."""
     x_axis = joint_geometry.normalize(x_axis)
     y_axis = joint_geometry.normalize(y_axis)
     axial_axis = joint_geometry.normalize(axial_axis)
-    cut_normal = joint_geometry.normalize(cut_normal)
-    rate = joint_geometry.dot(axial_axis, cut_normal)
-    if abs(rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
-        raise ValueError("L'axe secondaire est parallèle au plan de coupe de l'âme.")
+    start_normal = joint_geometry.normalize(start_normal)
+    end_normal = joint_geometry.normalize(end_normal)
+    if abs(joint_geometry.dot(start_normal, end_normal)) < 0.9999:
+        raise ValueError("Les deux limites du grugeage ne sont pas parallèles.")
+    start_rate = joint_geometry.dot(axial_axis, start_normal)
+    end_rate = joint_geometry.dot(axial_axis, end_normal)
+    if (
+        abs(start_rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM
+        or abs(end_rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM
+    ):
+        raise ValueError("L'axe secondaire est parallèle à une limite du grugeage.")
     local_points = (
         (volume.x_min_cm, volume.y_min_cm),
         (volume.x_max_cm, volume.y_min_cm),
         (volume.x_max_cm, volume.y_max_cm),
         (volume.x_min_cm, volume.y_max_cm),
     )
-    start_points = tuple(
+    reference_points = tuple(
         world_point(
-            start_origin,
+            reference_origin,
             x_axis,
             y_axis,
             axial_axis,
@@ -340,23 +367,38 @@ def clipped_volume_mesh(
         )
         for x, y in local_points
     )
+    start_points = []
     end_points = []
-    for point in start_points:
-        extent_cm = -joint_geometry.plane_signed_distance(
+    for point in reference_points:
+        start_extent_cm = -joint_geometry.plane_signed_distance(
             point,
-            cut_point,
-            cut_normal,
-        ) / rate
-        if extent_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+            start_point,
+            start_normal,
+        ) / start_rate
+        end_extent_cm = -joint_geometry.plane_signed_distance(
+            point,
+            end_point,
+            end_normal,
+        ) / end_rate
+        if start_extent_cm < -joint_geometry.PLANE_RELATION_TOLERANCE_CM:
             raise ValueError(
-                "Le plan d'âme oblique passe derrière le début du grugeage."
+                "Le plan de référence dépasse le début oblique du grugeage."
             )
+        start_extent_cm = max(0.0, start_extent_cm)
+        if end_extent_cm - start_extent_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+            raise ValueError("Les deux limites du grugeage sont inversées ou confondues.")
+        start_points.append(
+            joint_geometry.add(
+                point,
+                joint_geometry.scale(axial_axis, start_extent_cm),
+            )
+        )
         end_points.append(
             joint_geometry.add(
                 point,
-                joint_geometry.scale(axial_axis, extent_cm),
+                joint_geometry.scale(axial_axis, end_extent_cm),
             )
         )
-    points = start_points + tuple(end_points)
+    points = tuple(start_points) + tuple(end_points)
     coordinates = tuple(value for point in points for value in point)
     return coordinates, BOX_TRIANGLES, BOX_WIRES
