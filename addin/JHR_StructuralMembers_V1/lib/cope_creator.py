@@ -362,6 +362,10 @@ def _record_payload(evaluation):
         "adjusted_source_curve_token": evaluation.secondary_metadata.source_curve_token,
         "angle_deg": evaluation.geometry.angle_degrees,
         "vertical_clearance_mm": evaluation.vertical_clearance_cm * 10.0,
+        "under_web_clearance_mm": evaluation.under_web_clearance_cm * 10.0,
+        "root_relief_clearance_mm": (
+            evaluation.root_relief_clearance_cm * 10.0
+        ),
         "longitudinal_clearance_mm": evaluation.longitudinal_clearance_cm * 10.0,
         "web_clearance_mm": evaluation.web_clearance_cm * 10.0,
         "cope_depth_mm": evaluation.depth_cm * 10.0,

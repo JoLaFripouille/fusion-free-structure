@@ -6,12 +6,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ### ISSUE-024 — Grugeage cornière/té à valider dans Fusion
 
-- **État :** correction V1.20.1 prête pour une validation progressive.
+- **État :** forme du grugeage V1.20.1 validée dans Fusion ; réglages indépendants V1.20.2 à confirmer.
 - **Périmètre :** barres droites, axes raccordés et quatre combinaisons `cornière → cornière`, `cornière → té`, `té → cornière` et `té → té`.
 - **Correction V1.20.1 :** pour les cornières et les tés uniquement, le retrait droit correspond à l'épaisseur exacte de la branche secondaire. Un dégagement arrondi distinct, fondé sur le rayon intérieur de la principale et le côté réellement présenté, doit échapper son congé. Les IPE/HEA/HEB ne sont pas modifiés.
+- **Correction V1.20.2 :** un premier champ ajoute le jeu demandé sous l'âme secondaire au retrait droit ; un second champ règle uniquement le jeu autour du congé principal. Les deux champs sont masqués pour les IPE/HEA/HEB.
 - **Risque contrôlé :** les 57 DXF sont analysés et la preview partage le rayon et l'arête de référence avec la coupe finale, mais la sélection réelle de cette arête et la fonction de congé Fusion doivent être confirmées pour une seule combinaison à la fois.
 - **Hors périmètre :** mélange I/H ↔ cornière/té, chemins cintrés et profils personnalisés non classés.
-- **Validation prévue :** recommencer avec des barres sans grugeage antérieur, puis tester une cornière égale secondaire contre une cornière égale principale à `90°`. Vérifier d'abord que la zone droite s'arrête à l'épaisseur et que seul le dégagement arrondi varie avec son jeu ; essayer les trois autres combinaisons seulement après validation.
+- **Validation prévue :** sur le cas cornière/té déjà concluant, vérifier séparément `Jeu sous l'âme secondaire` puis `Jeu autour du congé principal`. Le premier doit déplacer ensemble la coupe droite et la naissance de l'arrondi ; le second doit modifier uniquement son rayon.
 
 ### ISSUE-022 — Création réelle du grugeage IPE à valider dans Fusion
 
@@ -38,7 +39,7 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 ### ISSUE-019 — Géométries courbes avancées encore limitées
 
 - **État :** périmètre restant après la V1.16.0.
-- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les mélanges I/H ↔ cornière/té, les platines et les boulons ne sont pas encore pris en charge ; les quatre grugeages cornière/té corrigés en V1.20.1 restent en validation.
+- **Impact :** la jonction ajustée accepte une barre de référence droite et une barre à ajuster droite ou cintrée, à tout angle non parallèle. L'onglet symétrique reste limité à deux chemins droits. Une référence cintrée, un onglet entre arcs, un grugeage sur chemin cintré, les mélanges I/H ↔ cornière/té, les platines et les boulons ne sont pas encore pris en charge ; les quatre grugeages cornière/té corrigés en V1.20.2 restent en validation.
 - **Sécurité :** la position et l'orientation du plan final sont contrôlées contre la prévisualisation avant toute coupe ; les cas hors périmètre sont refusés sans modifier le modèle.
 - **Validation prévue :** terminer les essais du test 21 avant d'étendre le même modèle géométrique aux références cintrées.
 

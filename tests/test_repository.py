@@ -149,6 +149,13 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('"Barre principale"', command_source)
         self.assertIn('"Barre secondaire"', command_source)
         self.assertIn("evaluate_profile_cope", command_source)
+        self.assertIn('UNDER_WEB_CLEARANCE_ID = "copeUnderWebClearance"', command_source)
+        self.assertIn(
+            'ROOT_RELIEF_CLEARANCE_ID = "copeRootReliefClearance"',
+            command_source,
+        )
+        self.assertIn("Jeu sous l'âme secondaire", command_source)
+        self.assertIn("Jeu autour du congé principal", command_source)
         self.assertIn("CopePreviewManager", command_source)
         self.assertIn('WEB_CLEARANCE_ID = "copeWebClearance"', command_source)
         self.assertIn("ValidateInputsHandler", command_source)

@@ -4,6 +4,22 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.20.2] - En validation
+
+### Ajouté
+
+- réglage `Jeu sous l'âme secondaire` pour les cornières et les tés : le retrait droit vaut désormais l'épaisseur réelle de la branche secondaire plus ce jeu explicite ;
+- réglage indépendant `Jeu autour du congé principal`, qui agit uniquement sur le rayon du dégagement arrondi ;
+- affichage conditionnel des réglages : les deux nouveaux jeux apparaissent seulement pour un couple cornière/té, tandis que `Jeu vertical I/H` reste seul pour un couple IPE/HEA/HEB ;
+- enregistrement séparé des deux nouvelles valeurs dans les données de l'opération.
+
+### Régression couverte
+
+- un jeu sous âme nul conserve exactement l'épaisseur de branche validée en V1.20.1 ;
+- le déplacement du retrait droit et de son arête arrondie suit la même valeur de jeu sous âme ;
+- le rayon du congé reste indépendant et le double grugeage I/H n'utilise aucun des deux nouveaux réglages ;
+- 128 tests automatiques passent avant l'essai Fusion.
+
 ## [1.20.1] - En validation
 
 ### Corrigé

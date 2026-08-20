@@ -376,10 +376,10 @@ def double_cope_volumes(
 def single_cope_rectangle_bounds(
     profile,
     anchor_mm,
-    vertical_clearance_cm,
+    under_web_clearance_cm,
 ):
-    if vertical_clearance_cm < 0.0:
-        raise ValueError("Le jeu vertical du grugeage ne peut pas être négatif.")
+    if under_web_clearance_cm < 0.0:
+        raise ValueError("Le jeu sous l'âme secondaire ne peut pas être négatif.")
     anchor_x_mm, anchor_y_mm = anchor_mm
     x_min = (profile.min_x_mm - anchor_x_mm) * MM_TO_CM - SIDE_OVERSIZE_CM
     x_max = (profile.max_x_mm - anchor_x_mm) * MM_TO_CM + SIDE_OVERSIZE_CM
@@ -388,12 +388,13 @@ def single_cope_rectangle_bounds(
     )
     bottom_max = (
         (profile.flange_top_y_mm - anchor_y_mm) * MM_TO_CM
+        + under_web_clearance_cm
     )
     if bottom_max >= (
         (profile.web_max_y_mm - anchor_y_mm) * MM_TO_CM
         - joint_geometry.PLANE_RELATION_TOLERANCE_CM
     ):
-        raise ValueError("Le jeu vertical supprimerait toute la branche verticale.")
+        raise ValueError("Le jeu sous l'âme supprimerait toute la branche verticale.")
     return ((x_min, x_max, bottom_min, bottom_max),)
 
 
@@ -401,14 +402,14 @@ def single_cope_volumes(
     profile,
     anchor_mm,
     depth_cm,
-    vertical_clearance_cm,
+    under_web_clearance_cm,
 ):
     if depth_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
         raise ValueError("La profondeur automatique du grugeage est nulle.")
     (bottom,) = single_cope_rectangle_bounds(
         profile,
         anchor_mm,
-        vertical_clearance_cm,
+        under_web_clearance_cm,
     )
     return (
         CopeVolume(
@@ -451,10 +452,16 @@ def relief_edge_points(
     axial_axis,
     cut_point,
     cut_normal,
+    under_web_clearance_cm,
 ):
     """Projette les deux extrémités de l'arête à arrondir sur le plan final."""
     anchor_x_mm, anchor_y_mm = anchor_mm
-    local_y_cm = (profile.flange_top_y_mm - anchor_y_mm) * MM_TO_CM
+    if under_web_clearance_cm < 0.0:
+        raise ValueError("Le jeu sous l'âme secondaire ne peut pas être négatif.")
+    local_y_cm = (
+        (profile.flange_top_y_mm - anchor_y_mm) * MM_TO_CM
+        + under_web_clearance_cm
+    )
     axial_axis = joint_geometry.normalize(axial_axis)
     cut_normal = joint_geometry.normalize(cut_normal)
     rate = joint_geometry.dot(axial_axis, cut_normal)

@@ -361,7 +361,7 @@ Effectuer chaque sous-test séparément afin d'identifier immédiatement l'origi
 Procéder en deux temps : contrôler d'abord la preview déjà validée, puis créer une seule opération et inspecter son résultat avant de multiplier les essais.
 
 1. Créer une barre principale IPE, HEA ou HEB et une barre secondaire IPE, HEA ou HEB droite dont les axes se rejoignent exactement à `90°`.
-2. Arrêter puis exécuter le complément et vérifier `Grugeage profils ouverts V1.20.1` dans `STRUCTURE JHR > MODIFIER`.
+2. Arrêter puis exécuter le complément et vérifier `Grugeage profils ouverts V1.20.2` dans `STRUCTURE JHR > MODIFIER`.
 3. Ouvrir la commande, sélectionner la principale puis le profil I/H secondaire.
 4. Vérifier l'apparition de deux volumes rouges semi-transparents, l'un sur la semelle supérieure de la secondaire et l'autre sur sa semelle inférieure.
 5. Vérifier que les volumes rouges partent de l'extrémité située sur l'axe principal et se terminent sur la face extérieure de la principale orientée vers la secondaire.
@@ -388,7 +388,7 @@ Procéder en deux temps : contrôler d'abord la preview déjà validée, puis cr
 Effectuer d'abord uniquement le cas `60°`. Les autres angles ne seront testés qu'après ce premier résultat.
 
 1. Créer une principale IPE suffisamment longue et une secondaire HEA, sans rotation ni miroir, dont les axes se rejoignent à `60°`.
-2. Ouvrir `Grugeage profils ouverts V1.20.1`, sélectionner la principale puis la secondaire et vérifier `Angle entre axes : 60°`.
+2. Ouvrir `Grugeage profils ouverts V1.20.2`, sélectionner la principale puis la secondaire et vérifier `Angle entre axes : 60°`.
 3. Vérifier que le plan orange suit exactement le plan de l'âme principale et qu'il est visiblement incliné par rapport à la face d'extrémité de la secondaire.
 4. Vérifier que les faces de départ des deux volumes rouges suivent la face extérieure oblique de la principale et que leurs faces d'arrivée se terminent entièrement sur le plan orange de l'âme ; les deux limites doivent être parallèles.
 5. Vérifier que la profondeur maximale augmente suffisamment pour placer le début du grugeage derrière les deux côtés de la face extérieure principale.
@@ -408,16 +408,18 @@ Valider une seule combinaison à la fois et annuler immédiatement en cas d'éca
 
 1. Créer une cornière égale principale et une cornière égale secondaire droites, dont les axes se rejoignent à `90°`.
 2. Orienter la branche verticale de la principale face à la secondaire et conserver une orientation simple sans miroir pour ce premier essai.
-3. Ouvrir `Grugeage profils ouverts V1.20.1`, sélectionner la principale puis la secondaire.
+3. Ouvrir `Grugeage profils ouverts V1.20.2`, sélectionner la principale puis la secondaire.
 4. Vérifier que le volume rouge droit recouvre uniquement l'épaisseur de la branche horizontale secondaire : sa limite ne doit plus monter jusqu'au-dessus du congé secondaire.
 5. Vérifier l'apparition d'un retrait rouge arrondi séparé à l'endroit où la secondaire doit échapper le congé intérieur de la principale. Si la secondaire arrive sur la face extérieure de la cornière principale, ce retrait arrondi doit être absent.
-6. Modifier `Jeu vertical / congé` de `1 mm` à `0 mm`, puis `2 mm` : la hauteur du retrait droit doit rester fixe et seul le rayon rouge arrondi doit changer.
-7. Vérifier que le plan orange se trouve sur la face de la branche verticale principale orientée vers la secondaire.
-8. Vérifier le vert uniquement si la principale est trop courte pour couvrir la secondaire.
-9. Cliquer sur `OK`, vérifier `GRUGEAGE_PROFIL_OUVERT`, puis `DEGAGEMENT_CONGE_PRINCIPAL` lorsque le rayon est nécessaire, un corps secondaire unique et la superposition de la coupe réelle avec la preview.
-10. Contrôler que le dégagement arrondi échappe le congé principal sans retirer inutilement le congé de la secondaire.
-11. Refaire une seule fois l'essai sur un IPE/HEA/HEB : il doit conserver ses deux volumes rouges et son ancien jeu vertical, sans créer `DEGAGEMENT_CONGE_PRINCIPAL`.
-12. Annuler puis recommencer avec une cornière inégale avant de poursuivre.
+6. Modifier `Jeu sous l'âme secondaire` de `1 mm` à `0 mm`, puis `2 mm` : la limite droite rouge et la naissance de l'arrondi doivent se déplacer ensemble de la valeur exacte saisie, sans changer le rayon.
+7. Modifier ensuite `Jeu autour du congé principal` de `1 mm` à `0 mm`, puis `2 mm` : seul le rayon rouge arrondi doit changer, sans déplacer la limite droite sous l'âme.
+8. Vérifier que le plan orange se trouve sur la face de la branche verticale principale orientée vers la secondaire.
+9. Vérifier le vert uniquement si la principale est trop courte pour couvrir la secondaire.
+10. Cliquer sur `OK`, vérifier `GRUGEAGE_PROFIL_OUVERT`, puis `DEGAGEMENT_CONGE_PRINCIPAL` lorsque le rayon est nécessaire, un corps secondaire unique et la superposition de la coupe réelle avec la preview.
+11. Mesurer le jeu sous l'âme secondaire : il doit correspondre exactement à la valeur saisie.
+12. Contrôler que le dégagement arrondi échappe le congé principal sans retirer inutilement le congé de la secondaire.
+13. Refaire une seule fois l'essai sur un IPE/HEA/HEB : les deux réglages cornière/té doivent disparaître ; il doit conserver ses deux volumes rouges et son ancien jeu vertical, sans créer `DEGAGEMENT_CONGE_PRINCIPAL`.
+14. Annuler puis recommencer avec une cornière inégale avant de poursuivre.
 
 ### 24B — Les trois autres combinaisons
 

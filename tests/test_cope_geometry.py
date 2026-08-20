@@ -128,7 +128,7 @@ class CopeGeometryTests(unittest.TestCase):
                 profile.section_label,
             )
 
-    def test_single_cope_removes_only_the_horizontal_branch(self):
+    def test_single_cope_adds_only_the_requested_clearance_under_the_web(self):
         geometry = cope_geometry.analyze_single_flange_profile_dxf(
             self.angle50.dxf_path
         )
@@ -136,12 +136,19 @@ class CopeGeometryTests(unittest.TestCase):
             geometry,
             self.angle50.anchor_mm("C"),
             depth_cm=3.0,
-            vertical_clearance_cm=0.1,
+            under_web_clearance_cm=0.1,
         )
         self.assertEqual(len(volumes), 1)
         self.assertEqual(volumes[0].name, "Grugeage de la branche horizontale")
         self.assertAlmostEqual(volumes[0].axial_min_cm, -3.0)
-        self.assertAlmostEqual(volumes[0].y_max_cm, -2.0)
+        self.assertAlmostEqual(volumes[0].y_max_cm, -1.9)
+        without_clearance = cope_geometry.single_cope_volumes(
+            geometry,
+            self.angle50.anchor_mm("C"),
+            depth_cm=3.0,
+            under_web_clearance_cm=0.0,
+        )[0]
+        self.assertAlmostEqual(without_clearance.y_max_cm, -2.0)
 
     def test_root_relief_uses_only_the_facing_primary_fillet(self):
         angle = cope_geometry.analyze_single_flange_profile_dxf(
@@ -165,6 +172,25 @@ class CopeGeometryTests(unittest.TestCase):
             ),
             0.0,
         )
+
+    def test_root_relief_edge_follows_the_clearance_under_the_web(self):
+        angle = cope_geometry.analyze_single_flange_profile_dxf(
+            self.angle50.dxf_path
+        )
+        edge_points = cope_geometry.relief_edge_points(
+            angle,
+            self.angle50.anchor_mm("C"),
+            reference_origin=(0.0, 0.0, 0.0),
+            profile_x_axis=(1.0, 0.0, 0.0),
+            profile_y_axis=(0.0, 1.0, 0.0),
+            axial_axis=(0.0, 0.0, 1.0),
+            cut_point=(0.0, 0.0, 2.0),
+            cut_normal=(0.0, 0.0, 1.0),
+            under_web_clearance_cm=0.2,
+        )
+        self.assertEqual(len(edge_points), 2)
+        self.assertTrue(all(abs(point[1] + 1.8) < 1e-9 for point in edge_points))
+        self.assertTrue(all(abs(point[2] - 2.0) < 1e-9 for point in edge_points))
 
     def test_fillet_relief_preview_mesh_contains_the_requested_quadrant(self):
         coordinates, triangles, wires = cope_geometry.fillet_relief_mesh(

@@ -18,6 +18,8 @@ COMMAND_DESCRIPTION = (
 PRIMARY_SELECTION_ID = "copePrimaryMember"
 SECONDARY_SELECTION_ID = "copeSecondaryMember"
 VERTICAL_CLEARANCE_ID = "copeVerticalClearance"
+UNDER_WEB_CLEARANCE_ID = "copeUnderWebClearance"
+ROOT_RELIEF_CLEARANCE_ID = "copeRootReliefClearance"
 LONGITUDINAL_CLEARANCE_ID = "copeLongitudinalClearance"
 WEB_CLEARANCE_ID = "copeWebClearance"
 REPORT_ID = "copeReport"
@@ -72,9 +74,31 @@ def _evaluate(inputs):
         design,
         _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale"),
         _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire"),
-        _distance_value(inputs, VERTICAL_CLEARANCE_ID, "Le jeu vertical"),
-        _distance_value(inputs, LONGITUDINAL_CLEARANCE_ID, "Le jeu longitudinal"),
-        _distance_value(inputs, WEB_CLEARANCE_ID, "Le jeu contre l'appui"),
+        vertical_clearance_cm=_distance_value(
+            inputs,
+            VERTICAL_CLEARANCE_ID,
+            "Le jeu vertical I/H",
+        ),
+        longitudinal_clearance_cm=_distance_value(
+            inputs,
+            LONGITUDINAL_CLEARANCE_ID,
+            "Le jeu longitudinal",
+        ),
+        web_clearance_cm=_distance_value(
+            inputs,
+            WEB_CLEARANCE_ID,
+            "Le jeu contre l'appui",
+        ),
+        under_web_clearance_cm=_distance_value(
+            inputs,
+            UNDER_WEB_CLEARANCE_ID,
+            "Le jeu sous l'âme secondaire",
+        ),
+        root_relief_clearance_cm=_distance_value(
+            inputs,
+            ROOT_RELIEF_CLEARANCE_ID,
+            "Le jeu autour du congé principal",
+        ),
     )
     cope_creator.ensure_endpoint_available(evaluation)
     return design, evaluation
@@ -97,14 +121,18 @@ def _success_report(evaluation):
                     + evaluation.vertical_clearance_cm * 10.0
                 ),
             ),
+            (
+                "Jeu vertical",
+                "{:.3f} mm".format(evaluation.vertical_clearance_cm * 10.0),
+            ),
         )
     else:
         relief_text = "Aucun — face extérieure sans congé intérieur"
         if evaluation.relief_radius_cm > 0.0:
             relief_text = "{:.3f} mm + {:.3f} mm de jeu = {:.3f} mm".format(
                 evaluation.relief_radius_cm * 10.0
-                - evaluation.vertical_clearance_cm * 10.0,
-                evaluation.vertical_clearance_cm * 10.0,
+                - evaluation.root_relief_clearance_cm * 10.0,
+                evaluation.root_relief_clearance_cm * 10.0,
                 evaluation.relief_radius_cm * 10.0,
             )
         removed_rows = (
@@ -114,7 +142,26 @@ def _success_report(evaluation):
                     evaluation.profile_geometry.cope_height_mm
                 ),
             ),
+            (
+                "Jeu sous l'âme secondaire",
+                "{:.3f} mm".format(
+                    evaluation.under_web_clearance_cm * 10.0
+                ),
+            ),
+            (
+                "Hauteur droite retirée",
+                "{:.3f} mm".format(
+                    evaluation.profile_geometry.cope_height_mm
+                    + evaluation.under_web_clearance_cm * 10.0
+                ),
+            ),
             ("Dégagement du congé principal", relief_text),
+            (
+                "Jeu autour du congé principal",
+                "{:.3f} mm".format(
+                    evaluation.root_relief_clearance_cm * 10.0
+                ),
+            ),
         )
     extension_text = "Aucun — couverture suffisante"
     if evaluation.primary_extensions:
@@ -137,13 +184,6 @@ def _success_report(evaluation):
         ("Prolongement de la principale", extension_text),
     ) + removed_rows + (
         (
-            "Jeu vertical"
-            if evaluation.secondary_metadata.profile_family
-            in cope_builder.I_H_FAMILIES
-            else "Jeu du dégagement arrondi",
-            "{:.3f} mm".format(evaluation.vertical_clearance_cm * 10.0),
-        ),
-        (
             "Jeu longitudinal",
             "{:.3f} mm".format(evaluation.longitudinal_clearance_cm * 10.0),
         ),
@@ -161,6 +201,19 @@ def _success_report(evaluation):
 def _refresh(inputs, report_input, preview_manager):
     try:
         design, evaluation = _evaluate(inputs)
+        is_i_h = (
+            evaluation.secondary_metadata.profile_family
+            in cope_builder.I_H_FAMILIES
+        )
+        visibility = (
+            (VERTICAL_CLEARANCE_ID, is_i_h),
+            (UNDER_WEB_CLEARANCE_ID, not is_i_h),
+            (ROOT_RELIEF_CLEARANCE_ID, not is_i_h),
+        )
+        for input_id, expected_visibility in visibility:
+            command_input = inputs.itemById(input_id)
+            if command_input.isVisible != expected_visibility:
+                command_input.isVisible = expected_visibility
         report_input.formattedText = _success_report(evaluation)
         preview_manager.update(design.rootComponent, evaluation)
         return evaluation
@@ -199,12 +252,32 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             vertical = inputs.addValueInput(
                 VERTICAL_CLEARANCE_ID,
-                "Jeu vertical / congé",
+                "Jeu vertical I/H",
                 "mm",
                 adsk.core.ValueInput.createByString("1 mm"),
             )
             vertical.minimumValue = 0.0
             vertical.isMinimumInclusive = True
+
+            under_web = inputs.addValueInput(
+                UNDER_WEB_CLEARANCE_ID,
+                "Jeu sous l'âme secondaire",
+                "mm",
+                adsk.core.ValueInput.createByString("1 mm"),
+            )
+            under_web.minimumValue = 0.0
+            under_web.isMinimumInclusive = True
+            under_web.isVisible = False
+
+            root_relief = inputs.addValueInput(
+                ROOT_RELIEF_CLEARANCE_ID,
+                "Jeu autour du congé principal",
+                "mm",
+                adsk.core.ValueInput.createByString("1 mm"),
+            )
+            root_relief.minimumValue = 0.0
+            root_relief.isMinimumInclusive = True
+            root_relief.isVisible = False
 
             longitudinal = inputs.addValueInput(
                 LONGITUDINAL_CLEARANCE_ID,
@@ -274,6 +347,8 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             PRIMARY_SELECTION_ID,
             SECONDARY_SELECTION_ID,
             VERTICAL_CLEARANCE_ID,
+            UNDER_WEB_CLEARANCE_ID,
+            ROOT_RELIEF_CLEARANCE_ID,
             LONGITUDINAL_CLEARANCE_ID,
             WEB_CLEARANCE_ID,
         ):

@@ -33,6 +33,8 @@ class CopeEvaluation:
     profile_geometry: object
     depth_cm: float
     vertical_clearance_cm: float
+    under_web_clearance_cm: float
+    root_relief_clearance_cm: float
     longitudinal_clearance_cm: float
     web_clearance_cm: float
     origin: tuple
@@ -182,11 +184,15 @@ def evaluate_profile_cope(
     vertical_clearance_cm,
     longitudinal_clearance_cm,
     web_clearance_cm,
+    under_web_clearance_cm=0.0,
+    root_relief_clearance_cm=0.0,
 ):
     if primary_occurrence == secondary_occurrence:
         raise ValueError("Les deux barres sélectionnées doivent être différentes.")
     if (
         vertical_clearance_cm < 0.0
+        or under_web_clearance_cm < 0.0
+        or root_relief_clearance_cm < 0.0
         or longitudinal_clearance_cm < 0.0
         or web_clearance_cm < 0.0
     ):
@@ -215,6 +221,11 @@ def evaluate_profile_cope(
             "Cette première version accepte I/H vers I/H ou cornière/té vers "
             "cornière/té, sans mélange entre ces deux groupes."
         )
+    active_vertical_clearance_cm = (
+        float(vertical_clearance_cm)
+        if both_i_h
+        else float(under_web_clearance_cm)
+    )
 
     primary_curve = joint_builder._linked_curve(
         design,
@@ -272,7 +283,7 @@ def evaluate_profile_cope(
         profile_geometry,
         secondary_metadata.profile_family,
         secondary_anchor_mm,
-        float(vertical_clearance_cm),
+        active_vertical_clearance_cm,
         geometry.secondary_joint_endpoint,
         profile_x_axis,
         profile_y_axis,
@@ -316,7 +327,7 @@ def evaluate_profile_cope(
         secondary_metadata.profile_family,
         secondary_anchor_mm,
         depth_cm,
-        float(vertical_clearance_cm),
+        active_vertical_clearance_cm,
     )
     web_cut_point = cope_geometry.web_face_cut_point(
         primary_profile_geometry,
@@ -333,7 +344,7 @@ def evaluate_profile_cope(
             primary_profile_geometry,
             primary_profile_x_axis,
             geometry.plane_normal,
-            float(vertical_clearance_cm),
+            float(root_relief_clearance_cm),
         )
         if relief_radius_cm > joint_geometry.GEOMETRY_TOLERANCE_CM:
             available_relief_depth_cm = abs(
@@ -345,7 +356,7 @@ def evaluate_profile_cope(
             )
             available_relief_height_cm = (
                 profile_geometry.max_y_mm - profile_geometry.flange_top_y_mm
-            ) * cope_geometry.MM_TO_CM
+            ) * cope_geometry.MM_TO_CM - float(under_web_clearance_cm)
             maximum_radius_cm = min(
                 available_relief_depth_cm,
                 available_relief_height_cm,
@@ -366,6 +377,7 @@ def evaluate_profile_cope(
                 axial_axis,
                 web_cut_point,
                 geometry.plane_normal,
+                float(under_web_clearance_cm),
             )
     cope_start_point = joint_geometry.add(
         geometry.secondary_joint_endpoint,
@@ -420,6 +432,8 @@ def evaluate_profile_cope(
         profile_geometry=profile_geometry,
         depth_cm=depth_cm,
         vertical_clearance_cm=float(vertical_clearance_cm),
+        under_web_clearance_cm=float(under_web_clearance_cm),
+        root_relief_clearance_cm=float(root_relief_clearance_cm),
         longitudinal_clearance_cm=float(longitudinal_clearance_cm),
         web_clearance_cm=float(web_clearance_cm),
         origin=geometry.secondary_joint_endpoint,
