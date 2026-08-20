@@ -281,6 +281,52 @@ def plane_signed_distance(point, plane_point, plane_normal):
     return dot(subtract(point, plane_point), normalize(plane_normal))
 
 
+def project_points_along_direction_to_plane(
+    points,
+    direction,
+    plane_point,
+    plane_normal,
+):
+    """Projette une section le long de son axe jusqu'au plan de contact."""
+    if not points:
+        raise ValueError("La section à projeter ne contient aucun point exploitable.")
+    direction = normalize(direction)
+    normal = normalize(plane_normal)
+    rate = dot(direction, normal)
+    if abs(rate) <= GEOMETRY_TOLERANCE_CM:
+        raise ValueError(
+            "La direction de la barre secondaire est parallèle au plan de contact."
+        )
+    projected = []
+    for point in points:
+        distance = plane_signed_distance(point, plane_point, normal)
+        projected.append(add(point, scale(direction, -distance / rate)))
+    return tuple(projected)
+
+
+def axis_coverage_extensions(
+    current_points,
+    required_points,
+    axis_direction,
+    tolerance_cm=PLANE_RELATION_TOLERANCE_CM,
+):
+    """Retourne les prolongements nécessaires aux côtés négatif et positif d'un axe."""
+    if not current_points:
+        raise ValueError("La barre principale ne contient aucun point exploitable.")
+    if not required_points:
+        raise ValueError("La zone de jonction à couvrir est vide.")
+    axis = normalize(axis_direction)
+    current = tuple(dot(point, axis) for point in current_points)
+    required = tuple(dot(point, axis) for point in required_points)
+    negative_cm = max(0.0, min(current) - min(required))
+    positive_cm = max(0.0, max(required) - max(current))
+    if negative_cm <= tolerance_cm:
+        negative_cm = 0.0
+    if positive_cm <= tolerance_cm:
+        positive_cm = 0.0
+    return negative_cm, positive_cm
+
+
 def body_plane_relation(
     body_points,
     plane_point,

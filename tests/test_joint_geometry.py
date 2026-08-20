@@ -83,6 +83,37 @@ class JointGeometryTests(unittest.TestCase):
         )
         self.assertAlmostEqual(cut[1], -3.2)
 
+    def test_secondary_section_is_projected_to_the_real_contact_plane(self):
+        points = ((-0.5, -2.0, 0.0), (0.5, -2.0, 0.0))
+        direction = (0.6, 0.8, 0.0)
+        projected = joint_geometry.project_points_along_direction_to_plane(
+            points,
+            direction,
+            (0.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+        )
+        self.assertAlmostEqual(projected[0][0], 1.0)
+        self.assertAlmostEqual(projected[1][0], 2.0)
+        self.assertAlmostEqual(projected[0][1], 0.0)
+        self.assertAlmostEqual(projected[1][1], 0.0)
+
+    def test_primary_axis_coverage_reports_only_the_short_end(self):
+        negative_cm, positive_cm = joint_geometry.axis_coverage_extensions(
+            ((-10.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ((-5.0, 0.0, 0.0), (5.0, 0.0, 0.0)),
+            (1.0, 0.0, 0.0),
+        )
+        self.assertEqual(negative_cm, 0.0)
+        self.assertAlmostEqual(positive_cm, 5.0)
+
+    def test_primary_axis_coverage_needs_nothing_when_already_sufficient(self):
+        extensions = joint_geometry.axis_coverage_extensions(
+            ((-10.0, 0.0, 0.0), (10.0, 0.0, 0.0)),
+            ((-3.0, 0.0, 0.0), (3.0, 0.0, 0.0)),
+            (1.0, 0.0, 0.0),
+        )
+        self.assertEqual(extensions, (0.0, 0.0))
+
     def test_preview_point_matches_the_intersection_of_the_two_normal_planes(self):
         point = joint_geometry.normal_plane_intersection_point(
             (1.0, 0.0, 0.0),

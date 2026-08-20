@@ -20,6 +20,7 @@ REFERENCE_PLANE_NAME = "PLAN_JONCTION_ENVELOPPE"
 CUT_PLANE_NAME = "PLAN_JONCTION_FINAL"
 SUPPORT_POINT_NAME = "POINT_ENVELOPPE_JONCTION"
 EXTEND_FEATURE_NAME = "PROLONGEMENT_VERS_JONCTION"
+PRIMARY_EXTEND_FEATURE_NAME = "PROLONGEMENT_BARRE_PRINCIPALE"
 SPLIT_FEATURE_NAME = "COUPE_JONCTION"
 REMOVE_FEATURE_NAME = "RETRAIT_EXCEDENT_JONCTION"
 MITER_FIRST_PATH_PLANE_NAME = "PLAN_ONGLET_AXE_1"
@@ -52,6 +53,15 @@ class EndTreatment:
 
 
 @dataclass(frozen=True)
+class AxisExtension:
+    occurrence: object
+    joint_endpoint: tuple
+    approach_direction: tuple
+    extension_cm: float
+    target_projection: float
+
+
+@dataclass(frozen=True)
 class JointEvaluation:
     primary_occurrence: object
     secondary_occurrence: object
@@ -68,6 +78,7 @@ class JointEvaluation:
     cut_point: tuple
     cut_normal: tuple
     gap_cm: float
+    primary_extensions: tuple
     treatment: EndTreatment
     preview_half_size_cm: float
 
@@ -406,6 +417,69 @@ def _evaluate_treatment(
     )
 
 
+def _evaluate_primary_extensions(
+    primary_occurrence,
+    primary_body,
+    primary_curve,
+    secondary_occurrence,
+    secondary_body,
+    geometry,
+    cut_point,
+    cut_normal,
+):
+    _, secondary_face_points = _planar_end_face(
+        secondary_body,
+        secondary_occurrence,
+        geometry.approach_direction,
+        geometry.secondary_joint_endpoint,
+    )
+    contact_points = joint_geometry.project_points_along_direction_to_plane(
+        secondary_face_points,
+        geometry.approach_direction,
+        cut_point,
+        cut_normal,
+    )
+    primary_points = _body_sample_points(primary_body, primary_occurrence)
+    negative_cm, positive_cm = joint_geometry.axis_coverage_extensions(
+        primary_points,
+        contact_points,
+        geometry.main_direction,
+    )
+    primary_start, primary_end = _line_endpoints(primary_curve)
+    candidates = (
+        (
+            negative_cm,
+            primary_start,
+            joint_geometry.scale(geometry.main_direction, -1.0),
+        ),
+        (positive_cm, primary_end, geometry.main_direction),
+    )
+    extensions = []
+    for extension_cm, endpoint, approach_direction in candidates:
+        if extension_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+            continue
+        _planar_end_face(
+            primary_body,
+            primary_occurrence,
+            approach_direction,
+            endpoint,
+        )
+        target_projection = max(
+            joint_geometry.dot(point, approach_direction)
+            for point in contact_points
+        )
+        extensions.append(
+            AxisExtension(
+                occurrence=primary_occurrence,
+                joint_endpoint=endpoint,
+                approach_direction=approach_direction,
+                extension_cm=extension_cm,
+                target_projection=target_projection,
+            )
+        )
+    return tuple(extensions)
+
+
 def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, gap_cm):
     if primary_occurrence == secondary_occurrence:
         raise ValueError("Les deux barres sélectionnées doivent être différentes.")
@@ -451,6 +525,16 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
         cut_point,
         geometry.plane_normal,
     )
+    primary_extensions = _evaluate_primary_extensions(
+        primary_occurrence,
+        primary_body,
+        primary_curve,
+        secondary_occurrence,
+        secondary_body,
+        geometry,
+        cut_point,
+        geometry.plane_normal,
+    )
     return JointEvaluation(
         primary_occurrence=primary_occurrence,
         secondary_occurrence=secondary_occurrence,
@@ -467,6 +551,7 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
         cut_point=cut_point,
         cut_normal=geometry.plane_normal,
         gap_cm=float(gap_cm),
+        primary_extensions=primary_extensions,
         treatment=treatment,
         preview_half_size_cm=50.0,
     )
@@ -882,6 +967,53 @@ def _remaining_end_extension(treatment, cut_point, cut_normal):
     )
 
 
+def _remaining_axis_extension(extension):
+    body = _single_body(extension.occurrence, "principale après prolongement")
+    _, face_points = _planar_end_face(
+        body,
+        extension.occurrence,
+        extension.approach_direction,
+        extension.joint_endpoint,
+    )
+    current_projection = max(
+        joint_geometry.dot(point, extension.approach_direction)
+        for point in face_points
+    )
+    return max(0.0, extension.target_projection - current_projection)
+
+
+def _extend_primary_end(extension, created_entities):
+    failures = []
+    directions = (
+        ("positive", adsk.fusion.ExtentDirections.PositiveExtentDirection),
+        ("négative", adsk.fusion.ExtentDirections.NegativeExtentDirection),
+    )
+    for label, direction in directions:
+        feature = None
+        accepted = False
+        try:
+            feature = _create_extension_feature(extension, direction)
+            remaining_cm = _remaining_axis_extension(extension)
+            if remaining_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+                feature.name = PRIMARY_EXTEND_FEATURE_NAME
+                created_entities.append(feature)
+                accepted = True
+                return feature
+            failures.append(
+                "direction {}: {:.3f} mm de couverture encore manquants"
+                .format(label, remaining_cm * 10.0)
+            )
+        except Exception as error:
+            failures.append("direction {}: {}".format(label, error))
+        finally:
+            if feature and feature.isValid and not accepted:
+                feature.deleteMe()
+    raise RuntimeError(
+        "Fusion n'a pas pu prolonger la barre principale jusqu'à la largeur "
+        "de la secondaire ({})".format(" ; ".join(failures))
+    )
+
+
 def _extend_body(treatment, cut_point, cut_normal, created_entities):
     if treatment.extension_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
         return None
@@ -1028,6 +1160,10 @@ def _direct_record(evaluation):
         "angle_deg": evaluation.geometry.angle_degrees,
         "gap_mm": evaluation.gap_cm * 10.0,
         "initial_relation": evaluation.treatment.relation,
+        "primary_extensions_mm": [
+            extension.extension_cm * 10.0
+            for extension in evaluation.primary_extensions
+        ],
         "extension_mm": evaluation.treatment.extension_cm * 10.0,
         "extension_version": addin_info.VERSION,
     }
@@ -1053,6 +1189,8 @@ def create_straight_joint(evaluation):
     created_attributes = []
     try:
         cut_plane = _add_direct_cut_plane(evaluation, created_entities)
+        for extension in evaluation.primary_extensions:
+            _extend_primary_end(extension, created_entities)
         _extend_body(
             evaluation.treatment,
             evaluation.cut_point,

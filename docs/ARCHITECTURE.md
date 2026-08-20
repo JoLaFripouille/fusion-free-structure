@@ -127,6 +127,8 @@ La face plane dont la normale sortante correspond à la direction d'approche est
 
 La prévisualisation et la création partagent `cut_point` et `cut_normal`. Après création de chaque plan Fusion, son orientation et sa distance au point de preview sont contrôlées ; une différence supérieure à `0,01 mm` annule l'opération avant la coupe.
 
+Pour une jonction ajustée, la principale n'est plus supposée infinie le long de son axe. Le contour de la face d'extrémité secondaire est projeté le long de sa direction réelle jusqu'au plan de contact. L'intervalle obtenu sur l'axe principal est comparé aux limites du corps principal. Si une extrémité ne couvre pas cet intervalle, sa face est prolongée de la valeur exacte avant de couper la secondaire. Cette projection inclut automatiquement la section, la rotation, les miroirs, l'ancrage et l'angle entre les deux barres.
+
 ## Opérations multiples
 
 Le groupe `EI_JHR_StructuralJoint` n'est plus un verrou binaire. Chaque traitement ajoute un JSON indépendant `operation_0001`, `operation_0002`, etc. contenant notamment le type, l'indice d'extrémité `0` ou `1`, l'autre composant, les courbes sources, l'angle, le jeu, l'état initial et le prolongement. Une barre peut donc recevoir une opération à chaque extrémité et d'autres traitements tant que sa géométrie courante permet la fonction demandée. Les anciens attributs fixes sont conservés mais ne bloquent plus les nouvelles opérations.

@@ -113,9 +113,19 @@ def _straight_success_report(evaluation):
         "gap": "Espace détecté : prolongement puis coupe",
         "aligned": "Déjà au plan : aucune matière à prolonger ou retirer",
     }
+    primary_extension_mm = sum(
+        extension.extension_cm * 10.0
+        for extension in evaluation.primary_extensions
+    )
+    primary_coverage = (
+        "Suffisante — aucune modification"
+        if primary_extension_mm <= 0.0
+        else "Insuffisante — prolongement de {:.3f} mm".format(primary_extension_mm)
+    )
     rows = (
         ("Barre de référence", evaluation.primary_occurrence.component.name),
         ("Profil de référence", evaluation.primary_metadata.profile),
+        ("Couverture principale", primary_coverage),
         ("Barre ajustée", evaluation.secondary_occurrence.component.name),
         ("Profil ajusté", evaluation.secondary_metadata.profile),
         (
@@ -125,7 +135,10 @@ def _straight_success_report(evaluation):
         ("Angle entre axes", "{:.1f}°".format(evaluation.geometry.angle_degrees)),
         ("Jeu", "{:.3f} mm".format(evaluation.gap_cm * 10.0)),
         ("État initial", relation_labels[evaluation.treatment.relation]),
-        ("Prolongement", "{:.3f} mm".format(evaluation.treatment.extension_cm * 10.0)),
+        (
+            "Prolongement secondaire",
+            "{:.3f} mm".format(evaluation.treatment.extension_cm * 10.0),
+        ),
     )
     content = [
         "<b>Prêt — le plan orange montre la coupe.</b><br>",
@@ -359,10 +372,15 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             else:
                 joint_builder.create_straight_joint(evaluation)
                 _log(
-                    "Jonction ajustée créée : référence={}, ajustée={}, jeu={} mm"
+                    "Jonction ajustée créée : référence={}, ajustée={}, "
+                    "prolongement_principale={} mm, jeu={} mm"
                     .format(
                         evaluation.primary_occurrence.component.name,
                         evaluation.secondary_occurrence.component.name,
+                        sum(
+                            extension.extension_cm * 10.0
+                            for extension in evaluation.primary_extensions
+                        ),
                         evaluation.gap_cm * 10.0,
                     )
                 )

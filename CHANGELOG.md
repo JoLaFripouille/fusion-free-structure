@@ -4,6 +4,16 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.16.3] - En validation
+
+### Corrigé
+
+- détection de la couverture insuffisante de la barre principale dans une jonction ajustée située près de son extrémité ;
+- projection de la section réelle de la barre secondaire jusqu'au plan de contact, en tenant compte de son angle, de son orientation et de son ancrage ;
+- prolongement automatique de la seule extrémité principale trop courte avant l'ajustement de la secondaire ;
+- contrôle après création que la nouvelle face principale couvre effectivement toute la largeur requise ;
+- indication séparée des prolongements principal et secondaire dans le rapport de la commande.
+
 ## [1.16.2] - En validation
 
 ### Corrigé

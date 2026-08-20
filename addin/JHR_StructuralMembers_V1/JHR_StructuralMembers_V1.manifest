@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Profil acier V1.16.2 : contrôle réel du sens de prolongement des onglets."
+    "": "Profil acier V1.16.3 : prolongement automatique de la barre principale."
   },
-  "version": "1.16.2",
+  "version": "1.16.3",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

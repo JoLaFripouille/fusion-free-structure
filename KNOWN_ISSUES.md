@@ -4,6 +4,13 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
+### ISSUE-021 — Barre principale trop courte non prolongée
+
+- **Symptôme :** lors d'une jonction ajustée près de l'extrémité de la principale, la secondaire est coupée mais une partie de sa section reste sans appui parce que la principale s'arrête sur l'axe commun.
+- **Cause :** la V1.16.2 contrôlait uniquement le franchissement du plan par la barre secondaire ; elle supposait que la principale couvrait déjà toute la section de contact.
+- **Correction V1.16.3 :** la section réelle de la secondaire est projetée sur le plan de contact, sa portée sur l'axe principal est comparée au corps principal actuel, puis chaque extrémité insuffisante est prolongée et contrôlée avant la coupe.
+- **Validation prévue :** reprendre le cas des captures du 20 août, vérifier la présence de `PROLONGEMENT_BARRE_PRINCIPALE` et l'absence de vide sous toute la section secondaire.
+
 ### ISSUE-020 — Onglet encore incomplet selon l'orientation interne de la face
 
 - **Symptôme :** avec des IPE ancrés à l'axe, les semelles suivent le plan diagonal mais une partie de l'âme reste manquante.
