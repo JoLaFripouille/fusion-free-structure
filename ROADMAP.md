@@ -57,7 +57,8 @@ Les éléments sont ajoutés ici avant leur implémentation. Une amélioration t
 - [x] ajouter un premier aperçu non destructif du double grugeage pour une secondaire IPE à 90°.
 - [x] valider à `90°` l'aperçu V1.17.1 avec coupe sur l'âme et prolongement de la principale.
 - [x] créer le premier double grugeage IPE réel à `90°`, y compris le prolongement nécessaire de la principale et la coupe droite sur son âme.
-- [ ] valider la création V1.18.0 dans Fusion sur une principale longue puis trop courte, et sur plusieurs tailles, ancrages, rotations et miroirs.
+- [x] valider la création V1.18.0 dans Fusion sur une principale longue, une principale trop courte et les deux extrémités d'une même secondaire.
+- [ ] compléter la validation V1.18.0 sur plusieurs tailles, ancrages, rotations et miroirs.
 - [ ] généraliser ensuite les grugeages aux autres profils de charpente, cornières et tés.
 - [ ] ajouter séparément les platines, boulons et assemblages composés.
 

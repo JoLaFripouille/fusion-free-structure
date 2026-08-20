@@ -6,11 +6,11 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ### ISSUE-022 — Création réelle du grugeage IPE à valider dans Fusion
 
-- **État :** candidate V1.18.0 installée pour validation réelle.
+- **État :** fonctionnement de base V1.18.0 validé dans Fusion ; essais étendus restant à effectuer.
 - **Périmètre :** principale IPE, HEA ou HEB, secondaire IPE droite et axes à `90°`.
-- **Impact :** la prévisualisation à `90°` est validée. Le bouton `OK` crée désormais le prolongement éventuel de la principale, la coupe droite de la secondaire contre l'âme et le retrait de ses deux semelles, mais cette chaîne doit encore être contrôlée dans Fusion avant extension à d'autres angles ou familles.
+- **Impact :** la prévisualisation et la création à `90°` sont validées avec une principale longue, une principale trop courte et deux grugeages aux extrémités opposées de la même secondaire. Les variantes de taille, d'ancrage, de rotation et de miroir restent à contrôler avant extension à d'autres angles ou familles.
 - **Sécurité :** la création exige un corps secondaire unique et un volume réellement retiré ; toute tentative incomplète supprime ses attributs, coupes, esquisses, plans et prolongements.
-- **Validation prévue :** exécuter le test 22 sur une principale suffisamment longue puis trop courte, vérifier l'historique et le corps final, puis répéter sur plusieurs tailles, orientations, miroirs et points d'ancrage.
+- **Validation prévue :** terminer le test 22 sur plusieurs tailles, orientations, miroirs et points d'ancrage.
 
 ### ISSUE-021 — Barre principale trop courte non prolongée
 

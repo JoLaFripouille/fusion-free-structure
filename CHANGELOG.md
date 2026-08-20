@@ -22,6 +22,12 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 - en cas d'échec, les attributs, coupes, esquisses, plans et prolongements créés pendant la tentative sont supprimés dans l'ordre inverse ;
 - le périmètre reste volontairement limité à une principale IPE, HEA ou HEB, une secondaire IPE droite et des axes à `90°` jusqu'à validation dans Fusion.
 
+### Validé dans Fusion
+
+- création réelle confirmée avec une principale suffisamment longue, sans prolongement inutile ;
+- prolongement de la bonne extrémité confirmé lorsque la principale est trop courte ;
+- deux grugeages successifs confirmés aux extrémités opposées d'une même barre secondaire.
+
 ## [1.17.1] - En validation
 
 ### Corrigé
