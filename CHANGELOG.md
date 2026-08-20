@@ -4,6 +4,28 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.19.0] - En validation
+
+### Ajouté
+
+- commande renommée `Grugeage I/H` et secondaires étendues aux 18 IPE, 15 HEA et 15 HEB de la bibliothèque européenne ;
+- suppression de l'hypothèse d'un angle droit : tout angle non parallèle supérieur à la limite géométrique de `5°` peut être évalué ;
+- profondeur automatique calculée sur toute la largeur du profil secondaire, et non plus uniquement sur son axe, afin que le début du grugeage reste derrière toute la face extérieure de la principale ;
+- volumes rouges transformés en outils obliques dont chaque sommet se termine exactement sur le plan de l'âme principale ;
+- création paramétrique du plan d'âme incliné à partir des deux plans de station, de leur axe d'intersection et d'un plan orienté avant application du jeu ;
+- coupe droite, prolongements et double grugeage final utilisant tous le même point et la même normale que la preview.
+
+### Compatibilité
+
+- les anciens enregistrements `double_ipe_cope` de la V1.18.0 restent reconnus pour empêcher un doublon sur la même extrémité ;
+- les nouveaux traitements utilisent le type général `double_ih_cope` sans modifier les fonctions déjà présentes dans les documents.
+
+### Sécurisé
+
+- les 48 profils I/H fournis possèdent tous une âme et deux zones de semelles détectables ;
+- un plan presque parallèle à la secondaire, un début de grugeage placé après le plan d'âme ou une coupe ne retirant aucune matière sont refusés avec annulation complète ;
+- la V1.19.0 doit d'abord être validée dans Fusion sur un seul raccord HEA à `60°` avant les essais supplémentaires.
+
 ## [1.18.0] - En validation
 
 ### Ajouté

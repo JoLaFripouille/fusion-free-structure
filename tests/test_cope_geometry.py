@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sys
 import unittest
 from pathlib import Path
@@ -32,11 +33,15 @@ class CopeGeometryTests(unittest.TestCase):
         self.assertAlmostEqual(self.geometry.bottom_cope_height_mm, 12.7)
         self.assertAlmostEqual(self.geometry.top_cope_height_mm, 12.7)
 
-    def test_every_bundled_ipe_has_a_detectable_double_cope_geometry(self):
+    def test_every_bundled_i_h_profile_has_a_detectable_double_cope_geometry(self):
         profiles = profile_catalog.discover_profiles(include_custom=False)
-        ipe_profiles = [profile for profile in profiles if profile.family_id == "IPE"]
-        self.assertEqual(len(ipe_profiles), 18)
-        for profile in ipe_profiles:
+        i_h_profiles = [
+            profile
+            for profile in profiles
+            if profile.family_id in ("IPE", "HEA", "HEB")
+        ]
+        self.assertEqual(len(i_h_profiles), 48)
+        for profile in i_h_profiles:
             geometry = cope_geometry.analyze_i_profile_dxf(profile.dxf_path)
             self.assertGreater(geometry.width_mm, 0.0, profile.section_label)
             self.assertGreater(geometry.bottom_cope_height_mm, 0.0, profile.section_label)
@@ -122,6 +127,98 @@ class CopeGeometryTests(unittest.TestCase):
             primary_body_points=primary_points,
         )
         self.assertAlmostEqual(depth, 2.0)
+
+    def test_oblique_depth_covers_the_full_secondary_section(self):
+        approach = (0.5, math.sqrt(3.0) / 2.0, 0.0)
+        cut_normal = (0.0, -1.0, 0.0)
+        profile_x = (-math.sqrt(3.0) / 2.0, 0.5, 0.0)
+        section_points = tuple(
+            tuple(value * side for value in profile_x)
+            for side in (-1.0, 1.0)
+        )
+        depth = cope_geometry.depth_to_facing_support(
+            joint_point=(0.0, 0.0, 0.0),
+            approach_direction=approach,
+            plane_normal=cut_normal,
+            primary_body_points=((-1.0, -2.0, -1.0), (1.0, -2.0, 1.0)),
+            secondary_section_points=section_points,
+        )
+        self.assertAlmostEqual(depth, 2.886751345948128)
+
+    def test_oblique_red_volume_ends_exactly_on_the_web_plane(self):
+        approach = (0.5, math.sqrt(3.0) / 2.0, 0.0)
+        profile_x = (-math.sqrt(3.0) / 2.0, 0.5, 0.0)
+        depth = 2.886751345948128
+        start = tuple(-value * depth for value in approach)
+        volume = cope_geometry.CopeVolume(
+            "Essai oblique",
+            -1.0,
+            1.0,
+            -0.5,
+            0.5,
+            -depth,
+            0.05,
+        )
+        coordinates, triangles, wires = cope_geometry.clipped_volume_mesh(
+            volume,
+            start,
+            profile_x,
+            (0.0, 0.0, 1.0),
+            approach,
+            (0.0, -0.2, 0.0),
+            (0.0, -1.0, 0.0),
+        )
+        points = tuple(zip(coordinates[0::3], coordinates[1::3], coordinates[2::3]))
+        self.assertEqual(len(points), 8)
+        self.assertTrue(all(abs(point[1] + 0.2) < 1e-9 for point in points[4:]))
+        self.assertEqual(len(triangles), 36)
+        self.assertEqual(len(wires), 24)
+
+    def test_oblique_projection_is_valid_at_30_45_and_60_degrees(self):
+        cut_normal = (0.0, -1.0, 0.0)
+        cut_point = (0.0, -0.2, 0.0)
+        primary_points = ((-1.0, -2.0, -1.0), (1.0, -2.0, 1.0))
+        for angle_degrees in (30.0, 45.0, 60.0):
+            angle = math.radians(angle_degrees)
+            approach = (math.cos(angle), math.sin(angle), 0.0)
+            profile_x = (-math.sin(angle), math.cos(angle), 0.0)
+            section_points = tuple(
+                tuple(value * side for value in profile_x)
+                for side in (-1.0, 1.0)
+            )
+            depth = cope_geometry.depth_to_facing_support(
+                (0.0, 0.0, 0.0),
+                approach,
+                cut_normal,
+                primary_points,
+                section_points,
+            )
+            start = tuple(-value * depth for value in approach)
+            volume = cope_geometry.CopeVolume(
+                "Essai {} degrés".format(angle_degrees),
+                -1.0,
+                1.0,
+                -0.5,
+                0.5,
+                -depth,
+                0.05,
+            )
+            coordinates, _, _ = cope_geometry.clipped_volume_mesh(
+                volume,
+                start,
+                profile_x,
+                (0.0, 0.0, 1.0),
+                approach,
+                cut_point,
+                cut_normal,
+            )
+            points = tuple(
+                zip(coordinates[0::3], coordinates[1::3], coordinates[2::3])
+            )
+            self.assertTrue(
+                all(abs(point[1] + 0.2) < 1e-9 for point in points[4:]),
+                angle_degrees,
+            )
 
     def test_web_cut_uses_the_face_toward_the_secondary_and_the_gap(self):
         positive = cope_geometry.web_face_cut_point(

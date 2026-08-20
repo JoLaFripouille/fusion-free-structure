@@ -3,7 +3,7 @@ from __future__ import annotations
 import adsk.core
 import adsk.fusion
 
-from . import cope_geometry, preview_geometry
+from . import cope_geometry, joint_geometry, preview_geometry
 
 
 COPE_PREVIEW_RED = (230, 35, 35)
@@ -70,12 +70,14 @@ class CopePreviewManager:
         green_edge = _color_effect(PRIMARY_EXTENSION_EDGE)
         try:
             for volume in evaluation.volumes:
-                coordinates, triangles, wires = cope_geometry.volume_mesh(
+                coordinates, triangles, wires = cope_geometry.clipped_volume_mesh(
                     volume,
-                    evaluation.origin,
+                    evaluation.cope_start_point,
                     evaluation.profile_x_axis,
                     evaluation.profile_y_axis,
                     evaluation.axial_axis,
+                    evaluation.web_cut_point,
+                    evaluation.web_cut_normal,
                 )
                 _add_graphics(
                     group,
@@ -88,20 +90,24 @@ class CopePreviewManager:
                     0.38,
                 )
 
-            plane_coordinates, plane_triangles, plane_wires = (
-                cope_geometry.section_plane_mesh(
-                    evaluation.profile_geometry,
-                    evaluation.secondary_anchor_mm,
-                    evaluation.web_cut_point,
-                    evaluation.profile_x_axis,
-                    evaluation.profile_y_axis,
+            plane_points = joint_geometry.plane_square(
+                evaluation.web_cut_point,
+                evaluation.web_cut_normal,
+                max(
+                    evaluation.profile_geometry.width_mm,
+                    evaluation.profile_geometry.height_mm,
                 )
+                * 0.05
+                + cope_geometry.PLANE_MARGIN_CM,
+            )
+            plane_coordinates = tuple(
+                value for point in plane_points for value in point
             )
             _add_graphics(
                 group,
                 plane_coordinates,
-                plane_triangles,
-                plane_wires,
+                (0, 1, 2, 0, 2, 3),
+                (0, 1, 1, 2, 2, 3, 3, 0),
                 "Plan orange — coupe contre l'âme principale",
                 orange,
                 orange_edge,

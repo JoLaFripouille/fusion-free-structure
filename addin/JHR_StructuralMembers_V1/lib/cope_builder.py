@@ -15,8 +15,7 @@ from . import (
 
 
 PRIMARY_FAMILIES = frozenset(("IPE", "HEA", "HEB"))
-SECONDARY_FAMILY = "IPE"
-RIGHT_ANGLE_TOLERANCE_DEGREES = 0.5
+SECONDARY_FAMILIES = PRIMARY_FAMILIES
 
 
 @dataclass(frozen=True)
@@ -102,7 +101,42 @@ def _extension_segment(extension, primary_body_points):
     )
 
 
-def evaluate_double_ipe_cope(
+def _cope_section_points(
+    profile,
+    anchor_mm,
+    vertical_clearance_cm,
+    origin,
+    profile_x_axis,
+    profile_y_axis,
+    axial_axis,
+):
+    points = []
+    for x_min, x_max, y_min, y_max in cope_geometry.double_cope_rectangle_bounds(
+        profile,
+        anchor_mm,
+        vertical_clearance_cm,
+    ):
+        for x, y in (
+            (x_min, y_min),
+            (x_max, y_min),
+            (x_max, y_max),
+            (x_min, y_max),
+        ):
+            points.append(
+                cope_geometry.world_point(
+                    origin,
+                    profile_x_axis,
+                    profile_y_axis,
+                    axial_axis,
+                    x,
+                    y,
+                    0.0,
+                )
+            )
+    return tuple(points)
+
+
+def evaluate_double_ih_cope(
     design,
     primary_occurrence,
     secondary_occurrence,
@@ -123,10 +157,12 @@ def evaluate_double_ipe_cope(
     secondary_metadata = joint_builder._member_metadata(secondary_occurrence, "secondaire")
     if primary_metadata.profile_family not in PRIMARY_FAMILIES:
         raise ValueError(
-            "Ce prototype accepte une principale IPE, HEA ou HEB uniquement."
+            "Cette commande accepte une principale IPE, HEA ou HEB uniquement."
         )
-    if secondary_metadata.profile_family != SECONDARY_FAMILY:
-        raise ValueError("Ce prototype accepte une barre secondaire IPE uniquement.")
+    if secondary_metadata.profile_family not in SECONDARY_FAMILIES:
+        raise ValueError(
+            "Cette commande accepte une barre secondaire IPE, HEA ou HEB uniquement."
+        )
 
     primary_curve = joint_builder._linked_curve(
         design,
@@ -141,34 +177,9 @@ def evaluate_double_ipe_cope(
         allow_arc=False,
     )
     geometry = joint_builder._analyze_adjusted_curve(primary_curve, secondary_curve)
-    if abs(geometry.angle_degrees - 90.0) > RIGHT_ANGLE_TOLERANCE_DEGREES:
-        raise ValueError(
-            "Le premier prototype exige des axes à 90° (angle mesuré : {:.2f}°)."
-            .format(geometry.angle_degrees)
-        )
 
     primary_body = joint_builder._single_body(primary_occurrence, "principale")
     secondary_body = joint_builder._single_body(secondary_occurrence, "secondaire")
-    primary_points = joint_builder._body_sample_points(primary_body, primary_occurrence)
-    axial_axis = joint_geometry.normalize(geometry.approach_direction)
-    automatic_depth_cm = cope_geometry.depth_to_facing_support(
-        geometry.secondary_joint_endpoint,
-        geometry.approach_direction,
-        geometry.plane_normal,
-        primary_points,
-    )
-    depth_cm = automatic_depth_cm + float(longitudinal_clearance_cm)
-    available_length_cm = joint_geometry.length(
-        joint_geometry.subtract(
-            geometry.secondary_joint_endpoint,
-            geometry.secondary_inner_endpoint,
-        )
-    )
-    if depth_cm >= available_length_cm - joint_geometry.PLANE_RELATION_TOLERANCE_CM:
-        raise ValueError(
-            "La profondeur du grugeage atteint toute la longueur de la secondaire."
-        )
-
     primary_dxf_path = profile_catalog.resolve_profile_source(
         primary_metadata.profile_source
     )
@@ -189,12 +200,6 @@ def evaluate_double_ipe_cope(
         profile_geometry.bounds_mm,
         secondary_metadata.anchor,
     )
-    volumes = cope_geometry.double_cope_volumes(
-        profile_geometry,
-        secondary_anchor_mm,
-        depth_cm,
-        float(vertical_clearance_cm),
-    )
     primary_profile_x_axis, primary_profile_y_axis = _profile_axes(
         primary_curve,
         primary_metadata,
@@ -202,6 +207,41 @@ def evaluate_double_ipe_cope(
     profile_x_axis, profile_y_axis = _profile_axes(
         secondary_curve,
         secondary_metadata,
+    )
+    axial_axis = joint_geometry.normalize(geometry.approach_direction)
+    primary_points = joint_builder._body_sample_points(primary_body, primary_occurrence)
+    secondary_section_points = _cope_section_points(
+        profile_geometry,
+        secondary_anchor_mm,
+        float(vertical_clearance_cm),
+        geometry.secondary_joint_endpoint,
+        profile_x_axis,
+        profile_y_axis,
+        axial_axis,
+    )
+    automatic_depth_cm = cope_geometry.depth_to_facing_support(
+        geometry.secondary_joint_endpoint,
+        geometry.approach_direction,
+        geometry.plane_normal,
+        primary_points,
+        secondary_section_points,
+    )
+    depth_cm = automatic_depth_cm + float(longitudinal_clearance_cm)
+    available_length_cm = joint_geometry.length(
+        joint_geometry.subtract(
+            geometry.secondary_joint_endpoint,
+            geometry.secondary_inner_endpoint,
+        )
+    )
+    if depth_cm >= available_length_cm - joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+        raise ValueError(
+            "La profondeur du grugeage atteint toute la longueur de la secondaire."
+        )
+    volumes = cope_geometry.double_cope_volumes(
+        profile_geometry,
+        secondary_anchor_mm,
+        depth_cm,
+        float(vertical_clearance_cm),
     )
     web_cut_point = cope_geometry.web_face_cut_point(
         primary_profile_geometry,
@@ -215,10 +255,14 @@ def evaluate_double_ipe_cope(
         geometry.secondary_joint_endpoint,
         joint_geometry.scale(axial_axis, -depth_cm),
     )
-    cut_length_cm = joint_geometry.dot(
-        joint_geometry.subtract(web_cut_point, cope_start_point),
-        axial_axis,
-    )
+    axial_rate = joint_geometry.dot(axial_axis, geometry.plane_normal)
+    if abs(axial_rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise ValueError("L'axe secondaire est parallèle au plan de l'âme principale.")
+    cut_length_cm = -joint_geometry.plane_signed_distance(
+        cope_start_point,
+        web_cut_point,
+        geometry.plane_normal,
+    ) / axial_rate
     if cut_length_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
         raise ValueError(
             "Le début du grugeage dépasse le plan de coupe contre l'âme."

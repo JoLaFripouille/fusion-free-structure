@@ -11,7 +11,7 @@ from ..lib.cope_preview import CopePreviewManager
 
 
 COMMAND_ID = "EI_JHR_PreviewDoubleIpeCopeV1"
-COMMAND_NAME = "Grugeage IPE V{}".format(addin_info.VERSION)
+COMMAND_NAME = "Grugeage I/H V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = (
     "Prolonge la principale, coupe la secondaire contre son âme et gruge ses semelles."
 )
@@ -67,8 +67,8 @@ def _evaluate(inputs):
     if not design:
         raise ValueError("Ouvrir une conception Fusion.")
     if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
-        raise ValueError("Le prototype nécessite l'historique paramétrique activé.")
-    evaluation = cope_builder.evaluate_double_ipe_cope(
+        raise ValueError("Le grugeage nécessite l'historique paramétrique activé.")
+    evaluation = cope_builder.evaluate_double_ih_cope(
         design,
         _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale"),
         _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire"),
@@ -101,7 +101,10 @@ def _success_report(evaluation):
         ("Barre secondaire", evaluation.secondary_occurrence.component.name),
         ("Profil secondaire", evaluation.secondary_metadata.profile),
         ("Angle entre axes", "{:.2f}°".format(evaluation.geometry.angle_degrees)),
-        ("Profondeur automatique", "{:.3f} mm".format(evaluation.depth_cm * 10.0)),
+        (
+            "Profondeur maximale du grugeage",
+            "{:.3f} mm".format(evaluation.depth_cm * 10.0),
+        ),
         ("Coupe droite", "Face de l'âme principale"),
         ("Jeu contre l'âme", "{:.3f} mm".format(evaluation.web_clearance_cm * 10.0)),
         ("Prolongement de la principale", extension_text),
@@ -156,8 +159,8 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             secondary = inputs.addSelectionInput(
                 SECONDARY_SELECTION_ID,
-                "Barre secondaire IPE",
-                "Sélectionner l'IPE dont les deux semelles seront grugées.",
+                "Barre secondaire I/H",
+                "Sélectionner l'IPE, HEA ou HEB dont les deux semelles seront grugées.",
             )
             secondary.addSelectionFilter("Occurrences")
             secondary.setSelectionLimits(0, 1)
@@ -192,7 +195,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             report = inputs.addTextBoxCommandInput(
                 REPORT_ID,
                 "Contrôle",
-                "Sélectionner la principale puis l'IPE secondaire.",
+                "Sélectionner la principale puis le profil I/H secondaire.",
                 12,
                 True,
             )
@@ -220,7 +223,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         except Exception:
             _, ui = _app_and_ui()
             ui.messageBox(
-                "Échec de l'ouverture du grugeage IPE:\n{}".format(
+                "Échec de l'ouverture du grugeage I/H:\n{}".format(
                     traceback.format_exc()
                 )
             )
@@ -285,7 +288,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
         try:
             self._preview_manager.clear()
             _, evaluation = _evaluate(event_args.command.commandInputs)
-            cope_creator.create_double_ipe_cope(evaluation)
+            cope_creator.create_double_ih_cope(evaluation)
             _log(
                 "Grugeage créé : principale={}, secondaire={}, "
                 "prolongement_principale={} mm, profondeur={} mm"

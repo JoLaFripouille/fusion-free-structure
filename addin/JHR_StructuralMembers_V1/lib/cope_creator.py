@@ -6,14 +6,19 @@ import adsk.fusion
 from . import addin_info, cope_geometry, joint_builder, joint_geometry, joint_records
 
 
-COPE_TYPE = "double_ipe_cope"
+COPE_TYPE = "double_ih_cope"
+LEGACY_COPE_TYPES = frozenset(("double_ipe_cope",))
+KNOWN_COPE_TYPES = LEGACY_COPE_TYPES | frozenset((COPE_TYPE,))
 ENDPOINT_PLANE_NAME = "PLAN_GRUGEAGE_EXTREMITE"
+PRIMARY_STATION_PLANE_NAME = "PLAN_STATION_PRINCIPALE_GRUGEAGE"
+WEB_CUT_AXIS_NAME = "AXE_ORIENTATION_COUPE_AME"
+WEB_ORIENTATION_PLANE_NAME = "PLAN_ORIENTATION_AME_PRINCIPALE"
 WEB_CUT_PLANE_NAME = "PLAN_COUPE_AME_PRINCIPALE"
 COPE_START_PLANE_NAME = "PLAN_DEBUT_GRUGEAGE"
 WEB_SPLIT_FEATURE_NAME = "COUPE_DROITE_AME_PRINCIPALE"
 WEB_REMOVE_FEATURE_NAME = "RETRAIT_APRES_AME_PRINCIPALE"
 COPE_SKETCH_NAME = "ESQUISSE_OUTILS_GRUGEAGE"
-COPE_CUT_FEATURE_NAME = "GRUGEAGE_SEMELLES_IPE"
+COPE_CUT_FEATURE_NAME = "GRUGEAGE_SEMELLES_IH"
 MINIMUM_REMOVED_VOLUME_CM3 = 1e-8
 
 
@@ -22,7 +27,7 @@ def ensure_endpoint_available(evaluation):
         joint_records.ATTRIBUTE_GROUP
     )
     for record in joint_records.records_from_attributes(attributes):
-        if record.payload.get("joint_type") != COPE_TYPE:
+        if record.payload.get("joint_type") not in KNOWN_COPE_TYPES:
             continue
         try:
             endpoint_index = int(record.payload.get("endpoint_index", -1))
@@ -30,13 +35,21 @@ def ensure_endpoint_available(evaluation):
             continue
         if endpoint_index == evaluation.geometry.secondary_joint_endpoint_index:
             raise ValueError(
-                "Cette extrémité possède déjà un grugeage IPE enregistré."
+                "Cette extrémité possède déjà un grugeage I/H enregistré."
             )
 
 
 def _add_cut_planes(evaluation, created_entities):
     component = evaluation.secondary_occurrence.component
     occurrence = evaluation.secondary_occurrence
+    primary_station_plane = joint_builder._add_path_plane(
+        component,
+        occurrence,
+        evaluation.primary_curve,
+        evaluation.geometry.main_parameter,
+        PRIMARY_STATION_PLANE_NAME,
+    )
+    created_entities.append(primary_station_plane)
     endpoint_plane = joint_builder._add_path_plane(
         component,
         occurrence,
@@ -45,10 +58,27 @@ def _add_cut_planes(evaluation, created_entities):
         ENDPOINT_PLANE_NAME,
     )
     created_entities.append(endpoint_plane)
+    orientation_axis = joint_builder._add_intersection_axis(
+        component,
+        occurrence,
+        primary_station_plane,
+        endpoint_plane,
+        WEB_CUT_AXIS_NAME,
+    )
+    created_entities.append(orientation_axis)
+    web_orientation_plane = joint_builder._add_oriented_plane(
+        component,
+        occurrence,
+        orientation_axis,
+        primary_station_plane,
+        evaluation.web_cut_normal,
+        WEB_ORIENTATION_PLANE_NAME,
+        created_entities,
+    )
     web_cut_plane = joint_builder._add_offset_to_point(
         component,
         occurrence,
-        endpoint_plane,
+        web_orientation_plane,
         evaluation.web_cut_point,
         WEB_CUT_PLANE_NAME,
     )
@@ -214,7 +244,7 @@ def _record_payload(evaluation):
     }
 
 
-def create_double_ipe_cope(evaluation):
+def create_double_ih_cope(evaluation):
     """Prolonge, coupe sur l'âme puis gruge les deux semelles de la secondaire."""
     ensure_endpoint_available(evaluation)
     created_entities = []

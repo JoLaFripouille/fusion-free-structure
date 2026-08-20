@@ -157,14 +157,11 @@ def web_face_cut_point(
     )
 
 
-def double_cope_volumes(
+def double_cope_rectangle_bounds(
     profile,
     anchor_mm,
-    depth_cm,
     vertical_clearance_cm,
 ):
-    if depth_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
-        raise ValueError("La profondeur automatique du grugeage est nulle.")
     if vertical_clearance_cm < 0.0:
         raise ValueError("Le jeu vertical du grugeage ne peut pas être négatif.")
     anchor_x_mm, anchor_y_mm = anchor_mm
@@ -186,23 +183,36 @@ def double_cope_volumes(
     )
     if bottom_max >= top_min:
         raise ValueError("Le jeu vertical supprimerait toute l'âme de l'IPE.")
+    return (
+        (x_min, x_max, bottom_min, bottom_max),
+        (x_min, x_max, top_min, top_max),
+    )
+
+
+def double_cope_volumes(
+    profile,
+    anchor_mm,
+    depth_cm,
+    vertical_clearance_cm,
+):
+    if depth_cm <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise ValueError("La profondeur automatique du grugeage est nulle.")
+    bottom, top = double_cope_rectangle_bounds(
+        profile,
+        anchor_mm,
+        vertical_clearance_cm,
+    )
     axial_min = -float(depth_cm)
     return (
         CopeVolume(
             "Grugeage inférieur",
-            x_min,
-            x_max,
-            bottom_min,
-            bottom_max,
+            *bottom,
             axial_min,
             END_OVERRUN_CM,
         ),
         CopeVolume(
             "Grugeage supérieur",
-            x_min,
-            x_max,
-            top_min,
-            top_max,
+            *top,
             axial_min,
             END_OVERRUN_CM,
         ),
@@ -214,8 +224,9 @@ def depth_to_facing_support(
     approach_direction,
     plane_normal,
     primary_body_points,
+    secondary_section_points=(),
 ):
-    """Mesure la profondeur depuis l'axe commun jusqu'à la face principale visible."""
+    """Mesure la profondeur couvrant toute la section jusqu'à la face visible."""
     if not primary_body_points:
         raise ValueError("La barre principale ne contient aucun point exploitable.")
     approach = joint_geometry.normalize(approach_direction)
@@ -223,11 +234,17 @@ def depth_to_facing_support(
     rate = joint_geometry.dot(approach, normal)
     if abs(rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
         raise ValueError("L'axe secondaire est parallèle au plan d'appui principal.")
-    joint_station = joint_geometry.dot(joint_point, normal)
     facing_station = max(
         joint_geometry.dot(point, normal) for point in primary_body_points
     )
-    depth_cm = (joint_station - facing_station) / rate
+    section_points = tuple(secondary_section_points) or (joint_point,)
+    depth_cm = max(
+        (
+            joint_geometry.dot(point, normal) - facing_station
+        )
+        / rate
+        for point in section_points
+    )
     if depth_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
         raise ValueError(
             "L'enveloppe de la principale ne traverse pas l'extrémité secondaire."
@@ -284,5 +301,62 @@ def volume_mesh(volume, origin, x_axis, y_axis, axial_axis):
         world_point(origin, x_axis, y_axis, axial_axis, *point)
         for point in local_points
     )
+    coordinates = tuple(value for point in points for value in point)
+    return coordinates, BOX_TRIANGLES, BOX_WIRES
+
+
+def clipped_volume_mesh(
+    volume,
+    start_origin,
+    x_axis,
+    y_axis,
+    axial_axis,
+    cut_point,
+    cut_normal,
+):
+    """Construit l'outil rouge réel, du plan de départ au plan d'âme oblique."""
+    x_axis = joint_geometry.normalize(x_axis)
+    y_axis = joint_geometry.normalize(y_axis)
+    axial_axis = joint_geometry.normalize(axial_axis)
+    cut_normal = joint_geometry.normalize(cut_normal)
+    rate = joint_geometry.dot(axial_axis, cut_normal)
+    if abs(rate) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise ValueError("L'axe secondaire est parallèle au plan de coupe de l'âme.")
+    local_points = (
+        (volume.x_min_cm, volume.y_min_cm),
+        (volume.x_max_cm, volume.y_min_cm),
+        (volume.x_max_cm, volume.y_max_cm),
+        (volume.x_min_cm, volume.y_max_cm),
+    )
+    start_points = tuple(
+        world_point(
+            start_origin,
+            x_axis,
+            y_axis,
+            axial_axis,
+            x,
+            y,
+            0.0,
+        )
+        for x, y in local_points
+    )
+    end_points = []
+    for point in start_points:
+        extent_cm = -joint_geometry.plane_signed_distance(
+            point,
+            cut_point,
+            cut_normal,
+        ) / rate
+        if extent_cm <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+            raise ValueError(
+                "Le plan d'âme oblique passe derrière le début du grugeage."
+            )
+        end_points.append(
+            joint_geometry.add(
+                point,
+                joint_geometry.scale(axial_axis, extent_cm),
+            )
+        )
+    points = start_points + tuple(end_points)
     coordinates = tuple(value for point in points for value in point)
     return coordinates, BOX_TRIANGLES, BOX_WIRES
