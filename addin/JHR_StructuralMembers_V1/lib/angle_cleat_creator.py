@@ -355,9 +355,81 @@ def _create_hole_group(
     if sketch and sketch.isValid:
         sketch.deleteMe()
     raise RuntimeError(
-        "Fusion n'a pas pu créer les perçages traversants ({})"
-        .format(" ; ".join(failures))
+        "Fusion n'a pas pu créer le groupe de perçages '{}' ({})"
+        .format(feature_name, " ; ".join(failures))
     )
+
+
+def _create_local_cut_group(
+    component,
+    occurrence,
+    body,
+    centers_local,
+    axis_local,
+    diameter_cm,
+    cut_span_cm,
+    feature_name,
+    sketch_name,
+):
+    """Coupe des cylindres symétriques dans une cornière encore à l'identité."""
+    if not centers_local:
+        raise ValueError("Le groupe de coupes ne contient aucun centre.")
+    face = _planar_face_for_holes(
+        body,
+        occurrence,
+        axis_local,
+        centers_local,
+    )
+    sketch = component.sketches.add(face)
+    if not sketch:
+        raise RuntimeError("Fusion n'a pas pu créer l'esquisse des coupes.")
+    sketch.name = sketch_name
+    try:
+        radius_cm = float(diameter_cm) / 2.0
+        for center_local in centers_local:
+            model_point = adsk.core.Point3D.create(*center_local)
+            circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(
+                sketch.modelToSketchSpace(model_point),
+                radius_cm,
+            )
+            if not circle:
+                raise RuntimeError("un cercle de coupe n'a pas été créé")
+
+        profiles = adsk.core.ObjectCollection.create()
+        for index in range(sketch.profiles.count):
+            profiles.add(sketch.profiles.item(index))
+        if profiles.count != len(centers_local):
+            raise RuntimeError(
+                "{} régions circulaires obtenues au lieu de {}"
+                .format(profiles.count, len(centers_local))
+            )
+
+        extrudes = component.features.extrudeFeatures
+        cut_input = extrudes.createInput(
+            profiles,
+            adsk.fusion.FeatureOperations.CutFeatureOperation,
+        )
+        if not cut_input:
+            raise RuntimeError("entrée de coupe indisponible")
+        cut_input.participantBodies = [body]
+        if not cut_input.setSymmetricExtent(
+            adsk.core.ValueInput.createByReal(float(cut_span_cm)),
+            True,
+        ):
+            raise RuntimeError("profondeur symétrique refusée")
+        feature = extrudes.add(cut_input)
+        if not feature:
+            raise RuntimeError("fonction de coupe non créée")
+        feature.name = feature_name
+        sketch.isVisible = False
+        return feature, sketch
+    except Exception as error:
+        if sketch and sketch.isValid:
+            sketch.deleteMe()
+        raise RuntimeError(
+            "Fusion n'a pas pu créer le groupe de coupes '{}' ({})"
+            .format(feature_name, error)
+        ) from error
 
 
 def _add_attributes(component, evaluation, side):
@@ -458,23 +530,29 @@ def create_double_angle_assembly(root_component, evaluation):
                 )
                 for center in secondary_centers
             )
-            _create_hole_group(
+            cut_span_cm = 2.0 * max(
+                evaluation.angle_profile.width_mm,
+                evaluation.angle_profile.height_mm,
+            ) * profile_catalog.MM_TO_CM
+            _create_local_cut_group(
                 component,
                 occurrence,
                 body,
                 primary_centers_local,
                 (0.0, 1.0, 0.0),
                 evaluation.hole_pattern.diameter_cm,
+                cut_span_cm,
                 "PERCAGES_VERS_AME_PRINCIPALE",
                 "CENTRES_PERCAGES_PRINCIPALE",
             )
-            _create_hole_group(
+            _create_local_cut_group(
                 component,
                 occurrence,
                 body,
                 secondary_centers_local,
                 (1.0, 0.0, 0.0),
                 evaluation.hole_pattern.diameter_cm,
+                cut_span_cm,
                 "PERCAGES_VERS_AME_SECONDAIRE",
                 "CENTRES_PERCAGES_SECONDAIRE",
             )

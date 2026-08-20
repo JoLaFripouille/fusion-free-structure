@@ -207,6 +207,8 @@ class RepositoryTests(unittest.TestCase):
         )
         self.assertIn("occurrence.initialTransform = transform", creator_source)
         self.assertIn("occurrence.preciseBoundingBox", creator_source)
+        self.assertIn("adsk.fusion.FeatureOperations.CutFeatureOperation", creator_source)
+        self.assertIn("cut_input.setSymmetricExtent", creator_source)
 
     def test_local_default_values_are_managed_and_used_by_operations(self):
         entry_source = (ADDIN / "JHR_StructuralMembers_V1.py").read_text(

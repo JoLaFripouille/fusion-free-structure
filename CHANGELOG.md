@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.23.4] - En validation
+
+### Corrigé
+
+- les trous propres aux deux branches des cornières sont maintenant produits par des coupes cylindriques symétriques traversantes, centrées sur les mêmes coordonnées et avec le même diamètre que l'aperçu rouge ;
+- la coupe traverse volontairement les deux côtés du plan porteur et limite explicitement le corps participant, ce qui évite les erreurs Fusion `ZERO_DISTANCE_ERROR`, `NO_TARGET_BODY` et `HOLE_CANNOT_CREATE_TOOLBODY` rencontrées avec la fonction native de perçage sur une face locale ;
+- les perçages des âmes principale et secondaire conservent la fonction native de perçage, et leur éventuel message d'échec indique maintenant le groupe concerné.
+
 ## [1.23.3] - En validation
 
 ### Corrigé
@@ -11,6 +19,10 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 - chaque cornière est maintenant importée, extrudée et percée dans un composant encore placé à l'identité ; son placement final n'est appliqué qu'après la création de toutes ses fonctions locales ;
 - les centres rouges validés dans l'aperçu sont convertis mathématiquement dans le repère rigide de chaque cornière avant les perçages locaux ;
 - l'enveloppe réelle de chaque occurrence est comparée à l'enveloppe attendue après placement ; une divergence annule toute la tentative au lieu de conserver un assemblage décalé.
+
+### Bloqué pendant la validation
+
+- Fusion refusait les perçages locaux des cornières avant leur placement avec une distance nulle dans un sens et aucun corps cible dans l'autre ; la validation du nouveau placement n'a donc pas encore pu être atteinte dans cette version.
 
 ### Diagnostic
 
