@@ -4,6 +4,8 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.17.0] - En validation
+
 ### Ajouté
 
 - groupe de timeline automatiquement nommé comme chaque nouvelle barre et replié (composant, plan, esquisse DXF et balayage) ;
