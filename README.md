@@ -24,6 +24,9 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - choix d'un matériau acier réellement disponible dans les bibliothèques chargées par Fusion, puis affectation physique au corps ;
 - création contrôlée dans le document actif des nuances européennes `S235JR`, `S275JR` et `S355J2` pour la première comparaison de simulation ;
 - un composant indépendant par barre ;
+- un groupe de timeline nommé comme la barre et automatiquement replié ; les
+  jonctions et coupes rejoignent ce groupe si elles sont adjacentes, sinon un
+  groupe distinct nommé d'après la barre, sans déplacer l'historique ;
 - une esquisse de section et un corps dans chaque composant ;
 - dépendance paramétrique native au squelette grâce à un balayage sur la ligne complète.
 - commande `Jonctions acier` : jonction ajustée à l'enveloppe d'une barre de référence, quel que soit l'angle non parallèle, ou coupe d'onglet symétrique entre deux barres droites ; détection des espaces et chevauchements, prolongement automatique, opérations multiples par barre et aperçu orange identique au plan final.

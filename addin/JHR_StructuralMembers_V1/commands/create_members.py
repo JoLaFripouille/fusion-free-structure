@@ -17,6 +17,7 @@ from ..lib import physical_materials
 from ..lib import profile_catalog
 from ..lib import rotation
 from ..lib import structural_materials
+from ..lib import timeline_groups
 from ..lib import ui_layout
 
 
@@ -949,6 +950,7 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                 for occurrence in old_occurrences:
                     if occurrence and occurrence.isValid:
                         old_name = occurrence.component.name
+                        timeline_groups.release_member_group(occurrence)
                         if not occurrence.deleteMe():
                             raise RuntimeError(
                                 "Fusion n'a pas pu retirer l'ancienne barre {}."
@@ -974,6 +976,7 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
             if not creation_completed:
                 for occurrence in reversed(created_occurrences):
                     if occurrence and occurrence.isValid:
+                        timeline_groups.release_member_group(occurrence)
                         occurrence.deleteMe()
                 _log("ÉCHEC IMPORT DXF: {}\n{}".format(error, traceback.format_exc()))
                 _, ui = _app_and_ui()

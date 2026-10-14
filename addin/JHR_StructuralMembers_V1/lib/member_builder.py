@@ -5,7 +5,7 @@ import math
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, member_metadata, path_frames, profile_catalog, rotation
+from . import addin_info, member_metadata, path_frames, profile_catalog, rotation, timeline_groups
 
 
 ATTRIBUTE_GROUP = member_metadata.ATTRIBUTE_GROUP
@@ -345,6 +345,9 @@ def create_member(
 
         section_plane.isLightBulbOn = False
         section_sketch.isVisible = False
+        timeline_groups.group_member(
+            occurrence, (occurrence, section_plane, section_sketch, sweep)
+        )
         return occurrence
     except Exception:
         if occurrence and occurrence.isValid:
