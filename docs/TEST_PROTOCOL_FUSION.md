@@ -2,6 +2,43 @@
 
 Effectuer l'essai dans un nouveau document sans donnée de production.
 
+## Regroupement automatique de la timeline
+
+1. Créer deux barres, sur une ligne puis un arc : chacune doit avoir un groupe
+   replié nommé comme son composant (`BARRE_IPE100_001`, etc.). Déplier :
+   création du composant, plan médian, esquisse DXF et balayage restent éditables.
+   L'esquisse du squelette doit rester hors des groupes.
+2. Modifier le squelette et recalculer : mêmes composants/corps et dimensions
+   mises à jour, sans avertissement paramétrique. Enregistrer le document d'essai,
+   rouvrir et vérifier la conservation des groupes.
+3. Créer une jonction droite puis un onglet. Les opérations contiguës au groupe
+   de la barre peuvent y être intégrées ; sinon elles restent à leur position
+   dans des groupes repliés `BARRE_… — Jonction — plans/coupe/prolongement` ou
+   `BARRE_… — Coupe d'onglet`. Aucun groupe ne doit absorber une autre barre.
+4. Répéter une jonction, intercaler une fonction manuelle, puis modifier le
+   squelette : ni déplacement des fonctions ni perte des références.
+5. Essayer avec les groupes déjà dépliés et avec le marqueur au milieu de
+   l'historique. Le code n'avance pas le marqueur et ne déplace aucune fonction.
+6. Remplacer une barre dont le groupe est replié, puis provoquer un échec sur
+   le second chemin d'une création multiple : les retraits doivent conserver
+   les autres barres et ne laisser aucun groupe vide de la création annulée.
+
+Les groupes sont une présentation de l'historique. L'API Fusion exige des
+plages contiguës et interdit les groupes imbriqués ; elle ne permet pas de
+relier des opérations éloignées au même groupe sans déplacer l'historique.
+Fusion exige aussi au moins deux fonctions par groupe : un prolongement seul,
+non adjacent au groupe de sa barre, reste visible individuellement.
+Un échec de regroupement est journalisé sans supprimer la géométrie créée.
+Les modèles existants ne sont pas regroupés rétroactivement.
+
+Le script `tests/fusion_timeline_smoke.py` est un essai natif à exécuter dans
+Fusion, hors commande active. Il crée et ferme uniquement son propre document
+temporaire, puis réactive le document initial. Il teste l'import IPE100,
+le recalcul 200 → 300 mm, la fusion des groupes adjacents, les groupes séparés,
+une jonction droite, un onglet, la santé de la timeline et le dégroupage.
+Les 109 tests hors Fusion se lancent avec
+`python -B -m unittest discover -s tests -q` (sans fichiers de cache).
+
 Lors d'un import manuel d'un DXF de la bibliothèque, sélectionner explicitement les millimètres : le format R12 ne contient pas de champ `$INSUNITS`.
 
 ## Test 1 — Une barre

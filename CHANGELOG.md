@@ -4,6 +4,12 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+### Ajouté
+
+- groupe de timeline automatiquement nommé comme chaque nouvelle barre et replié (composant, plan, esquisse DXF et balayage) ;
+- regroupement des jonctions droites et coupes d'onglet : extension du groupe de la barre uniquement si les opérations sont adjacentes, sinon groupes distincts nommés d'après la barre ; aucun déplacement des opérations paramétriques ;
+- dégrouper sans supprimer les fonctions avant le retrait d'une barre lors d'un remplacement ou d'une annulation de création multiple.
+
 ## [1.16.3] - En validation
 
 ### Corrigé

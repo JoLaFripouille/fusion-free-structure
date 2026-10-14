@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, joint_geometry, joint_records, member_metadata
+from . import addin_info, joint_geometry, joint_records, member_metadata, timeline_groups
 
 
 JOINT_ATTRIBUTE_GROUP = joint_records.ATTRIBUTE_GROUP
@@ -1189,8 +1189,10 @@ def create_straight_joint(evaluation):
     created_attributes = []
     try:
         cut_plane = _add_direct_cut_plane(evaluation, created_entities)
+        plane_count = len(created_entities)
         for extension in evaluation.primary_extensions:
             _extend_primary_end(extension, created_entities)
+        extension_count = len(created_entities)
         _extend_body(
             evaluation.treatment,
             evaluation.cut_point,
@@ -1209,6 +1211,23 @@ def create_straight_joint(evaluation):
         created_attributes.append(
             _add_record(evaluation.secondary_occurrence, _direct_record(evaluation))
         )
+        # Group only after the entire joint succeeds, so existing geometry
+        # rollback can still delete individual (ungrouped) features on failure.
+        if plane_count == extension_count:
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities, "Jonction"
+            )
+        else:
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities[:plane_count], "Jonction — plans"
+            )
+            timeline_groups.group_operations(
+                evaluation.primary_occurrence,
+                created_entities[plane_count:extension_count], "Jonction — prolongement"
+            )
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities[extension_count:], "Jonction — coupe"
+            )
         return tuple(created_entities)
     except Exception:
         for attribute in reversed(created_attributes):
@@ -1245,6 +1264,7 @@ def create_miter_joint(evaluation):
             MITER_REMOVE_FEATURE_NAME,
             created_entities,
         )
+        first_count = len(created_entities)
         second_plane = _add_miter_cut_plane(
             evaluation,
             evaluation.secondary_occurrence,
@@ -1286,6 +1306,12 @@ def create_miter_joint(evaluation):
                     evaluation.primary_metadata,
                 ),
             )
+        )
+        timeline_groups.group_operations(
+            evaluation.primary_occurrence, created_entities[:first_count], "Coupe d'onglet"
+        )
+        timeline_groups.group_operations(
+            evaluation.secondary_occurrence, created_entities[first_count:], "Coupe d'onglet"
         )
         return tuple(created_entities)
     except Exception:
