@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, joint_geometry, joint_records, member_metadata
+from . import addin_info, joint_geometry, joint_records, member_metadata, timeline_groups
 
 
 JOINT_ATTRIBUTE_GROUP = joint_records.ATTRIBUTE_GROUP
@@ -23,14 +23,11 @@ EXTEND_FEATURE_NAME = "PROLONGEMENT_VERS_JONCTION"
 PRIMARY_EXTEND_FEATURE_NAME = "PROLONGEMENT_BARRE_PRINCIPALE"
 SPLIT_FEATURE_NAME = "COUPE_JONCTION"
 REMOVE_FEATURE_NAME = "RETRAIT_EXCEDENT_JONCTION"
-MITER_FIRST_PATH_PLANE_NAME = "PLAN_ONGLET_AXE_1"
-MITER_SECOND_PATH_PLANE_NAME = "PLAN_ONGLET_AXE_2"
-MITER_AXIS_NAME = "AXE_INTERSECTION_ONGLET"
 MITER_PLANE_NAME = "PLAN_COUPE_ONGLET"
-MITER_SPLIT_FEATURE_NAME = "COUPE_ONGLET"
-MITER_REMOVE_FEATURE_NAME = "RETRAIT_EXCEDENT_ONGLET"
+MITER_FEATURE_NAME = "COUPE_ONGLET"
 FACE_ALIGNMENT_TOLERANCE = 0.995
 EDGE_STROKE_TOLERANCE_CM = 1e-5
+MEMBER_MID_PLANE_NAME = "PLAN_PROFIL_MILIEU"
 
 
 @dataclass(frozen=True)
@@ -247,6 +244,54 @@ def _body_support_reference(body, occurrence, direction):
         raise ValueError("L'enveloppe de la barre de référence est introuvable.")
     _, point, edge, fraction = best
     return point, edge, fraction
+
+
+def _planar_face_reference(body, occurrence, target_point, target_normal, role):
+    """Trouve la face longitudinale qui porte le plan physique recherché."""
+    proxy = _body_proxy(body, occurrence)
+    target_normal = joint_geometry.normalize(target_normal)
+    candidates = []
+    for index in range(proxy.faces.count):
+        face = proxy.faces.item(index)
+        plane = adsk.core.Plane.cast(face.geometry)
+        if not plane or not face.pointOnFace:
+            continue
+        plane_normal = joint_geometry.normalize(_vector_tuple(plane.normal))
+        alignment = abs(joint_geometry.dot(plane_normal, target_normal))
+        if alignment < FACE_ALIGNMENT_TOLERANCE:
+            continue
+        reference_point = _point_tuple(face.pointOnFace)
+        station_error_cm = abs(
+            joint_geometry.plane_signed_distance(
+                reference_point,
+                target_point,
+                target_normal,
+            )
+        )
+        candidates.append(
+            (
+                station_error_cm,
+                -float(face.area),
+                face,
+                reference_point,
+                plane_normal,
+            )
+        )
+    if not candidates:
+        raise ValueError(
+            "La face plane {} est introuvable sur le corps principal."
+            .format(role)
+        )
+    _, _, face, reference_point, plane_normal = min(
+        candidates,
+        key=lambda item: (item[0], item[1]),
+    )
+    offset_cm = joint_geometry.signed_offset_between_planes(
+        reference_point,
+        target_point,
+        plane_normal,
+    )
+    return face, offset_cm
 
 
 def _line_endpoints(line):
@@ -640,6 +685,62 @@ def _add_path_plane(component, occurrence, curve, fraction, name):
     return plane
 
 
+def _named_construction_plane(component, name):
+    for index in range(component.constructionPlanes.count):
+        plane = component.constructionPlanes.item(index)
+        if plane and plane.isValid and plane.name == name:
+            return plane
+    raise RuntimeError(
+        "Le plan dynamique '{}' est introuvable dans le composant '{}'."
+        .format(name, component.name)
+    )
+
+
+def _curve_endpoint_sketch_point(curve, endpoint_index):
+    line = adsk.fusion.SketchLine.cast(curve)
+    if not line:
+        raise RuntimeError(
+            "Cette référence dynamique exige une ligne d'esquisse droite."
+        )
+    if int(endpoint_index) == 0:
+        point = line.startSketchPoint
+    elif int(endpoint_index) == 1:
+        point = line.endSketchPoint
+    else:
+        raise ValueError("L'index d'extrémité de la ligne est invalide.")
+    if not point or not point.isValid:
+        raise RuntimeError("Le point d'extrémité lié au squelette est introuvable.")
+    return point
+
+
+def _add_member_station_plane_through_point(
+    component,
+    occurrence,
+    member_occurrence,
+    point_entity,
+    name,
+):
+    """Lie une station à l'orientation d'une barre et à un point du squelette."""
+    member_plane = _named_construction_plane(
+        member_occurrence.component,
+        MEMBER_MID_PLANE_NAME,
+    )
+    member_plane_proxy = (
+        member_plane.createForAssemblyContext(member_occurrence) or member_plane
+    )
+    plane_input = component.constructionPlanes.createInput(occurrence)
+    if not plane_input.setByOffsetThroughPoint(member_plane_proxy, point_entity):
+        raise RuntimeError(
+            "Fusion n'a pas pu lier le plan de station au point du squelette."
+        )
+    plane = component.constructionPlanes.add(plane_input)
+    if not plane:
+        raise RuntimeError("Fusion n'a pas pu créer le plan de station dynamique.")
+    plane.name = name
+    plane.isLightBulbOn = False
+    return plane
+
+
 def _add_intersection_axis(component, occurrence, first_plane, second_plane, name):
     axis_input = component.constructionAxes.createInput(occurrence)
     if not axis_input.setByTwoPlanes(first_plane, second_plane):
@@ -801,6 +902,26 @@ def _add_offset_to_point(component, occurrence, plane, target_point, name):
     return result
 
 
+def _add_face_offset_plane(component, occurrence, face, offset_cm, name):
+    if not face or not face.isValid:
+        raise RuntimeError("La face de référence du plan '{}' est invalide.".format(name))
+    plane_input = component.constructionPlanes.createInput(occurrence)
+    if not plane_input.setByOffset(
+        face,
+        adsk.core.ValueInput.createByReal(float(offset_cm)),
+    ):
+        raise RuntimeError(
+            "Fusion n'a pas pu lier le plan '{}' à la face principale."
+            .format(name)
+        )
+    result = component.constructionPlanes.add(plane_input)
+    if not result:
+        raise RuntimeError("Fusion n'a pas pu créer le plan '{}'.".format(name))
+    result.name = name
+    result.isLightBulbOn = False
+    return result
+
+
 def _validate_plane_match(plane, occurrence, target_point, target_normal):
     actual_origin, actual_normal = _world_plane_system(plane, occurrence)
     alignment = abs(
@@ -825,6 +946,19 @@ def _validate_plane_match(plane, occurrence, target_point, target_normal):
 def _add_direct_cut_plane(evaluation, created_entities):
     component = evaluation.secondary_occurrence.component
     occurrence = evaluation.secondary_occurrence
+    try:
+        face, offset = _planar_face_reference(
+            evaluation.primary_body, evaluation.primary_occurrence,
+            evaluation.cut_point, evaluation.cut_normal, "d'appui",
+        )
+    except ValueError:
+        face = None
+    if face and abs(abs(offset) - evaluation.gap_cm) <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+        cut_plane = _add_face_offset_plane(component, occurrence, face, offset, CUT_PLANE_NAME)
+        created_entities.append(cut_plane)
+        _validate_plane_match(cut_plane, occurrence, evaluation.cut_point, evaluation.cut_normal)
+        return cut_plane
+
     reference_station = _add_path_plane(
         component,
         occurrence,
@@ -886,40 +1020,110 @@ def _add_direct_cut_plane(evaluation, created_entities):
 
 def _add_miter_cut_plane(evaluation, occurrence, created_entities):
     component = occurrence.component
-    first_plane = _add_path_plane(
-        component,
-        occurrence,
-        evaluation.primary_curve,
-        evaluation.geometry.primary_joint_endpoint_index,
-        MITER_FIRST_PATH_PLANE_NAME,
+    geometry = evaluation.geometry
+    first_index = geometry.primary_joint_endpoint_index
+    second_index = geometry.secondary_joint_endpoint_index
+    corner = _curve_endpoint_sketch_point(evaluation.primary_curve, first_index)
+    first_inner = _curve_endpoint_sketch_point(evaluation.primary_curve, 1 - first_index)
+    second_inner = _curve_endpoint_sketch_point(evaluation.secondary_curve, 1 - second_index)
+
+    plane_input = component.constructionPlanes.createInput(occurrence)
+    if not plane_input.setByThreePoints(corner, first_inner, second_inner):
+        raise RuntimeError("Fusion n'a pas pu construire le plan des axes de l'onglet.")
+    axis_plane = component.constructionPlanes.add(plane_input)
+    if not axis_plane:
+        raise RuntimeError("Le plan des axes de l'onglet n'a pas été créé.")
+    created_entities.append(axis_plane)
+    axis_plane.name = "PLAN_AXES_ONGLET"
+    axis_plane.isLightBulbOn = False
+
+    sketch = component.sketches.add(axis_plane)
+    created_entities.append(sketch)
+    sketch.name = "BISSECTRICE_VERS_INTERIEUR"
+    first, second = [
+        adsk.fusion.SketchLine.cast(sketch.project2([curve], True)[0])
+        for curve in (evaluation.primary_curve, evaluation.secondary_curve)
+    ]
+    if not first or not second:
+        raise RuntimeError("Fusion n'a pas pu projeter les deux axes de l'onglet.")
+    start = first.endSketchPoint if first_index else first.startSketchPoint
+    first_end = first.startSketchPoint if first_index else first.endSketchPoint
+    second_end = second.startSketchPoint if second_index else second.endSketchPoint
+    second_start = second.endSketchPoint if second_index else second.startSketchPoint
+    first_direction = start.geometry.vectorTo(first_end.geometry)
+    second_direction = second_start.geometry.vectorTo(second_end.geometry)
+    length = min(first_direction.length, second_direction.length) / 4.0
+    lines = sketch.sketchCurves.sketchLines
+
+    def leg(direction):
+        direction.normalize()
+        direction.scaleBy(length)
+        end = start.geometry.copy()
+        end.translateBy(direction)
+        line = lines.addByTwoPoints(start, end)
+        line.isConstruction = True
+        return line
+
+    left, right = leg(first_direction), leg(second_direction)
+    constraints = sketch.geometricConstraints
+    constraints.addParallel(left, first)
+    constraints.addParallel(right, second)
+    constraints.addEqual(left, right)
+    sketch.sketchDimensions.addDistanceDimension(
+        start, left.endSketchPoint,
+        adsk.fusion.DimensionOrientations.AlignedDimensionOrientation,
+        left.endSketchPoint.geometry,
+    ).parameter.value = length
+    chord = lines.addByTwoPoints(left.endSketchPoint, right.endSketchPoint)
+    chord.isConstruction = True
+    midpoint = sketch.sketchPoints.add(chord.geometry.evaluator.getPointAtParameter(0.5)[1])
+    constraints.addMidPoint(midpoint, chord)
+    bisector = lines.addByTwoPoints(start, midpoint)
+    bisector.isConstruction = True
+    sketch.isVisible = False
+
+    orientation = _create_angle_plane(
+        component, occurrence, bisector, axis_plane, math.pi / 2,
+        "PLAN_ORIENTATION_ONGLET",
     )
-    created_entities.append(first_plane)
-    second_plane = _add_path_plane(
-        component,
-        occurrence,
-        evaluation.secondary_curve,
-        evaluation.geometry.secondary_joint_endpoint_index,
-        MITER_SECOND_PATH_PLANE_NAME,
+    created_entities.append(orientation)
+    cut_plane = _add_offset_through_point(
+        component, occurrence, orientation, corner, MITER_PLANE_NAME
     )
-    created_entities.append(second_plane)
-    axis = _add_intersection_axis(
-        component,
-        occurrence,
-        first_plane,
-        second_plane,
-        MITER_AXIS_NAME,
+    created_entities.append(cut_plane)
+    _validate_plane_match(cut_plane, occurrence, evaluation.cut_point, evaluation.cut_normal)
+    return cut_plane
+
+
+def _replace_member_end(treatment, end_face, cut_plane, cut_point, cut_normal,
+                        feature_name, created_entities):
+    occurrence = treatment.occurrence
+    source = adsk.core.ObjectCollection.create()
+    source.add(end_face)
+    targets = adsk.core.ObjectCollection.create()
+    targets.add(cut_plane)
+    features = occurrence.component.features.replaceFaceFeatures
+    feature_input = features.createInput(source, False, targets)
+    feature = features.add(feature_input) if feature_input else None
+    if not feature:
+        raise RuntimeError("Fusion n'a pas pu ajuster la face d'extrémité au plan de coupe.")
+    created_entities.append(feature)
+    feature.name = feature_name
+    remaining = _single_body(occurrence, "conservé après la coupe")
+    center = _projection_center(
+        remaining, occurrence, cut_point, cut_normal, treatment.interior_sign
     )
-    created_entities.append(axis)
-    return _add_oriented_plane(
-        component,
-        occurrence,
-        axis,
-        first_plane,
-        evaluation.cut_normal,
-        MITER_PLANE_NAME,
-        created_entities,
-        target_point=evaluation.cut_point,
+    if center <= joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+        raise RuntimeError("Fusion n'a pas conservé la barre du côté intérieur.")
+
+
+def _treatment_end_face(treatment):
+    occurrence = treatment.occurrence
+    body = _single_body(occurrence, "à couper")
+    end_face, _ = _planar_end_face(
+        body, occurrence, treatment.approach_direction, treatment.joint_endpoint
     )
+    return end_face
 
 
 def _create_extension_feature(treatment, direction):
@@ -1110,18 +1314,26 @@ def _split_and_keep_interior(
     created_entities.append(split_feature)
 
     bodies = [component.bRepBodies.item(index) for index in range(component.bRepBodies.count)]
-    if len(bodies) < 2:
-        raise RuntimeError("La séparation n'a produit aucun excédent distinct à retirer.")
-    keep_index = max(
-        range(len(bodies)),
-        key=lambda index: _projection_center(
-            bodies[index],
+    if len(bodies) != 2:
+        raise RuntimeError(
+            "La séparation doit produire exactement deux corps, pas {}."
+            .format(len(bodies))
+        )
+    centers = tuple(
+        _projection_center(
+            candidate,
             treatment.occurrence,
             cut_point,
             cut_normal,
             treatment.interior_sign,
-        ),
+        )
+        for candidate in bodies
     )
+    if abs(centers[0] - centers[1]) <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise RuntimeError(
+            "Fusion n'a pas distingué le corps intérieur de l'excédent."
+        )
+    keep_index = max(range(len(bodies)), key=lambda index: centers[index])
     remove_features = []
     for index, candidate in enumerate(bodies):
         if index == keep_index:
@@ -1132,6 +1344,18 @@ def _split_and_keep_interior(
         remove_feature.name = remove_name
         created_entities.append(remove_feature)
         remove_features.append(remove_feature)
+    if len(remove_features) != 1:
+        raise RuntimeError("Un seul excédent doit être retiré après la séparation.")
+    remaining_body = _single_body(treatment.occurrence, "conservé après la coupe")
+    remaining_center = _projection_center(
+        remaining_body,
+        treatment.occurrence,
+        cut_point,
+        cut_normal,
+        treatment.interior_sign,
+    )
+    if remaining_center < -joint_geometry.PLANE_RELATION_TOLERANCE_CM:
+        raise RuntimeError("Fusion a conservé le corps du mauvais côté du plan.")
     return tuple(remove_features)
 
 
@@ -1189,26 +1413,49 @@ def create_straight_joint(evaluation):
     created_attributes = []
     try:
         cut_plane = _add_direct_cut_plane(evaluation, created_entities)
+        plane_count = len(created_entities)
         for extension in evaluation.primary_extensions:
             _extend_primary_end(extension, created_entities)
-        _extend_body(
-            evaluation.treatment,
-            evaluation.cut_point,
-            evaluation.cut_normal,
-            created_entities,
-        )
-        _split_and_keep_interior(
-            evaluation.treatment,
-            cut_plane,
-            evaluation.cut_point,
-            evaluation.cut_normal,
-            SPLIT_FEATURE_NAME,
-            REMOVE_FEATURE_NAME,
-            created_entities,
-        )
+        extension_count = len(created_entities)
+        treatment = evaluation.treatment
+        end_face = None
+        if treatment.requires_split and adsk.fusion.SketchLine.cast(treatment.curve):
+            try:
+                end_face = _treatment_end_face(treatment)
+            except ValueError:
+                # A previously trimmed end may have no planar cap normal to the path.
+                pass
+        if end_face:
+            _replace_member_end(
+                treatment, end_face, cut_plane, evaluation.cut_point, evaluation.cut_normal,
+                SPLIT_FEATURE_NAME, created_entities,
+            )
+        else:
+            _extend_body(treatment, evaluation.cut_point, evaluation.cut_normal, created_entities)
+            _split_and_keep_interior(
+                treatment, cut_plane, evaluation.cut_point, evaluation.cut_normal,
+                SPLIT_FEATURE_NAME, REMOVE_FEATURE_NAME, created_entities,
+            )
         created_attributes.append(
             _add_record(evaluation.secondary_occurrence, _direct_record(evaluation))
         )
+        # Group only after the entire joint succeeds, so existing geometry
+        # rollback can still delete individual (ungrouped) features on failure.
+        if plane_count == extension_count:
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities, "Jonction"
+            )
+        else:
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities[:plane_count], "Jonction — plans"
+            )
+            timeline_groups.group_operations(
+                evaluation.primary_occurrence,
+                created_entities[plane_count:extension_count], "Jonction — prolongement"
+            )
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities[extension_count:], "Jonction — coupe"
+            )
         return tuple(created_entities)
     except Exception:
         for attribute in reversed(created_attributes):
@@ -1230,39 +1477,28 @@ def create_miter_joint(evaluation):
             evaluation.primary_occurrence,
             created_entities,
         )
-        _extend_body(
+        _replace_member_end(
             evaluation.first_treatment,
-            evaluation.cut_point,
-            evaluation.cut_normal,
-            created_entities,
-        )
-        _split_and_keep_interior(
-            evaluation.first_treatment,
+            _treatment_end_face(evaluation.first_treatment),
             first_plane,
             evaluation.cut_point,
             evaluation.cut_normal,
-            MITER_SPLIT_FEATURE_NAME,
-            MITER_REMOVE_FEATURE_NAME,
+            MITER_FEATURE_NAME,
             created_entities,
         )
+        first_count = len(created_entities)
         second_plane = _add_miter_cut_plane(
             evaluation,
             evaluation.secondary_occurrence,
             created_entities,
         )
-        _extend_body(
+        _replace_member_end(
             evaluation.second_treatment,
-            evaluation.cut_point,
-            evaluation.cut_normal,
-            created_entities,
-        )
-        _split_and_keep_interior(
-            evaluation.second_treatment,
+            _treatment_end_face(evaluation.second_treatment),
             second_plane,
             evaluation.cut_point,
             evaluation.cut_normal,
-            MITER_SPLIT_FEATURE_NAME,
-            MITER_REMOVE_FEATURE_NAME,
+            MITER_FEATURE_NAME,
             created_entities,
         )
         created_attributes.append(
@@ -1286,6 +1522,12 @@ def create_miter_joint(evaluation):
                     evaluation.primary_metadata,
                 ),
             )
+        )
+        timeline_groups.group_operations(
+            evaluation.primary_occurrence, created_entities[:first_count], "Coupe d'onglet"
+        )
+        timeline_groups.group_operations(
+            evaluation.secondary_occurrence, created_entities[first_count:], "Coupe d'onglet"
         )
         return tuple(created_entities)
     except Exception:

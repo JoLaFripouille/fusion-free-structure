@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import math
 import threading
 import time
 import traceback
@@ -12,17 +13,25 @@ from ..lib.member_builder import create_member
 from ..lib.preview_graphics import PreviewManager
 from ..lib import addin_info
 from ..lib import anchors
+from ..lib import joint_builder
 from ..lib import member_links
+from ..lib import member_metadata
+from ..lib import member_section
 from ..lib import physical_materials
 from ..lib import profile_catalog
 from ..lib import rotation
 from ..lib import structural_materials
+from ..lib import timeline_groups
 from ..lib import ui_layout
 
 
 COMMAND_ID = "EI_JHR_CreateStructuralMembersV1"
+EDIT_COMMAND_ID = "EI_JHR_EditStructuralMember"
+EDIT_COMMAND_NAME = "Modifier un profil"
+EDIT_SELECTION_ID = "memberToEdit"
 COMMAND_NAME = addin_info.DISPLAY_NAME
 COMMAND_DESCRIPTION = "Crée le profil acier choisi sur chaque ligne ou arc d'esquisse sélectionné."
+ROLE_INPUT_ID = "memberRole"
 CATEGORY_INPUT_ID = "profileCategory"
 REGION_INPUT_ID = "profileRegion"
 FAMILY_INPUT_ID = "profileFamily"
@@ -76,11 +85,17 @@ def _fire_deferred_event_from_worker(app):
 
 
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
+    def __init__(self, editing=False):
+        super().__init__()
+        self._editing = editing
+
     def notify(self, args):
         try:
             event_args = adsk.core.CommandCreatedEventArgs.cast(args)
             command = event_args.command
             command.isRepeatable = False
+            if self._editing:
+                command.isExecutedWhenPreEmpted = False
             inputs = command.commandInputs
 
             profiles = profile_catalog.discover_profiles()
@@ -91,15 +106,25 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 raise RuntimeError(
                     "Ouvrir un document de conception Fusion avant d'utiliser la commande."
                 )
-            structural_materials.ensure_required_materials(
-                design,
-                app.materialLibraries,
-            )
+            if not self._editing:
+                structural_materials.ensure_required_materials(design, app.materialLibraries)
             material_choices = physical_materials.discover_steel_materials(
                 app.materialLibraries,
                 design.materials,
             )
-            default_material = physical_materials.default_choice(material_choices)
+            default_material = None if self._editing else physical_materials.default_choice(material_choices)
+            if self._editing:
+                edit_selection = inputs.addSelectionInput(
+                    EDIT_SELECTION_ID, "Profil à modifier", "Cliquer sur un profil Structure JHR.",
+                )
+                edit_selection.addSelectionFilter("Occurrences")
+                edit_selection.setSelectionLimits(1, 1)
+            role_input = inputs.addDropDownCommandInput(
+                ROLE_INPUT_ID, "Fonction du profil", adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            for key, label in member_metadata.ROLES.items():
+                role_input.listItems.add(label, key == "BARRE")
+
             category_input = inputs.addDropDownCommandInput(
                 CATEGORY_INPUT_ID,
                 "Catégorie",
@@ -251,39 +276,48 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             flip_y_input.isFullWidth = True
             mirror_table.addCommandInput(flip_y_input, 0, 1)
 
-            selection = inputs.addSelectionInput(
-                SELECTION_ID,
-                "Chemins du squelette",
-                "Sélectionner une ou plusieurs lignes ou arcs d'esquisse dans le composant racine.",
-            )
-            selection.addSelectionFilter("SketchCurves")
-            selection.setSelectionLimits(1, 0)
-            replace_input = inputs.addBoolValueInput(
-                REPLACE_EXISTING_INPUT_ID,
-                "Remplacer les barres déjà présentes",
-                True,
-                "",
-                False,
-            )
-            replace_input.tooltip = (
-                "Si un chemin possède déjà une barre créée par l'extension, "
-                "la nouvelle barre est créée et contrôlée avant le retrait de l'ancienne."
-            )
-            inputs.addTextBoxCommandInput(
-                PATH_USAGE_REPORT_ID,
-                "Utilisation des chemins",
-                "Sélectionner une ligne ou un arc du squelette.",
-                3,
-                True,
-            )
-            inputs.addTextBoxCommandInput(
-                "v1Info",
-                "Version chargée",
-                "Version : {}<br>Profil : catégorie, zone, famille et section au choix<br>Matériau : liste physique fournie par Fusion et affectée au corps<br>Ancrage : grille 3 × 3, centre par défaut<br>Orientation : rotation et miroirs X/Y autour de l'ancrage<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
-                .format(addin_info.VERSION),
-                7,
-                True,
-            )
+            if self._editing:
+                report = inputs.addTextBoxCommandInput(
+                    PATH_USAGE_REPORT_ID, "", "Sélectionner le profil à modifier.", 2, True,
+                )
+                report.isFullWidth = True
+                edit = EditProfileState(design, profiles, material_choices, anchor_state, inputs)
+                edit.load()
+            else:
+                edit = None
+                selection = inputs.addSelectionInput(
+                    SELECTION_ID,
+                    "Chemins du squelette",
+                    "Sélectionner une ou plusieurs lignes ou arcs d'esquisse dans le composant racine.",
+                )
+                selection.addSelectionFilter("SketchCurves")
+                selection.setSelectionLimits(1, 0)
+                replace_input = inputs.addBoolValueInput(
+                    REPLACE_EXISTING_INPUT_ID,
+                    "Remplacer les barres déjà présentes",
+                    True,
+                    "",
+                    False,
+                )
+                replace_input.tooltip = (
+                    "Si un chemin possède déjà une barre créée par l'extension, "
+                    "la nouvelle barre est créée et contrôlée avant le retrait de l'ancienne."
+                )
+                inputs.addTextBoxCommandInput(
+                    PATH_USAGE_REPORT_ID,
+                    "Utilisation des chemins",
+                    "Sélectionner une ligne ou un arc du squelette.",
+                    3,
+                    True,
+                )
+                inputs.addTextBoxCommandInput(
+                    "v1Info",
+                    "Version chargée",
+                    "Version : {}<br>Profil : catégorie, zone, famille et section au choix<br>Matériau : liste physique fournie par Fusion et affectée au corps<br>Ancrage : grille 3 × 3, centre par défaut<br>Orientation : rotation et miroirs X/Y autour de l'ancrage<br>Chemins : lignes et arcs<br>Aperçu jaune dynamique<br>Un composant indépendant par chemin."
+                    .format(addin_info.VERSION),
+                    7,
+                    True,
+                )
 
             preview_manager = PreviewManager()
 
@@ -292,11 +326,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 profiles,
                 material_choices,
                 anchor_state,
+                edit,
             )
             command.execute.add(execute_handler)
             _handlers.append(execute_handler)
 
-            preview_handler = ExecutePreviewHandler(preview_manager, profiles, anchor_state)
+            preview_handler = ExecutePreviewHandler(preview_manager, profiles, anchor_state, edit)
             command.executePreview.add(preview_handler)
             _handlers.append(preview_handler)
 
@@ -308,6 +343,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 family_input,
                 section_input,
                 anchor_state,
+                edit,
             )
             command.inputChanged.add(input_changed_handler)
             _handlers.append(input_changed_handler)
@@ -316,9 +352,13 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             command.destroy.add(destroy_handler)
             _handlers.append(destroy_handler)
 
-            validate_handler = ValidateInputsHandler()
+            validate_handler = ValidateInputsHandler(edit)
             command.validateInputs.add(validate_handler)
             _handlers.append(validate_handler)
+            if edit:
+                activation = ActivateEditHandler(edit, preview_manager)
+                command.activate.add(activation)
+                _handlers.append(activation)
             _log("Commande ouverte")
         except Exception:
             _, ui = _app_and_ui()
@@ -326,8 +366,15 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
 
 class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
+    def __init__(self, edit=None):
+        super().__init__()
+        self._edit = edit
+
     def notify(self, args):
         event_args = adsk.core.ValidateInputsEventArgs.cast(args)
+        if self._edit:
+            event_args.areInputsValid = bool(self._edit.target)
+            return
         selection = event_args.inputs.itemById(SELECTION_ID)
         material_input = event_args.inputs.itemById(PHYSICAL_MATERIAL_INPUT_ID)
         app, _ = _app_and_ui()
@@ -506,19 +553,119 @@ def _update_path_usage_report(inputs):
         )
 
 
-def _refresh_preview(preview_manager, profiles, anchor_state, inputs):
+class EditProfileState:
+    def __init__(self, design, profiles, material_choices, anchor_state, inputs):
+        self.design = design
+        self.profiles = profiles
+        self.material_choices = material_choices
+        self.anchor_state = anchor_state
+        self.inputs = inputs
+        self.target = None
+        self.curve = None
+        self.loading = False
+        self.selection = inputs.itemById(EDIT_SELECTION_ID)
+        self.report = inputs.itemById(PATH_USAGE_REPORT_ID)
+
+    def load(self):
+        selected = (adsk.fusion.Occurrence.cast(self.selection.selection(0).entity)
+                    if self.selection.selectionCount == 1 else None)
+        if selected and selected == self.target:
+            return
+        self.target = self.curve = None
+        controls = (
+            ROLE_INPUT_ID, CATEGORY_INPUT_ID, REGION_INPUT_ID, FAMILY_INPUT_ID, SECTION_INPUT_ID,
+            PHYSICAL_MATERIAL_INPUT_ID, ROTATION_INPUT_ID, FLIP_X_INPUT_ID, FLIP_Y_INPUT_ID,
+            *(ANCHOR_INPUT_PREFIX + anchor.code for anchor in anchors.ANCHOR_DEFINITIONS),
+        )
+        self.loading = True
+        try:
+            for key in controls:
+                self.inputs.itemById(key).isEnabled = False
+            if not selected:
+                self.report.formattedText = "Sélectionner le profil à modifier."
+                return
+            if selected not in self.design.rootComponent.occurrences:
+                raise ValueError("Sélectionner un profil JHR dans le composant racine.")
+            metadata = joint_builder._member_metadata(selected, "à modifier")
+            curve = joint_builder._linked_curve(self.design, metadata, "à modifier", allow_arc=True)
+            profile = next((item for item in self.profiles
+                            if item.relative_path.casefold() == metadata.profile_source.casefold()), None)
+            if not profile:
+                raise ValueError(f"La section actuelle de {metadata.profile} est absente du catalogue chargé.")
+            self._load_values(selected, profile, metadata)
+            self.target = selected
+            self.curve = curve
+            for key in controls:
+                self.inputs.itemById(key).isEnabled = True
+            self.report.formattedText = html.escape(selected.component.name)
+        except Exception as error:
+            self.target = self.curve = None
+            self.report.formattedText = html.escape(str(error))
+            _log("Impossible de charger le profil sélectionné.\n" + traceback.format_exc())
+        finally:
+            self.loading = False
+
+    def _load_values(self, occurrence, profile, metadata):
+        inputs = self.inputs
+        role = member_metadata.ROLES[member_metadata.role_for(occurrence.component)]
+        next(item for item in inputs.itemById(ROLE_INPUT_ID).listItems if item.name == role).isSelected = True
+        categories = inputs.itemById(CATEGORY_INPUT_ID).listItems
+        category = next(item for item in categories if item.name == profile.category_label)
+        category.isSelected = True
+        region = inputs.itemById(REGION_INPUT_ID)
+        region.isVisible = profile.category_id == profile_catalog.GEOGRAPHIC_CATEGORY_ID
+        region.listItems.clear()
+        for region_id, label in profile_catalog.region_options(self.profiles, profile.category_id):
+            region.listItems.add(label, region_id == profile.region_id)
+        _populate_family_input(inputs.itemById(FAMILY_INPUT_ID), self.profiles,
+                               profile.region_id, profile.category_id, profile)
+        _populate_section_input(inputs.itemById(SECTION_INPUT_ID), self.profiles, profile.family_id,
+                                profile.region_id, profile.category_id, profile)
+        material = joint_builder._single_body(occurrence, "à modifier").material
+        material_input = inputs.itemById(PHYSICAL_MATERIAL_INPUT_ID)
+        material_input.listItems.clear()
+        # Conserver le matériau du corps même lorsque sa bibliothèque n’est plus chargée.
+        material_input.listItems.add(f"Conserver le matériau actuel ({material.name if material else 'indéfini'})", True)
+        for choice in self.material_choices:
+            material_input.listItems.add(choice.display_label, False)
+        self.anchor_state.select(metadata.anchor)
+        inputs.itemById(ROTATION_INPUT_ID).value = math.radians(metadata.rotation_deg)
+        inputs.itemById(FLIP_X_INPUT_ID).value = metadata.flip_x
+        inputs.itemById(FLIP_Y_INPUT_ID).value = metadata.flip_y
+
+    def kept_material(self):
+        return self.inputs.itemById(PHYSICAL_MATERIAL_INPUT_ID).selectedItem.index == 0
+
+
+class ActivateEditHandler(adsk.core.CommandEventHandler):
+    def __init__(self, edit, preview_manager):
+        super().__init__()
+        self.edit = edit
+        self.preview_manager = preview_manager
+
+    def notify(self, args):
+        self.edit.load()
+        _refresh_preview_safely(
+            self.preview_manager, self.edit.profiles, self.edit.anchor_state, self.edit.inputs, self.edit,
+        )
+
+
+def _refresh_preview(preview_manager, profiles, anchor_state, inputs, edit=None):
     """Dessine l'aperçu même lorsque le chemin occupé maintient OK désactivé."""
     app, _ = _app_and_ui()
     design = adsk.fusion.Design.cast(app.activeProduct)
     if not design:
         preview_manager.clear()
         return
-    selection = inputs.itemById(SELECTION_ID)
-    curves = _supported_curves_from_selection(
-        selection,
-        design.rootComponent,
-        strict=False,
-    )
+    if edit:
+        if not edit.curve:
+            preview_manager.clear()
+            return
+        curves = (edit.curve,)
+    else:
+        curves = _supported_curves_from_selection(
+            inputs.itemById(SELECTION_ID), design.rootComponent, strict=False,
+        )
     profile = _selected_profile(inputs, profiles)
     rotation_radians = _selected_rotation_radians(inputs)
     flip_x, flip_y = _selected_flip_state(inputs)
@@ -533,9 +680,9 @@ def _refresh_preview(preview_manager, profiles, anchor_state, inputs):
     )
 
 
-def _refresh_preview_safely(preview_manager, profiles, anchor_state, inputs):
+def _refresh_preview_safely(preview_manager, profiles, anchor_state, inputs, edit=None):
     try:
-        _refresh_preview(preview_manager, profiles, anchor_state, inputs)
+        _refresh_preview(preview_manager, profiles, anchor_state, inputs, edit)
     except Exception as error:
         preview_manager.clear()
         _log("APERÇU INDISPONIBLE: {}\n{}".format(error, traceback.format_exc()))
@@ -579,6 +726,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         family_input,
         section_input,
         anchor_state,
+        edit=None,
     ):
         super().__init__()
         self._preview_manager = preview_manager
@@ -588,14 +736,17 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         self._family_input = family_input
         self._section_input = section_input
         self._anchor_state = anchor_state
+        self._edit = edit
 
     def notify(self, args):
         event_args = adsk.core.InputChangedEventArgs.cast(args)
         changed_input = event_args.input
         if not changed_input:
             return
-        if self._anchor_state.is_updating:
+        if self._anchor_state.is_updating or (self._edit and self._edit.loading):
             return
+        if changed_input.id == EDIT_SELECTION_ID:
+            self._edit.load()
         if changed_input.id in (SELECTION_ID, REPLACE_EXISTING_INPUT_ID):
             _update_path_usage_report(event_args.inputs)
         if changed_input.id == CATEGORY_INPUT_ID:
@@ -742,6 +893,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
                 FLIP_X_INPUT_ID,
                 FLIP_Y_INPUT_ID,
                 SELECTION_ID,
+                EDIT_SELECTION_ID,
             )
             or anchor_changed
         ):
@@ -750,6 +902,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
                 self._profiles,
                 self._anchor_state,
                 event_args.inputs,
+                self._edit,
             )
 
 
@@ -781,11 +934,12 @@ def _supported_curves_from_selection(selection, root_component, strict):
 
 
 class ExecutePreviewHandler(adsk.core.CommandEventHandler):
-    def __init__(self, preview_manager, profiles, anchor_state):
+    def __init__(self, preview_manager, profiles, anchor_state, edit=None):
         super().__init__()
         self._preview_manager = preview_manager
         self._profiles = profiles
         self._anchor_state = anchor_state
+        self._edit = edit
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -795,6 +949,7 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
             self._profiles,
             self._anchor_state,
             event_args.command.commandInputs,
+            self._edit,
         )
 
 
@@ -808,12 +963,13 @@ class DestroyHandler(adsk.core.CommandEventHandler):
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
-    def __init__(self, preview_manager, profiles, material_choices, anchor_state):
+    def __init__(self, preview_manager, profiles, material_choices, anchor_state, edit=None):
         super().__init__()
         self._preview_manager = preview_manager
         self._profiles = profiles
         self._material_choices = material_choices
         self._anchor_state = anchor_state
+        self._edit = edit
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -827,27 +983,29 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 raise RuntimeError("La V1 nécessite l'historique de conception paramétrique activé.")
 
             root_component = design.rootComponent
-            selection = event_args.command.commandInputs.itemById(SELECTION_ID)
-            curves = _supported_curves_from_selection(selection, root_component, strict=True)
-            profile = _selected_profile(event_args.command.commandInputs, self._profiles)
-            material_choice = _selected_physical_material(
-                event_args.command.commandInputs,
-                self._material_choices,
-            )
+            inputs = event_args.command.commandInputs
+            target = None
+            replace_existing = False
+            if self._edit:
+                if design != self._edit.design or not self._edit.target or not self._edit.target.isValid:
+                    raise ValueError("Sélectionner de nouveau le profil à modifier.")
+                target = self._edit.target
+                curves = (self._edit.curve,)
+            else:
+                curves = _supported_curves_from_selection(inputs.itemById(SELECTION_ID), root_component, strict=True)
+                replace_existing = _replace_existing_selected(inputs)
+                if not replace_existing and any(
+                    usage.occurrences for usage in member_links.curve_usages(design, root_component, curves)
+                ):
+                    raise RuntimeError("Des barres occupent déjà les chemins sélectionnés. Choisir des chemins libres "
+                                       "ou cocher « Remplacer les barres déjà présentes ».")
+
+            profile = _selected_profile(inputs, self._profiles)
+            material_choice = (None if self._edit and self._edit.kept_material()
+                               else _selected_physical_material(inputs, self._material_choices))
             anchor_code = self._anchor_state.selected_code
-            rotation_radians = _selected_rotation_radians(event_args.command.commandInputs)
-            flip_x, flip_y = _selected_flip_state(event_args.command.commandInputs)
-            replace_existing = _replace_existing_selected(
-                event_args.command.commandInputs
-            )
-            usages = member_links.curve_usages(design, root_component, curves)
-            used_occurrences = member_links.unique_used_occurrences(usages)
-            if used_occurrences and not replace_existing:
-                raise RuntimeError(
-                    "{} barre(s) utilisent déjà les chemins sélectionnés. "
-                    "Activer « Remplacer les barres déjà présentes » ou choisir des chemins libres."
-                    .format(len(used_occurrences))
-                )
+            rotation_radians = _selected_rotation_radians(inputs)
+            flip_x, flip_y = _selected_flip_state(inputs)
 
             # L'API Fusion interdit l'import DXF depuis un événement de
             # commande. Le travail est donc mis en file puis exécuté par un
@@ -858,12 +1016,14 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "root_component": root_component,
                 "curves": curves,
                 "profile": profile,
+                "role": tuple(member_metadata.ROLES)[inputs.itemById(ROLE_INPUT_ID).selectedItem.index],
                 "material_choice": material_choice,
                 "anchor_code": anchor_code,
                 "rotation_radians": rotation_radians,
                 "flip_x": flip_x,
                 "flip_y": flip_y,
                 "replace_existing": replace_existing,
+                "edit_target": target,
             }
             _pending_jobs.append(job)
             worker = threading.Thread(
@@ -876,7 +1036,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 "Import DXF {} avec le matériau Fusion {}, ancrage {}, rotation {} deg, miroirs X={} Y={} et remplacement={} planifié pour {} chemin(s)"
                 .format(
                     profile.designation,
-                    material_choice.material_name,
+                    material_choice.material_name if material_choice else "actuel",
                     anchor_code,
                     rotation.format_degrees(rotation_radians),
                     flip_x,
@@ -889,7 +1049,8 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             event_args.executeFailed = True
             _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
             _, ui = _app_and_ui()
-            ui.messageBox("La création a été annulée:\n{}".format(error))
+            action = "La modification" if self._edit else "La création"
+            ui.messageBox(f"{action} a été annulée.\n{error}")
 
 
 class DeferredCreateHandler(adsk.core.CustomEventHandler):
@@ -909,11 +1070,18 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                 raise RuntimeError("La conception active a changé avant l'import du DXF.")
 
             material_choice = job["material_choice"]
-            physical_material = physical_materials.resolve_material(
-                app.materialLibraries,
-                material_choice,
-                design.materials,
-            )
+            physical_material = (physical_materials.resolve_material(
+                app.materialLibraries, material_choice, design.materials,
+            ) if material_choice else None)
+            if job["edit_target"] is not None:
+                result = member_section.edit_member(
+                    design, job["edit_target"], job["profile"], job["anchor_code"], job["rotation_radians"],
+                    job["flip_x"], job["flip_y"], physical_material=physical_material, material_choice=material_choice,
+                    role=job["role"],
+                )
+                if result["changed"]:
+                    _log("Profil modifié dans son occurrence. {} assemblage(s) contrôlé(s).".format(result["assemblies"]))
+                return
             usages = member_links.curve_usages(
                 design,
                 job["root_component"],
@@ -925,6 +1093,18 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                     "Une barre a été ajoutée sur un chemin avant l'exécution différée. "
                     "La création est annulée pour éviter un doublon."
                 )
+
+            attached = [old for old in old_occurrences if member_section.attachments(design, old)]
+            if attached:
+                if len(old_occurrences) != 1 or len(job["curves"]) != 1:
+                    raise ValueError("Pour une barre avec assemblage, changer une section à la fois.")
+                result = member_section.replace_section(design, attached[0], job["profile"], placement=(
+                    job["anchor_code"], job["rotation_radians"], bool(job["flip_x"]), bool(job["flip_y"]),
+                    physical_material.id,
+                ))
+                ui.messageBox(f"Section changée — {result['assemblies']} assemblage(s) contrôlé(s)."
+                              if result["changed"] else "Cette section est déjà en place.")
+                return
 
             for curve in job["curves"]:
                 if not curve or not curve.isValid:
@@ -939,6 +1119,7 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                     job["flip_y"],
                     physical_material,
                     material_choice,
+                    name_prefix=job["role"],
                 )
                 created_occurrences.append(occurrence)
                 _log("Composant créé depuis le DXF: {}".format(occurrence.component.name))
@@ -949,6 +1130,7 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
                 for occurrence in old_occurrences:
                     if occurrence and occurrence.isValid:
                         old_name = occurrence.component.name
+                        timeline_groups.release_member_group(occurrence)
                         if not occurrence.deleteMe():
                             raise RuntimeError(
                                 "Fusion n'a pas pu retirer l'ancienne barre {}."
@@ -974,10 +1156,12 @@ class DeferredCreateHandler(adsk.core.CustomEventHandler):
             if not creation_completed:
                 for occurrence in reversed(created_occurrences):
                     if occurrence and occurrence.isValid:
+                        timeline_groups.release_member_group(occurrence)
                         occurrence.deleteMe()
                 _log("ÉCHEC IMPORT DXF: {}\n{}".format(error, traceback.format_exc()))
                 _, ui = _app_and_ui()
-                ui.messageBox("La création depuis le DXF a été annulée:\n{}".format(error))
+                action = "La modification" if job["edit_target"] is not None else "La création"
+                ui.messageBox(f"{action} a été annulée.\n{error}")
             else:
                 _log("ÉCHEC REMPLACEMENT: {}\n{}".format(error, traceback.format_exc()))
                 _, ui = _app_and_ui()
@@ -1010,45 +1194,42 @@ def start():
         raise RuntimeError("Impossible de connecter l'événement d'import DXF différé.")
     _handlers.append(_custom_event_handler)
 
-    command_definition = ui.commandDefinitions.itemById(COMMAND_ID)
-    if not command_definition:
-        command_definition = ui.commandDefinitions.addButtonDefinition(
-            COMMAND_ID,
-            COMMAND_NAME,
-            COMMAND_DESCRIPTION,
-            "",
-        )
-
-    created_handler = CommandCreatedHandler()
-    command_definition.commandCreated.add(created_handler)
-    _handlers.append(created_handler)
-
-    for panel_id in PANEL_IDS:
-        panel = ui_layout.panel(ui, panel_id)
-        if panel:
-            control = panel.controls.itemById(COMMAND_ID)
-            if not control:
-                control = panel.controls.addCommand(command_definition)
-            control.isPromoted = True
-            _panel_id = panel_id
-            break
-    if not _panel_id:
-        raise RuntimeError("Aucun panneau Fusion compatible n'a été trouvé pour ajouter la commande.")
+    for command_id, name, description, panel_ids, editing in (
+        (COMMAND_ID, COMMAND_NAME, COMMAND_DESCRIPTION, PANEL_IDS, False),
+        (EDIT_COMMAND_ID, EDIT_COMMAND_NAME, "Reprendre les réglages d’un profil JHR existant.",
+         (ui_layout.MODIFY_PANEL_ID,), True),
+    ):
+        definition = ui.commandDefinitions.itemById(command_id)
+        if not definition:
+            definition = ui.commandDefinitions.addButtonDefinition(command_id, name, description, "")
+        handler = CommandCreatedHandler(editing)
+        definition.commandCreated.add(handler)
+        _handlers.append(handler)
+        for panel_id in panel_ids:
+            panel = ui_layout.panel(ui, panel_id)
+            if panel:
+                control = panel.controls.itemById(command_id) or panel.controls.addCommand(definition)
+                control.isPromoted = True
+                if not editing:
+                    _panel_id = panel_id
+                break
+        else:
+            raise RuntimeError(f"Aucun panneau Fusion compatible pour « {name} ».")
     _log("Extension chargée dans le panneau {}".format(_panel_id))
 
 
 def stop():
     global _panel_id, _custom_event, _custom_event_handler
     app, ui = _app_and_ui()
-    for panel_id in PANEL_IDS:
-        panel = ui_layout.panel(ui, panel_id)
-        if panel:
-            control = panel.controls.itemById(COMMAND_ID)
+    for command_id, panel_ids in ((COMMAND_ID, PANEL_IDS), (EDIT_COMMAND_ID, (ui_layout.MODIFY_PANEL_ID,))):
+        for panel_id in panel_ids:
+            panel = ui_layout.panel(ui, panel_id)
+            control = panel.controls.itemById(command_id) if panel else None
             if control:
                 control.deleteMe()
-    command_definition = ui.commandDefinitions.itemById(COMMAND_ID)
-    if command_definition:
-        command_definition.deleteMe()
+        definition = ui.commandDefinitions.itemById(command_id)
+        if definition:
+            definition.deleteMe()
     if _custom_event and _custom_event_handler:
         _custom_event.remove(_custom_event_handler)
     if _custom_event:

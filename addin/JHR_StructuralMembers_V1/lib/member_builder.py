@@ -5,15 +5,15 @@ import math
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, member_metadata, path_frames, profile_catalog, rotation
+from . import addin_info, member_metadata, path_frames, profile_catalog, rotation, timeline_groups
 
 
 ATTRIBUTE_GROUP = member_metadata.ATTRIBUTE_GROUP
 DIMENSION_TOLERANCE_CM = 1e-5
 
 
-def _next_component_name(root_component, profile):
-    prefix = "BARRE_{}_".format(profile.component_token)
+def _next_component_name(root_component, profile, name_prefix="BARRE"):
+    prefix = "{}_{}_".format(name_prefix, profile.component_token)
     used = set()
     for occurrence in root_component.allOccurrences:
         name = occurrence.component.name
@@ -232,8 +232,12 @@ def create_member(
     flip_y=False,
     physical_material=None,
     material_choice=None,
+    *,
+    name_prefix="BARRE",
 ):
     """Crée un composant du profil choisi, lié à une ligne ou un arc."""
+    if name_prefix not in member_metadata.ROLES:
+        raise ValueError("Choisir un rôle JHR parmi Barre, Poteau, Poutre et Panne.")
     if not physical_material or not physical_material.isValid:
         raise ValueError("Le matériau physique Fusion est invalide.")
     if material_choice is None:
@@ -241,7 +245,7 @@ def create_member(
     transform = adsk.core.Matrix3D.create()
     occurrence = root_component.occurrences.addNewComponent(transform)
     component = occurrence.component
-    component.name = _next_component_name(root_component, profile)
+    component.name = _next_component_name(root_component, profile, name_prefix)
 
     try:
         plane_input = component.constructionPlanes.createInput(occurrence)
@@ -302,6 +306,7 @@ def create_member(
 
         source_token = source_curve.entityToken
         source_type = "arc" if adsk.fusion.SketchArc.cast(source_curve) else "line"
+        component.attributes.add(ATTRIBUTE_GROUP, member_metadata.ROLE_ATTRIBUTE, name_prefix)
         component.attributes.add(ATTRIBUTE_GROUP, "profile", profile.designation)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_category", profile.category_id)
         component.attributes.add(ATTRIBUTE_GROUP, "profile_region", profile.region_id)
@@ -345,6 +350,9 @@ def create_member(
 
         section_plane.isLightBulbOn = False
         section_sketch.isVisible = False
+        timeline_groups.group_member(
+            occurrence, (occurrence, section_plane, section_sketch, sweep)
+        )
         return occurrence
     except Exception:
         if occurrence and occurrence.isValid:

@@ -20,12 +20,11 @@ from ..lib.angle_cleat_preview import DoubleAnglePreviewManager
 
 
 COMMAND_ID = "EI_JHR_PreviewDoubleAngleCleatV1"
-COMMAND_NAME = "Assemblage par cornières V{}".format(addin_info.VERSION)
-COMMAND_DESCRIPTION = (
-    "Crée deux cornières percées puis ouvre l'insertion native des attaches Fusion."
-)
+COMMAND_NAME = "Attaches de poutres par cornières V{}".format(addin_info.VERSION)
+COMMAND_DESCRIPTION = "Assemble une ou deux poutres secondaires par doubles cornières."
 PRIMARY_SELECTION_ID = "angleCleatPrimaryMember"
 SECONDARY_SELECTION_ID = "angleCleatSecondaryMember"
+OPPOSITE_SELECTION_ID = "angleCleatOppositeMember"
 ANGLE_PROFILE_ID = "angleCleatProfile"
 CLEAT_HEIGHT_ID = "angleCleatHeight"
 VERTICAL_OFFSET_ID = "angleCleatVerticalOffset"
@@ -36,6 +35,10 @@ HOLE_PITCH_ID = "angleCleatHolePitch"
 PRIMARY_GAUGE_ID = "angleCleatPrimaryGauge"
 SECONDARY_GAUGE_ID = "angleCleatSecondaryGauge"
 REPORT_ID = "angleCleatReport"
+SUGGEST_ID = "angleCleatSuggest"
+FASTENING_ID = "angleCleatFastening"
+MODELED_BOLTS = "Modéliser les boulons JHR"
+NATIVE_BOLTS = "Ouvrir Insérer une attache"
 NATIVE_FASTENER_COMMAND_ID = "FusionFastenersCommand"
 NATIVE_FASTENER_EVENT_ID = "EI_JHR_OpenNativeFastenersV1_Deferred"
 PANEL_IDS = (ui_layout.ASSEMBLY_PANEL_ID,)
@@ -72,8 +75,10 @@ def _fire_native_fastener_event_from_worker(app):
             time.sleep(0.2)
 
 
-def _selected_occurrence(inputs, input_id, role):
+def _selected_occurrence(inputs, input_id, role, *, optional=False):
     selection = inputs.itemById(input_id)
+    if optional and (not selection or not selection.selectionCount):
+        return None
     if not selection or selection.selectionCount != 1:
         raise ValueError("Sélectionner une seule barre {}.".format(role))
     occurrence = adsk.fusion.Occurrence.cast(selection.selection(0).entity)
@@ -137,12 +142,22 @@ def _hole_row_count(inputs):
     return int(value_input.value)
 
 
+def _suggest(inputs, profiles, design):
+    primary = _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale")
+    secondary = _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire")
+    opposite = _selected_occurrence(inputs, OPPOSITE_SELECTION_ID, "secondaire opposée", optional=True)
+    if not opposite:
+        return angle_cleat_builder.suggest_double_angle(design, primary, secondary, profiles, 0)
+
+    return angle_cleat_builder.suggest_opposed_double_angle(design, primary, secondary, opposite, profiles, 0).first
+
+
 def _evaluate(inputs, profiles):
     app, _ = _app_and_ui()
     design = adsk.fusion.Design.cast(app.activeProduct)
     if not design:
         raise ValueError("Ouvrir une conception Fusion.")
-    evaluation = angle_cleat_builder.evaluate_double_angle_preview(
+    parameters = dict(
         design=design,
         primary_occurrence=_selected_occurrence(
             inputs,
@@ -180,76 +195,90 @@ def _evaluate(inputs, profiles):
         ),
         bolt_spec=_selected_bolt_spec(inputs),
     )
+    opposite = _selected_occurrence(inputs, OPPOSITE_SELECTION_ID, "secondaire opposée", optional=True)
+    if opposite:
+        evaluation = angle_cleat_builder.evaluate_opposed_double_angle_preview(
+            opposite_occurrence=opposite, **parameters,
+        )
+    else:
+        evaluation = angle_cleat_builder.evaluate_double_angle_preview(**parameters)
     return design, evaluation
 
 
-def _success_report(evaluation):
+def _success_report(evaluation, mode):
+    first = getattr(evaluation, "first", evaluation)
+    opposite = getattr(evaluation, "opposite", None)
     lengths = sorted(
         {
             int(round(placement.bolt_length_cm * 10.0))
             for placement in evaluation.bolt_placements
         }
     )
-    rows = (
-        ("Barre principale", evaluation.primary_occurrence.component.name),
-        ("Profil principal", evaluation.primary_metadata.profile),
-        ("Barre secondaire", evaluation.secondary_occurrence.component.name),
-        ("Profil secondaire", evaluation.secondary_metadata.profile),
-        ("Angle entre axes", "{:.2f}°".format(evaluation.geometry.angle_degrees)),
-        ("Cornières", "2 × {}".format(evaluation.angle_profile.designation)),
-        ("Hauteur", "{:.3f} mm".format(evaluation.cleat_height_cm * 10.0)),
+    rows = [
+        ("Barre principale", first.primary_occurrence.component.name),
+        ("Profil principal", first.primary_metadata.profile),
+        ("Barre secondaire", first.secondary_occurrence.component.name),
+        ("Profil secondaire", first.secondary_metadata.profile),
+        ("Angle entre axes", "{:.2f}°".format(first.geometry.angle_degrees)),
+        ("Cornières", "{} × {}".format(4 if opposite else 2, first.angle_profile.designation)),
+        ("Hauteur", "{:.3f} mm".format(first.cleat_height_cm * 10.0)),
         (
             "Décalage vertical",
-            "{:.3f} mm".format(evaluation.vertical_offset_cm * 10.0),
+            "{:.3f} mm".format(first.vertical_offset_cm * 10.0),
         ),
         (
             "Épaisseur âme secondaire",
             "{:.3f} mm".format(
-                evaluation.secondary_profile_geometry.web_max_x_mm
-                - evaluation.secondary_profile_geometry.web_min_x_mm
+                first.secondary_profile_geometry.web_max_x_mm
+                - first.secondary_profile_geometry.web_min_x_mm
             ),
         ),
         (
             "Perçages",
             "Ø {:.3f} mm — {} rangée(s)".format(
-                evaluation.hole_pattern.diameter_cm * 10.0,
-                evaluation.hole_pattern.row_count,
+                first.hole_pattern.diameter_cm * 10.0,
+                first.hole_pattern.row_count,
             ),
         ),
         (
             "Attaches visées",
             "{} × {} classe {} — longueur(s) indicatives {} mm".format(
                 len(evaluation.bolt_placements),
-                evaluation.bolt_spec.designation,
-                evaluation.bolt_spec.strength_class,
+                first.bolt_spec.designation,
+                first.bolt_spec.strength_class,
                 ", ".join(str(value) for value in lengths),
             ),
         ),
         (
             "Entraxe vertical",
-            "{:.3f} mm".format(evaluation.hole_pattern.pitch_cm * 10.0),
+            "{:.3f} mm".format(first.hole_pattern.pitch_cm * 10.0),
         ),
         (
             "Distance branche principale",
             "{:.3f} mm".format(
-                evaluation.hole_pattern.primary_gauge_cm * 10.0
+                first.hole_pattern.primary_gauge_cm * 10.0
             ),
         ),
         (
             "Distance branche secondaire",
             "{:.3f} mm".format(
-                evaluation.hole_pattern.secondary_gauge_cm * 10.0
+                first.hole_pattern.secondary_gauge_cm * 10.0
             ),
         ),
-    )
+    ]
     content = [
         "<b>CRÉATION PARAMÉTRIQUE</b><br>",
-        "Jaune : deux cornières issues du DXF sélectionné.<br>",
-        "Rouge : centres et diamètres des futurs perçages.<br>",
-        "Bleu : six positions proposées à l'outil natif d'attaches Fusion.<br>",
-        "OK créera les deux cornières et les trous, puis ouvrira Insérer une attache.<br>",
-        "Le type, la norme, la longueur, le matériau et la finition restent à confirmer dans la fenêtre native.<br><br>",
+        "Jaune : cornières. Rouge : perçages. Bleu : axes de la boulonnerie.<br>",
     ]
+    if opposite:
+        rows.insert(4, ("Barre secondaire opposée", opposite.secondary_occurrence.component.name))
+        content.append("Aux deux faces de l’âme principale, les cornières partagent les mêmes boulons traversants JHR.<br><br>")
+    elif mode == NATIVE_BOLTS:
+        content.append("La validation ouvre Insérer une attache avec les positions proposées.<br><br>")
+    elif mode == MODELED_BOLTS:
+        content.append("La validation crée les deux cornières, les trous et les boulons JHR.<br><br>")
+    else:
+        content.append("La validation crée les deux cornières et les trous.<br><br>")
     for label, value in rows:
         content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
     return "".join(content)
@@ -258,7 +287,9 @@ def _success_report(evaluation):
 def _refresh(inputs, profiles, report_input, preview_manager):
     try:
         design, evaluation = _evaluate(inputs, profiles)
-        report_input.formattedText = _success_report(evaluation)
+        report_input.formattedText = _success_report(
+            evaluation, inputs.itemById(FASTENING_ID).selectedItem.name,
+        )
         preview_manager.update(design.rootComponent, evaluation)
         return evaluation
     except Exception as error:
@@ -383,6 +414,14 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             secondary.addSelectionFilter("Occurrences")
             secondary.setSelectionLimits(0, 1)
 
+            opposite = inputs.addSelectionInput(
+                OPPOSITE_SELECTION_ID,
+                "Barre secondaire opposée",
+                "Facultatif. Sélectionner la poutre grugée à l'autre face de l'âme principale.",
+            )
+            opposite.addSelectionFilter("Occurrences")
+            opposite.setSelectionLimits(0, 1)
+
             angle_input = inputs.addDropDownCommandInput(
                 ANGLE_PROFILE_ID,
                 "Section des cornières",
@@ -469,6 +508,15 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             secondary_gauge.minimumValue = 0.0
             secondary_gauge.isMinimumInclusive = False
 
+            proposal = inputs.addBoolValueInput(SUGGEST_ID, "Proposer les cotes", False, "", False)
+            proposal.tooltip = "Propose une implantation selon la place disponible et l’appui des rondelles."
+            fastening = inputs.addDropDownCommandInput(
+                FASTENING_ID, "À la validation", adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            fastening.listItems.add(MODELED_BOLTS, True)
+            fastening.listItems.add(NATIVE_BOLTS, False)
+            fastening.listItems.add("Percer uniquement", False)
+
             report = inputs.addTextBoxCommandInput(
                 REPORT_ID,
                 "Contrôle",
@@ -523,10 +571,42 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         self._profiles = profiles
         self._report_input = report_input
         self._preview_manager = preview_manager
+        self._setting_proposal = False
 
     def notify(self, args):
+        if self._setting_proposal:
+            return
         event_args = adsk.core.InputChangedEventArgs.cast(args)
         changed = event_args.input
+        if changed and changed.id == OPPOSITE_SELECTION_ID:
+            selection = adsk.core.SelectionCommandInput.cast(changed)
+            event_args.inputs.itemById(FASTENING_ID).isVisible = selection.selectionCount == 0
+        selection_ids = (PRIMARY_SELECTION_ID, SECONDARY_SELECTION_ID, OPPOSITE_SELECTION_ID)
+        if changed and (changed.id == SUGGEST_ID or (
+            changed.id in selection_ids
+            and all(event_args.inputs.itemById(key).selectionCount == 1 for key in selection_ids[:2])
+        )):
+            inputs = event_args.inputs
+            self._setting_proposal = True
+            try:
+                design = adsk.fusion.Design.cast(_app_and_ui()[0].activeProduct)
+                proposal = _suggest(inputs, self._profiles, design)
+                for field, label in ((ANGLE_PROFILE_ID, proposal.angle_profile.section_label),
+                                     (BOLT_SIZE_ID, proposal.bolt_spec.display_label)):
+                    next(item for item in inputs.itemById(field).listItems if item.name == label).isSelected = True
+                pattern = proposal.hole_pattern
+                inputs.itemById(HOLE_ROW_COUNT_ID).value = pattern.row_count
+                for field, value in ((CLEAT_HEIGHT_ID, proposal.cleat_height_cm),
+                                     (VERTICAL_OFFSET_ID, proposal.vertical_offset_cm), (HOLE_PITCH_ID, pattern.pitch_cm),
+                                     (HOLE_DIAMETER_ID, pattern.diameter_cm),
+                                     (PRIMARY_GAUGE_ID, pattern.primary_gauge_cm),
+                                     (SECONDARY_GAUGE_ID, pattern.secondary_gauge_cm)):
+                    inputs.itemById(field).value = value
+            except (ValueError, FileNotFoundError) as error:
+                self._report_input.formattedText = _escaped(error)
+                return
+            finally:
+                self._setting_proposal = False
         if changed and changed.id == BOLT_SIZE_ID:
             spec = _selected_bolt_spec(event_args.inputs)
             diameter = event_args.inputs.itemById(HOLE_DIAMETER_ID)
@@ -537,6 +617,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         if changed and changed.id in (
             PRIMARY_SELECTION_ID,
             SECONDARY_SELECTION_ID,
+            OPPOSITE_SELECTION_ID,
             ANGLE_PROFILE_ID,
             CLEAT_HEIGHT_ID,
             VERTICAL_OFFSET_ID,
@@ -546,6 +627,8 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             HOLE_PITCH_ID,
             PRIMARY_GAUGE_ID,
             SECONDARY_GAUGE_ID,
+            SUGGEST_ID,
+            FASTENING_ID,
         ):
             _refresh(
                 event_args.inputs,
@@ -608,11 +691,24 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 self._profiles,
             )
             self._preview_manager.clear()
+            if hasattr(evaluation, "opposite"):
+                result = angle_cleat_creator.create_opposed_double_angle_assembly(
+                    design.rootComponent, evaluation, model_bolts=True,
+                )
+                _, ui = _app_and_ui()
+                ui.messageBox(
+                    "{} cornières et leurs perçages créés. Boulons ajoutés : {}."
+                    .format(len(result.angle_occurrences), result.bolts_created)
+                )
+                return
+            mode = event_args.command.commandInputs.itemById(FASTENING_ID).selectedItem.name
             result = angle_cleat_creator.create_double_angle_assembly(
                 design.rootComponent,
                 evaluation,
+                model_bolts=mode == MODELED_BOLTS,
             )
-            self._native_launcher.prepare(result.native_fastener_edges)
+            if mode == NATIVE_BOLTS:
+                self._native_launcher.prepare(result.native_fastener_edges)
             _log(
                 "Assemblage créé : principale={}, secondaire={}, cornière={}, hauteur={} mm, trous=Ø{} mm x {} rangées, cibles natives={} {}"
                 .format(
@@ -627,6 +723,12 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 )
             )
             _, ui = _app_and_ui()
+            if mode != NATIVE_BOLTS:
+                ui.messageBox(
+                    "Deux cornières et leurs perçages créés. Boulons ajoutés : {}."
+                    .format(result.bolts_created)
+                )
+                return
             ui.messageBox(
                 "Assemblage créé.\n\n"
                 "Composants :\n- {}\n- {}\n\n"

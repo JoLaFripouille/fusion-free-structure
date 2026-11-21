@@ -170,6 +170,46 @@ class AngleCleatGeometryTests(unittest.TestCase):
         self.assertEqual(pattern.row_positions_cm, (2.5, 7.5))
         self.assertEqual(pattern.row_count, 2)
 
+    def test_hole_rows_are_centered_in_the_real_web_for_a_top_anchor(self):
+        pattern = angle_cleat_geometry.build_hole_pattern(
+            cleat_height_cm=10.0,
+            angle_width_cm=5.0,
+            angle_height_cm=5.0,
+            diameter_cm=1.8,
+            row_count=2,
+            pitch_cm=5.0,
+            primary_gauge_cm=3.0,
+            secondary_gauge_cm=3.0,
+        )
+        offsets = angle_cleat_geometry.hole_row_offsets_from_web_center(
+            pattern=pattern,
+            cleat_height_cm=10.0,
+            vertical_offset_cm=0.0,
+            web_min_y_cm=-20.0,
+            web_max_y_cm=-2.0,
+        )
+        self.assertEqual(offsets, (-13.5, -8.5))
+        angle_cleat_geometry.validate_hole_rows_in_web(
+            offsets,
+            pattern.diameter_cm / 2.0,
+            -20.0,
+            -2.0,
+            "secondaire",
+        )
+
+    def test_user_vertical_offset_is_measured_from_the_real_web_center(self):
+        pattern = angle_cleat_geometry.build_hole_pattern(
+            10.0, 5.0, 5.0, 1.8, 1, 0.0, 3.0, 3.0
+        )
+        offsets = angle_cleat_geometry.hole_row_offsets_from_web_center(
+            pattern,
+            10.0,
+            1.5,
+            -20.0,
+            -2.0,
+        )
+        self.assertEqual(offsets, (-9.5,))
+
     def test_hole_centers_are_aligned_through_both_angles_and_the_secondary_web(self):
         placements = angle_cleat_geometry.build_double_angle_frames(
             primary_web_face_point=(0.0, 0.3, 0.0),

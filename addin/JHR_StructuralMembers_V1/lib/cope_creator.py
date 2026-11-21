@@ -3,7 +3,7 @@ from __future__ import annotations
 import adsk.core
 import adsk.fusion
 
-from . import addin_info, cope_geometry, joint_builder, joint_geometry, joint_records
+from . import addin_info, cope_geometry, joint_builder, joint_geometry, joint_records, timeline_groups
 
 
 COPE_TYPE = "open_profile_cope"
@@ -45,19 +45,23 @@ def ensure_endpoint_available(evaluation):
 def _add_cut_planes(evaluation, created_entities):
     component = evaluation.secondary_occurrence.component
     occurrence = evaluation.secondary_occurrence
-    primary_station_plane = joint_builder._add_path_plane(
+    joint_point_entity = joint_builder._curve_endpoint_sketch_point(
+        evaluation.secondary_curve,
+        evaluation.geometry.secondary_joint_endpoint_index,
+    )
+    primary_station_plane = joint_builder._add_member_station_plane_through_point(
         component,
         occurrence,
-        evaluation.primary_curve,
-        evaluation.geometry.main_parameter,
+        evaluation.primary_occurrence,
+        joint_point_entity,
         PRIMARY_STATION_PLANE_NAME,
     )
     created_entities.append(primary_station_plane)
-    endpoint_plane = joint_builder._add_path_plane(
+    endpoint_plane = joint_builder._add_member_station_plane_through_point(
         component,
         occurrence,
-        evaluation.secondary_curve,
-        evaluation.geometry.secondary_joint_endpoint_index,
+        evaluation.secondary_occurrence,
+        joint_point_entity,
         ENDPOINT_PLANE_NAME,
     )
     created_entities.append(endpoint_plane)
@@ -78,11 +82,11 @@ def _add_cut_planes(evaluation, created_entities):
         WEB_ORIENTATION_PLANE_NAME,
         created_entities,
     )
-    flange_start_plane = joint_builder._add_offset_to_point(
+    flange_start_plane = joint_builder._add_face_offset_plane(
         component,
         occurrence,
-        web_orientation_plane,
-        evaluation.flange_start_point,
+        evaluation.flange_start_face,
+        evaluation.flange_start_face_offset_cm,
         FLANGE_START_PLANE_NAME,
     )
     created_entities.append(flange_start_plane)
@@ -92,11 +96,11 @@ def _add_cut_planes(evaluation, created_entities):
         evaluation.flange_start_point,
         evaluation.web_cut_normal,
     )
-    web_cut_plane = joint_builder._add_offset_to_point(
+    web_cut_plane = joint_builder._add_face_offset_plane(
         component,
         occurrence,
-        web_orientation_plane,
-        evaluation.web_cut_point,
+        evaluation.web_cut_face,
+        evaluation.web_cut_face_offset_cm,
         WEB_CUT_PLANE_NAME,
     )
     created_entities.append(web_cut_plane)
@@ -374,6 +378,7 @@ def _record_payload(evaluation):
             extension.extension_cm * 10.0
             for extension in evaluation.primary_extensions
         ],
+        "reference_mode": "primary_faces_and_skeleton_endpoint_v2",
         "extension_version": addin_info.VERSION,
     }
 
@@ -388,8 +393,10 @@ def create_profile_cope(evaluation):
             evaluation,
             created_entities,
         )
+        plane_count = len(created_entities)
         for extension in evaluation.primary_extensions:
             joint_builder._extend_primary_end(extension, created_entities)
+        extension_count = len(created_entities)
         joint_builder._extend_body(
             evaluation.treatment,
             evaluation.web_cut_point,
@@ -419,6 +426,22 @@ def create_profile_cope(evaluation):
                 _record_payload(evaluation),
             )
         )
+        # Presentation only, after successful geometry and traceability.
+        if plane_count == extension_count:
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities, "Grugeage"
+            )
+        else:
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities[:plane_count], "Grugeage — plans"
+            )
+            timeline_groups.group_operations(
+                evaluation.primary_occurrence,
+                created_entities[plane_count:extension_count], "Grugeage — prolongement"
+            )
+            timeline_groups.group_operations(
+                evaluation.secondary_occurrence, created_entities[extension_count:], "Grugeage — coupe"
+            )
         return tuple(created_entities)
     except Exception:
         for attribute in reversed(created_attributes):

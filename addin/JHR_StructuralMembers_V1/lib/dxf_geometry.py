@@ -265,6 +265,53 @@ def tessellate_profile_contours_mm(dxf_path, max_angle_deg=7.5):
     return contours
 
 
+def profile_outline_mm(dxf_path):
+    """Relie un contour extérieur DXF sans discrétiser ses rayons."""
+    segments = []
+
+    def arc(center, radius, start, sweep):
+        return tuple((center[0]+radius*math.cos(angle), center[1]+radius*math.sin(angle))
+                     for angle in (start, start+sweep/2, start+sweep))
+
+    for entity in read_r12_entities(dxf_path):
+        kind = entity["type"]
+        if kind == "LINE":
+            segments.append((entity["start"], None, entity["end"]))
+        elif kind == "ARC":
+            start = entity["start_angle"]
+            sweep = _positive_arc_sweep(start, entity["end_angle"])
+            segments.append(arc(entity["center"], entity["radius"], start, sweep))
+        elif kind == "POLYLINE":
+            vertices = entity["vertices"]
+            pairs = zip(vertices, vertices[1:]+vertices[:1] if entity["closed"] else vertices[1:])
+            for (x, y, bulge), (xx, yy, _) in pairs:
+                start, end = (x, y), (xx, yy)
+                if abs(bulge) < 1e-12:
+                    segments.append((start, None, end))
+                else:
+                    segments.append(arc(*_arc_data(start, end, bulge)))
+        else:
+            raise ValueError("La section attend un contour de lignes et d’arcs.")
+    if not segments:
+        raise ValueError("Le contour DXF est vide.")
+    chain = [segments.pop(0)]
+    while segments:
+        end = chain[-1][-1]
+        for i, segment in enumerate(segments):
+            if _points_close(end, segment[0]):
+                chain.append(segments.pop(i))
+                break
+            if _points_close(end, segment[-1]):
+                chain.append(segments.pop(i)[::-1])
+                break
+        else:
+            raise ValueError("La section DXF contient plusieurs contours ou un contour ouvert.")
+    if not _points_close(chain[-1][-1], chain[0][0]):
+        raise ValueError("Le contour DXF n’est pas fermé.")
+    return tuple(segment[0] for segment in chain), tuple((i, segment[1]) for i, segment in enumerate(chain)
+                                                        if segment[1] is not None)
+
+
 def _angle_on_sweep(angle, start_angle, sweep):
     if sweep >= 0:
         return (angle - start_angle) % (2.0 * math.pi) <= sweep + 1e-12

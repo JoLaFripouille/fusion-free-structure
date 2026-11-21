@@ -1,5 +1,6 @@
 import sys
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 
 
@@ -32,6 +33,16 @@ class MemberMetadataTests(unittest.TestCase):
             "source_curve_type": "line",
             "extension_version": "1.8.0",
         }
+
+    def test_explicit_role_survives_renaming_and_legacy_column_is_recognized(self):
+        attributes = SimpleNamespace(itemByName=lambda group, key: SimpleNamespace(value="PANNE"))
+        renamed = SimpleNamespace(name="Traverse de façade", attributes=attributes)
+        self.assertEqual(member_metadata.role_for(renamed), "PANNE")
+        legacy = SimpleNamespace(itemByName=lambda group, key: None)
+        self.assertEqual(member_metadata.role_for(SimpleNamespace(name="POTEAU_IPE200_001", attributes=legacy)),
+                         "POTEAU")
+        self.assertEqual(member_metadata.role_for(SimpleNamespace(name="IPE quelconque", attributes=legacy)),
+                         "BARRE")
 
     def test_current_member_attributes_are_parsed_exactly(self):
         metadata = member_metadata.parse_member_attributes(self.values)

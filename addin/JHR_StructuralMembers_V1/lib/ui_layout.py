@@ -12,6 +12,8 @@ MODIFY_PANEL_ID = "EI_JHR_StructuralModifyPanel"
 MODIFY_PANEL_NAME = "MODIFIER"
 ASSEMBLY_PANEL_ID = "EI_JHR_StructuralAssemblyPanel"
 ASSEMBLY_PANEL_NAME = "ASSEMBLAGES"
+FASTENER_PANEL_ID = "EI_JHR_StructuralFastenerPanel"
+FASTENER_PANEL_NAME = "VISSERIE"
 SETTINGS_PANEL_ID = "EI_JHR_StructuralSettingsPanel"
 SETTINGS_PANEL_NAME = "PARAMÈTRES"
 
@@ -35,7 +37,7 @@ def panel(ui, panel_id):
 
 
 def start(ui):
-    """Crée l'onglet et ses deux groupes avant l'ajout des commandes."""
+    """Crée l’onglet et ses groupes avant l’ajout des commandes."""
     workspace = _workspace(ui)
     tab = workspace.toolbarTabs.itemById(TAB_ID)
     if not tab:
@@ -55,10 +57,13 @@ def start(ui):
             ASSEMBLY_PANEL_ID,
             ASSEMBLY_PANEL_NAME,
         )
+    fastener_panel = tab.toolbarPanels.itemById(FASTENER_PANEL_ID)
+    if not fastener_panel:
+        fastener_panel = tab.toolbarPanels.add(FASTENER_PANEL_ID, FASTENER_PANEL_NAME)
     settings_panel = tab.toolbarPanels.itemById(SETTINGS_PANEL_ID)
     if not settings_panel:
         settings_panel = tab.toolbarPanels.add(SETTINGS_PANEL_ID, SETTINGS_PANEL_NAME)
-    if not create_panel or not modify_panel or not assembly_panel or not settings_panel:
+    if not all((create_panel, modify_panel, assembly_panel, fastener_panel, settings_panel)):
         raise RuntimeError("Fusion n'a pas pu créer les groupes de l'onglet STRUCTURE JHR.")
     return tab
 
@@ -70,6 +75,7 @@ def stop(ui):
         return
     for panel_id in (
         SETTINGS_PANEL_ID,
+        FASTENER_PANEL_ID,
         ASSEMBLY_PANEL_ID,
         MODIFY_PANEL_ID,
         CREATE_PANEL_ID,

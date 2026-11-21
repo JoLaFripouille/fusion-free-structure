@@ -57,8 +57,19 @@ class PreviewManager:
         flip_x=False,
         flip_y=False,
     ):
+        frames = (_frames_for_curve(curve) for curve in curves)
+        self.update_frames(
+            root_component, frames, profile, anchor_code, rotation_radians, flip_x, flip_y,
+        )
+
+    def update_frames(
+        self, root_component, paths, profile, anchor_code,
+        rotation_radians=0.0, flip_x=False, flip_y=False,
+    ):
+        """Dessine les profils sur des repères de chemin, sans créer d'esquisse."""
         self.clear()
-        if not curves:
+        paths = tuple(paths)
+        if not paths:
             return
         profile_key = (str(profile.dxf_path), anchor_code)
         if self._profile_contours is None or self._profile_key != profile_key:
@@ -82,8 +93,7 @@ class PreviewManager:
         )
 
         try:
-            for curve in curves:
-                frames = _frames_for_curve(curve)
+            for frames in paths:
                 group = root_component.customGraphicsGroups.add()
                 group.id = "EI_JHR_PROFILE_PREVIEW"
                 self._groups.append(group)

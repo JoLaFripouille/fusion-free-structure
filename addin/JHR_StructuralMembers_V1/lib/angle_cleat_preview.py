@@ -19,7 +19,7 @@ def _color_effect(color):
 
 
 class DoubleAnglePreviewManager:
-    """Affiche deux cornières issues du DXF sans créer d'entité Fusion."""
+    """Affiche les cornières issues du DXF sans créer d'entité Fusion."""
 
     def __init__(self):
         self._group = None
@@ -41,10 +41,11 @@ class DoubleAnglePreviewManager:
         edge = _color_effect(CLEAT_PREVIEW_EDGE)
         hole_red = _color_effect(HOLE_PREVIEW_RED)
         bolt_blue = _color_effect(BOLT_PREVIEW_BLUE)
+        pairs = (evaluation.first, evaluation.opposite) if hasattr(evaluation, "opposite") else (evaluation,)
         try:
-            for placement in evaluation.placements:
+            for pair, placement in ((pair, placement) for pair in pairs for placement in pair.placements):
                 for contour_index, contour in enumerate(
-                    evaluation.angle_contours_cm,
+                    pair.angle_contours_cm,
                     start=1,
                 ):
                     coordinates, triangles = preview_geometry.build_swept_side_mesh(
@@ -59,7 +60,7 @@ class DoubleAnglePreviewManager:
                         "Aperçu jaune — cornière {} {} contour {}"
                         .format(
                             placement.side,
-                            evaluation.angle_profile.designation,
+                            pair.angle_profile.designation,
                             contour_index,
                         )
                     )
@@ -80,7 +81,7 @@ class DoubleAnglePreviewManager:
                 primary_centers, secondary_centers = (
                     angle_cleat_geometry.hole_centers_for_placement(
                         placement,
-                        evaluation.hole_pattern,
+                        pair.hole_pattern,
                     )
                 )
                 bottom = placement.frames[0][0]
@@ -99,7 +100,7 @@ class DoubleAnglePreviewManager:
                             center,
                             first_axis,
                             vertical,
-                            evaluation.hole_pattern.diameter_cm / 2.0,
+                            pair.hole_pattern.diameter_cm / 2.0,
                         )
                         graphics_coordinates = (
                             adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
@@ -117,7 +118,7 @@ class DoubleAnglePreviewManager:
                         ring.weight = 3.0
                         ring.isSelectable = False
 
-            spec = evaluation.bolt_spec
+            spec = pairs[0].bolt_spec
             head_height_cm = spec.head_height_mm * 0.1
             for bolt in evaluation.bolt_placements:
                 pieces = (

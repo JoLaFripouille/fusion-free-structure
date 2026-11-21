@@ -123,6 +123,7 @@ def _report_html(occurrence, metadata, design):
     rows = (
         ("Composant", occurrence.component.name),
         ("Profil", metadata.profile),
+        ("Fonction", member_metadata.ROLES[member_metadata.role_for(occurrence.component)]),
         ("Catégorie", profile_catalog.category_label(metadata.profile_category)),
         ("Zone géographique", metadata.profile_region),
         ("Famille", metadata.profile_family),

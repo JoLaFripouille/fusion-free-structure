@@ -1,5 +1,52 @@
 # Architecture de la V1
 
+## Assemblages à platines
+
+Le ruban et le MCP utilisent la même procédure. La commande collecte les profils et les cotes, le module d’assemblage mesure les supports et prépare les pièces, puis Fusion crée uniquement les tôles et les usinages du montage.
+
+| Pour intervenir sur… | Aller dans… |
+|---|---|
+| Les types proposés, leurs sélections et valeurs initiales en mm | `lib/assembly_catalog.py` |
+| Un contour, un motif de trous ou la géométrie du jarret | `lib/assembly_geometry.py` |
+| Une face d’appui, un mauvais côté ou un perçage mal placé | `lib/assembly_operations.py` |
+| Le formulaire, les groupes de cotes et l’aperçu graphique | `commands/create_assembly.py` |
+| Un appel depuis le MCP Autodesk Fusion | `lib/mcp_operations.py` |
+| Le choix du côté de coupe à l’onglet ou en jonction droite | `lib/joint_builder.py` |
+| Le centrage, la longueur ou les solides de la boulonnerie | `lib/fastener_geometry.py`, puis `lib/simple_fastener_creator.py` |
+| Le filetage ISO de la vis et du trou | `lib/tapped_fastener.py` |
+| Les longueurs et axes des deux pentes au faîtage | `lib/ridge_geometry.py` |
+| Le contour et les perçages du gousset central | `lib/gusset_geometry.py` |
+| Les références RIVKLE, le perçage et le bourrelet | `lib/rivet_nut.py` |
+
+Le catalogue propose les pieds I/H, tubulaire, cornière, chanfreiné et déporté, les deux abouts poutre-poteau, le plat d’âme, l’éclissage, les faîtages et le gousset central. La commande « Assemblage par cornières » propose des cotes selon l’espace disponible et l’appui des rondelles. Les valeurs proposées servent à implanter la géométrie.
+
+- **Pied**. Le déport de platine est réglable sur les deux axes locaux. Le calage est constitué de deux fourchettes à encoches ouvertes, avec un jeu radial réglable.
+- **About**. La cote haute est pilotée par le retrait sous le dessus de l’IPE. Le calcul place le nombre demandé de rangées sur les zones libres des ailes et du jarret. Le réglage initial du jarret est de quatre rangées de deux trous et de 5 mm de retrait.
+
+Depuis le mode script du MCP, importer le module du complément chargé et appeler `assembly_templates()` pour lire les types et cotes, `create_assembly(..., preview=True)` pour lire le résultat du calcul, puis `create_assembly(...)` pour l’appliquer. Les profils sont passés dans l’ordre annoncé par le catalogue avec leurs `entityToken`. Le document cible est contrôlé par son `creation_id` et, pour un fichier Fusion enregistré, par son `file_id`. Le complément expose aussi la création de profils, les jonctions, la pose de boulons et les vis en taraudage dans le même module.
+
+La pose de boulons accepte `head="CHC"` pour une tête cylindrique et `head="TBHC"` pour une tête bombée. Les deux modes utilisent l’axe du trou rond ou le milieu de l’oblong avec deux faces d’appui. Les gabarits de tête reposent sur les cotes [ISO 4762](https://eshop.boellhoff.de/out/media/pdf/ISO_4762_Stahl_8.8_zdpb1___en.pdf) et [ISO 7380-1](https://cdn.standards.iteh.ai/samples/78699/a175805085534f98983d6c8aa583a5b0/ISO-7380-1-2022.pdf).
+
+Le groupe contient les tôles, le type, les cotes et les références de profils. La liaison native à une extrémité du squelette sert aux pieds, plats d’âme, abouts droits et éclissages à assises planes. Le groupe entraîne ses tôles et sa visserie. Les perçages liés dans les profils proviennent de la projection des cercles sur la face d’appui. Un déplacement de l’éclissage à jeu constant conserve ses perçages. Un changement de jeu demande de revoir le motif.
+
+La commande « Inspecter un assemblage » et `inspect_assembly(...)` contrôlent les références. Pour les montages liés, ils comparent la pose de chaque tôle, les trous traversants et les boulons à la géométrie attendue. Les montages historiques conservent le diagnostic par relevé.
+
+Sur une diagonale, le gousset d’extrémité a quatre chants droits. Un flanc suit la cornière avec 1 mm de marge, le petit chant en bout est perpendiculaire à la diagonale et le retour est d’équerre au porteur. Le contour couvre toute la largeur de l’aile dans la zone boulonnée. Sur deux ou trois diagonales, le contour rassemble leurs bandes boulonnées sur un seul chant soudé. La longueur du chant peut être réglée dans le formulaire.
+
+Le réglage **Face d’appui** choisit l’aile ou une face exposée de l’âme. En automatique, le plan de la cornière indique l’appui possible. La tôle peut suivre la cornière, être centrée ou être déportée. Le déport règle le milieu de son épaisseur et doit rester compatible avec la face de contact de la cornière. Sur l’âme, le chant reste entre les congés des ailes.
+
+Le **Jeu cornière–appui** mesure la distance de la face soudée au premier point de la cornière. Une valeur renseignée ajuste l’about d’une cornière à corps unique, coupée d’équerre. L’autre bout conserve sa position et les trous sont calculés d’après l’about ajusté. La valeur −1 conserve l’about existant.
+
+La commande par cornières accepte deux secondaires opposées. `angle_cleat_builder` contrôle les axes des trous et `bolt_geometry` calcule un boulon commun par axe dans l’âme principale. Le créateur usine chaque secondaire et perce une seule fois l’âme principale pour les deux faces.
+
+Pour une barre liée, « Remplacer les barres déjà présentes » et `replace_member_section(...)` changent la section du balayage sur le composant existant. `lib/member_section.py` vérifie ensuite la santé des fonctions et la géométrie des raccords concernés. Un écart remet la section précédente. Cette opération conserve l’ancrage, l’orientation et le matériau.
+
+### Reprise du garde-corps JHR
+
+Le complément Fusion Fabrication contient déjà un calcul en millimètres sur segment droit horizontal ou rampant, avec identification par rôle des montants, lisses, plinthe et platines. Dans le projet Advance Steel, `RecoveredCreationCore/PostDistribution.cs` et `PathPostDistribution.cs` donnent les modes de répartition et le traitement des jonctions. `TopMounting.cs` mesure les appuis pour la pose à la française et vérifie leur matière autour des perçages. `BaseFixingPlacement.cs` et `BaseFixingCase9.cs` placent la platine latérale et les trous pour la pose à l’anglaise. L’appui acier et l’ancrage dans le béton ont des géométries distinctes. Ces sources donnent les cas à comparer avant de brancher les fiches garde-corps au catalogue Fusion.
+
+Les cas de reprise donnés par EXPERT AdvanceSteel couvrent notamment une fixation à la française sur IPE 300, le centrage sur une aile d’UPE 180, et le parcours continu palier–rampant. Une station qui tombe sur un raccord exact revient au support suivant. La comparaison doit vérifier les points pilotes, la répartition et la matière autour des trous.
+
 ## Interface Fusion dédiée
 
 Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis quatre panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier, le grugeage et l'inspecteur. Le panneau `ASSEMBLAGES` reçoit les assemblages composés en cours de validation. Le panneau `PARAMÈTRES` reçoit les réglages locaux. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
@@ -153,7 +200,7 @@ La V1.17.1 localise aussi les deux faces de l'âme principale dans son DXF. Elle
 
 Deux volumes rouges semi-transparents montrent les semelles proposées au retrait. Leurs quatre sommets de départ sont projetés sur le plan de la face extérieure principale et leurs quatre sommets d'arrivée sur le plan réel de l'âme. Ces deux limites parallèles suivent donc le même angle, y compris lorsque la secondaire est oblique. Un carré orange montre le plan de l'âme et une section verte montre chaque prolongement nécessaire de la principale. Ces graphismes restent temporaires et ne créent aucune entrée d'historique avant la validation.
 
-Après `OK`, la secondaire reçoit les plans de station des deux chemins. Leur intersection produit `AXE_ORIENTATION_COUPE_AME`, autour duquel Fusion construit `PLAN_ORIENTATION_AME_PRINCIPALE`. Ce plan est décalé une première fois sur la face extérieure pour produire `PLAN_DEBUT_GRUGEAGE`, puis une seconde fois sur l'âme pour produire `PLAN_COUPE_AME_PRINCIPALE`. `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, normal au chemin secondaire, est placé derrière toute la limite de départ et porte seulement les deux rectangles fermés des zones de semelle. L'extrusion utilise la première limite oblique comme départ réel et la seconde comme arrivée réelle. La principale est auparavant prolongée si sa couverture est insuffisante ; la secondaire est prolongée puis séparée sur le plan de l'âme si nécessaire.
+Après `OK`, la secondaire reçoit les plans de station des deux chemins. Leur intersection produit `AXE_ORIENTATION_COUPE_AME`, autour duquel Fusion construit `PLAN_ORIENTATION_AME_PRINCIPALE`. Depuis la V1.25.3, ce plan conserve un rôle d'orientation et de diagnostic, mais ses normales internes ne commandent plus les deux distances signées : `PLAN_DEBUT_GRUGEAGE` référence directement la face extérieure longitudinale de la principale et `PLAN_COUPE_AME_PRINCIPALE` sa face d'âme réelle. `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, normal au chemin secondaire, est placé derrière toute la limite de départ et porte seulement les deux rectangles fermés des zones de semelle. L'extrusion utilise la première limite oblique comme départ réel et la seconde comme arrivée réelle. La principale est auparavant prolongée si sa couverture est insuffisante ; la secondaire est prolongée puis séparée sur le plan de l'âme si nécessaire.
 
 La V1.20.0 applique le même moteur aux cornières et aux tés. Les deux plus longues faces verticales droites du contour DXF identifient la branche à conserver. La V1.20.1 sépare alors deux opérations uniquement pour ce groupe : le volume droit s'arrête sur la face supérieure exacte de la branche horizontale secondaire, puis un dégagement arrondi échappe le congé intérieur de la principale. Son rayon est le rayon détecté dans le DXF principal augmenté du jeu demandé. Une cornière extérieure ne déclenche aucun dégagement du côté sans congé ; un té peut en déclencher un des deux côtés. La preview matérialise séparément ces deux retraits rouges et la coupe finale applique le même rayon sur l'arête correspondante.
 
@@ -179,4 +226,8 @@ Le motif de perçage est centré dans la hauteur des cornières. Son diamètre, 
 
 La V1.24.0 a d'abord prototypé des boulons reconstruits par cinq corps. Ce prototype a été remplacé avant validation réelle : la V1.24.2 conserve le calcul des six positions mais délègue la fixation à la bibliothèque native Fusion. Sur l'âme principale, chaque cornière fournit sa propre colonne de deux positions ; sur l'âme secondaire, une seule position par rangée traverse la première cornière, l'âme et la seconde cornière. L'aperçu bleu indique la tête et la tige visées, sans créer de corps JHR.
 
-Après les coupes, le complément parcourt les arêtes du corps principal et de la cornière gauche dans le contexte de l'assemblage. Il conserve uniquement les cercles dont le rayon est celui du trou et dont l'axe passe par un centre déjà validé. Pour chaque trou, l'arête située du côté de la future tête est choisie par sa projection sur l'axe. Ces six arêtes sont mémorisées pendant l'exécution. À la destruction de la commande JHR, un thread de coordination attend brièvement puis place un événement personnalisé dans la file de Fusion en utilisant uniquement l'appel autorisé `fireCustomEvent`. Lorsqu'il est traité au repos sur le thread principal, il présélectionne les arêtes puis exécute la commande native `FusionFastenersCommand`. Ce report est nécessaire car Fusion interdit de lancer une nouvelle commande directement depuis un événement de commande. Notre complément ne consulte pas l'API expérimentale des bibliothèques d'attaches et ne tente pas de préremplir la norme, la longueur, le matériau, la finition, l'écrou ou les rondelles : ces choix restent visibles et contrôlables dans Fusion.
+Après les coupes, le complément parcourt les arêtes du corps principal et de la cornière gauche dans le contexte de l'assemblage. Il conserve uniquement les cercles dont le rayon est celui du trou et dont l'axe passe par un centre déjà validé. Pour chaque trou, l'arête située du côté de la future tête est choisie par sa projection sur l'axe. Ces six arêtes sont mémorisées pendant l'exécution. À la destruction de la commande JHR, un thread de coordination attend brièvement puis place un événement personnalisé dans la file de Fusion en utilisant uniquement l'appel autorisé `fireCustomEvent`. Lorsqu'il est traité au repos sur le thread principal, il présélectionne les arêtes puis exécute la commande native `FusionFastenersCommand`. Ce report est nécessaire car Fusion interdit de lancer une nouvelle commande directement depuis un événement de commande.
+
+La tentative V1.24.3 d'interroger automatiquement la fenêtre native a montré une limite plus sévère : la bibliothèque d'attaches charge son interface web de manière asynchrone et peut être précédée d'une demande `Capturer la position`. La première exécution de `UI.CurrentCommandInfo`, déclenchée pendant cet état transitoire, a fermé Fusion avant de renvoyer une valeur. Le CER place l'exécution de la commande texte et le traitement de l'événement personnalisé dans la pile du crash. Une durée d'attente arbitraire ne constitue donc pas une synchronisation fiable.
+
+La V1.24.4 supprime complètement la sonde et son événement. Le complément se limite à présélectionner les arêtes et ouvrir `FusionFastenersCommand`. Toute inspection expérimentale doit être demandée manuellement depuis la palette `TEXT COMMANDS`, après intervention de l'utilisateur et chargement visible du catalogue, dans un document sans donnée importante.

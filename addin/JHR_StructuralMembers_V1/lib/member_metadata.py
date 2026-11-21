@@ -9,6 +9,17 @@ from . import anchors
 
 
 ATTRIBUTE_GROUP = "EI_JHR_StructuralMember"
+ROLE_ATTRIBUTE = "member_role"
+ROLES = {"BARRE": "Barre", "POTEAU": "Poteau", "POUTRE": "Poutre", "PANNE": "Panne"}
+
+
+def role_for(component):
+    """Rôle explicite, ou préfixe JHR pour les anciennes occurrences."""
+    attribute = component.attributes.itemByName(ATTRIBUTE_GROUP, ROLE_ATTRIBUTE)
+    if attribute and attribute.value in ROLES:
+        return attribute.value
+    prefix = component.name.split("_", 1)[0]
+    return prefix if prefix in ROLES else "BARRE"
 ATTRIBUTE_KEYS = (
     "profile",
     "profile_category",

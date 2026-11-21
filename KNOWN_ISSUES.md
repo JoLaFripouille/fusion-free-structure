@@ -4,14 +4,28 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 
 ## Ouverts
 
+### ISSUE-028 — Dynamisme des grugeages après modification du squelette
+
+- **Symptôme initial :** les balayages des barres suivent les lignes, mais les fonctions `COUPE_DROITE_AME_PRINCIPALE`, `RETRAIT_APRES_AME_PRINCIPALE` et `GRUGEAGE_PROFIL_OUVERT` peuvent rester à l'ancienne station puis échouer.
+- **Cause identifiée :** la station sur la ligne principale était enregistrée sous forme d'une proportion numérique calculée lors de la création, au lieu de dépendre directement du point commun du squelette.
+- **Correction V1.25.0 TEST :** les plans de station principal et secondaire dépendent du point d'extrémité réel de la ligne secondaire et des plans médians dynamiques des deux composants.
+- **Résultat V1.25.0 :** `COUPE_DROITE_AME_PRINCIPALE` échoue encore au recalcul, puis `RETRAIT_APRES_AME_PRINCIPALE` signale explicitement la perte de la référence du corps temporaire produit par la séparation.
+- **Correction V1.25.1 TEST :** remplacement de la séparation suivie d'une suppression par une unique extrusion de coupe du côté extérieur ; aucun corps intermédiaire n'est créé ni référencé.
+- **Résultat V1.25.1 :** rejeté. Dans l'essai Fusion réel, la coupe directe a supprimé le mauvais demi-espace et fortement déformé la barre secondaire.
+- **Hotfix V1.25.2 :** retour immédiat à la séparation et à la suppression stables pour restaurer la bonne géométrie. Le problème dynamique reste ouvert et n'est plus masqué par cette tentative.
+- **Diagnostic visuel du 23 août :** après modification de longueur, `PLAN_ORIENTATION_AME_PRINCIPALE` garde sa position, mais `PLAN_DEBUT_GRUGEAGE` et `PLAN_COUPE_AME_PRINCIPALE` passent ensemble de l'autre côté. `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, fondé sur une autre chaîne, reste correct. Cela correspond à une inversion de la normale du plan d'orientation appliquée à deux distances signées mémorisées.
+- **Correction V1.25.3 TEST :** les deux plans fautifs référencent directement les faces longitudinales de la principale. La séparation et la suppression stables restent en place avec contrôles renforcés sur le corps conservé.
+- **Limite :** les grugeages antérieurs ne sont pas migrés automatiquement. Le premier contrôle est limité à une variation de longueur sans changement d'angle.
+- **Validation prévue :** sur un grugeage V1.25.3 neuf à `90°`, afficher `PLAN_ORIENTATION_AME_PRINCIPALE`, `PLAN_DEBUT_GRUGEAGE`, `PLAN_COUPE_AME_PRINCIPALE` et `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, modifier seulement une longueur puis vérifier d'abord les quatre plans avant la coupe et le retrait.
+
 ### ISSUE-027 — Boulons du premier assemblage par cornières à valider
 
-- **État :** l'appel direct de la V1.24.1 a été refusé par Fusion ; déclenchement hors événement corrigé en V1.24.2, à valider.
+- **État :** l'ouverture différée de la V1.24.2 fonctionne. La sonde automatique V1.24.3 a fait planter Fusion pendant le chargement du catalogue et a été entièrement retirée en V1.24.4.
 - **Périmètre :** choix indicatif M12/M16/M20/M24, aperçu bleu et transmission de quatre arêtes de l'âme principale plus deux arêtes de la cornière gauche à `Insérer une attache`.
 - **Comportement attendu :** après `OK` et le message de création, la fenêtre native Fusion s'ouvre avec les six positions déjà sélectionnées. L'utilisateur choisit ensuite la fixation dans le catalogue natif.
-- **Sécurité :** aucune API preview de bibliothèque n'est appelée. Si la présélection ou l'ouverture échoue, les trous et cornières restent valides et le chemin manuel est affiché.
-- **Limite :** l'API publique ne permet pas de préremplir le type, la norme, la longueur, le matériau ou la finition. Il reste à vérifier si une seule session native accepte les deux orientations et, si nécessaire, à séparer principale et secondaire en deux lancements.
-- **Validation prévue :** exécuter uniquement le test 28 en V1.24.2 et s'arrêter dès l'ouverture native pour vérifier le nombre et l'emplacement des positions avant toute insertion.
+- **Sécurité :** aucune commande texte n'est maintenant appelée automatiquement. Les trous et cornières restent valides si la fenêtre native est annulée.
+- **Limite :** le chargement du catalogue est asynchrone et peut être précédé de la demande `Capturer la position`. Une temporisation fixe ne permet pas de connaître son état réel.
+- **Validation prévue :** exécuter uniquement le test 28 en V1.24.5 dans un document jetable, traiter la demande de position, attendre que le catalogue soit utilisable, puis essayer manuellement et une seule fois `Toolkit.cmdDialog`.
 
 ### ISSUE-025 — Valeurs par défaut locales à valider dans Fusion
 
@@ -108,6 +122,16 @@ Chaque problème confirmé doit recevoir un identifiant stable et rester ici jus
 - **Suite :** ajouter une restauration contrôlée après validation de l'ajout et de la suppression.
 
 ## Résolus pendant la préparation de la V1
+
+### ISSUE-030 — Jonction droite et pose des cornières au recalcul
+
+- **Correction V1.27.0 :** remplacement de la face d’about en jonction droite quand une face axiale est disponible. Capture immédiate du placement des cornières après création des tôles et avant perçage des barres.
+- **Vérification Fusion :** IPE 200 / IPE 160 à 600 × 400 mm, puis 750 × 520 mm et retour. Jeu de 2 mm à chaque étape, un solide par barre et perçages des deux cornières réussis.
+
+### ISSUE-029 — Inversion du plan d'onglet au recalcul
+
+- **Correction V1.27.0 :** bissectrice liée à deux lignes d’esquisse et remplacement des deux faces d’about.
+- **Vérification Fusion :** deux IPE 100 passés de 400 à 620 mm, puis de 90° à 70° et 110° avant retour aux valeurs initiales. Le bon volume est conservé des deux côtés et le plan passe toujours par le raccord.
 
 ### ISSUE-026 — Création et perçages du premier assemblage par cornières
 

@@ -9,6 +9,7 @@ from . import angle_cleat_geometry, joint_geometry
 MM_TO_CM = 0.1
 LENGTH_STEP_MM = 5.0
 SPACING_TOLERANCE_CM = 1e-4
+OPPOSED_AXIS_TOLERANCE = 1e-4
 
 
 @dataclass(frozen=True)
@@ -155,3 +156,46 @@ def build_angle_cleat_bolt_placements(
             )
         )
     return tuple(result)
+
+
+def validate_opposed_axes(first_axis, opposite_axis):
+    first = joint_geometry.normalize(first_axis)
+    opposite = joint_geometry.normalize(opposite_axis)
+    if joint_geometry.length(joint_geometry.add(first, opposite)) > OPPOSED_AXIS_TOLERANCE:
+        raise ValueError("Les deux poutres secondaires doivent arriver sur des faces opposées de l’âme.")
+    return first
+
+
+def build_opposed_angle_cleat_bolt_placements(first, opposite, web_thickness_cm,
+                                              angle_thickness_cm, spec):
+    """Remplace les deux séries principales par une seule série traversante."""
+    primary = [item for item in first if item.connection == "principale"]
+    other = [item for item in opposite if item.connection == "principale"]
+    if not primary or len(primary) != len(other):
+        raise ValueError("Les deux assemblages doivent avoir le même nombre de perçages principaux.")
+    axis = validate_opposed_axes(primary[0].z_axis, other[0].z_axis)
+    washer_cm = spec.washer_thickness_mm * MM_TO_CM
+    other_starts = [
+        joint_geometry.add(item.origin, joint_geometry.scale(item.z_axis, washer_cm))
+        for item in other
+    ]
+    through = []
+    for item in primary:
+        # Dans un montage simple, cet appui est la face nue opposée de l'âme principale.
+        start = joint_geometry.add(item.origin, joint_geometry.scale(axis, washer_cm))
+        matches = []
+        for index, other_start in enumerate(other_starts):
+            delta = joint_geometry.subtract(other_start, start)
+            if joint_geometry.length(joint_geometry.cross(delta, axis)) <= SPACING_TOLERANCE_CM:
+                matches.append((index, joint_geometry.dot(delta, axis)))
+        if len(matches) != 1:
+            raise ValueError("Les perçages principaux des cornières opposées ne sont pas coaxiaux.")
+        index, spacing = matches[0]
+        if abs(spacing - web_thickness_cm) > SPACING_TOLERANCE_CM:
+            raise ValueError("L’écart entre les perçages opposés ne suit pas l’épaisseur de l’âme principale.")
+        other_starts.pop(index)
+        outer_start = joint_geometry.subtract(start, joint_geometry.scale(axis, angle_thickness_cm))
+        through.append(_placement("principale", item.side, item.row_index, outer_start, axis,
+                                  web_thickness_cm + 2.0 * angle_thickness_cm, spec))
+    return (*through, *(item for group in (first, opposite)
+                        for item in group if item.connection == "secondaire"))

@@ -4,6 +4,283 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.18] - Fraisures et RIVKLE
+
+- Ajoute un accès RIVKLE dans **Visserie**, avec la liaison au trou et des options séparées pour la vis et la rondelle sous tête.
+- Prépare une fraisure à 90° concentrique à un trou rond pour un boulon ou une vis en trou taraudé.
+- Dessine l’écrou dans les quatre icônes de boulons.
+
+## [1.30.17] - Groupe Visserie
+
+- Déplace **Boulonnerie JHR** dans le groupe natif **Visserie** du ruban Structure JHR.
+- Ajoute les accès directs par type de tête et un accès pour les vis en trou taraudé. La longueur et les rondelles se règlent dans le formulaire de pose.
+- Lie la fixation à une ouverture circulaire sur la face d’appui sous tête. Les oblongs restent disponibles en pose libre.
+
+## [1.30.16] - Interface native du contreventement
+
+- Retire la commande de palette. L’auto-contreventement se crée et se modifie dans les formulaires natifs de Fusion.
+- La retouche des évidements reste ciblée sur la platine centrale. L’aperçu 3D masque temporairement le montage existant pendant sa modification.
+
+## [1.30.15] - Détails et retouche de la platine centrale
+
+- La palette présente le X complet, le détail de la platine centrale et celui d’un gousset d’about.
+- Une modification limitée aux évidements remplace le contour de la platine dans son occurrence existante et garde les cornières, goussets et boulons.
+- La palette distingue les accusés de réception du navigateur des commandes de modélisation.
+
+## [1.30.14] - Aperçu et liaison de la palette
+
+- Charge les fichiers de la palette à partir d’une adresse de fichier encodée pour Fusion.
+- Allège les réponses envoyées à la palette et précise les erreurs de communication.
+- Dans **Modifier un assemblage**, masque temporairement le montage existant pendant l’aperçu. Les cornières du X sont affichées avec leur section.
+
+## [1.30.13] - Palette pilote du contreventement
+
+- Le menu **Assemblages** permet d’ouvrir l’auto-contreventement dans une palette latérale avec schéma et aperçu dans la scène. Elle peut créer un X à partir de deux faces ou reprendre un X existant.
+
+## [1.30.12] - Onglets de modification de l’auto-contreventement
+
+- Prépare les onglets de réglages à l’ouverture de **Modifier un assemblage** et les affiche dès que la sélection désigne un X. Fusion peut ainsi valider les champs du formulaire.
+
+## [1.30.11] - Reprise des cotes de l’auto-contreventement
+
+- Réinjecte les cotes enregistrées comme valeurs numériques dans Fusion, y compris le déport latéral nul, et attribue des identifiants distincts aux groupes de réglages.
+
+## [1.30.10] - Édition et platine du contreventement
+
+- **Modifier un assemblage** reprend l’auto-contreventement depuis la sélection d’une de ses pièces.
+- Les retraits haut et bas se mesurent sur chacune des faces sélectionnées.
+- La platine centrale garde quatre grands chants d’équerre et quatre coupes couvrant l’aile. L’onglet **Options** propose des évidements arrondis à profondeur réglable.
+
+## [1.30.9] - Auto-contreventement entre deux faces
+
+- Création du X depuis les faces opposées des poteaux, avec sections, inversions, retraits, platine centrale à chants inclinés, goussets d’about et boulonnerie.
+- Les sections conservent les arcs du DXF. Le X garde les deux faces de référence pour sa modification et son recalcul en fin d’historique.
+- Les assemblages du catalogue peuvent être copiés indépendamment sur de nouveaux profils. La liaison des réglages est disponible pour les pieds de poteau modifiables.
+
+## [1.30.8] - Méplats et copie des pieds de poteau
+
+- Les goussets d’âme et d’ailes reçoivent deux méplats de débit réglables, de 10 mm par défaut.
+- La commande Copier un assemblage reporte un pied sur un autre poteau, avec des réglages indépendants ou partagés.
+- La taille de la platine se règle librement ou par les quatre débords du profil. Les perçages suivent les bords en X et/ou Y, ou conservent les entraxes saisis.
+- Les cotes invalides affichent une alerte rouge dans le groupe concerné. Le contrôle des goussets tient compte du jeu réglable et de l’encombrement des rondelles.
+
+## [1.30.7] - Hauteur hors tout des poteaux
+
+- Les nouvelles platines de pied démarrent à la cote de l’extrémité de l’ébauche. Le profil est raccourci jusqu’à la face d’appui pour garder la longueur hors tout.
+- La coupe est liée à l’épaisseur de la platine et revient à l’about d’origine à la suppression du pied.
+
+## [1.30.6] - Pieds et gestion des assemblages
+
+- Aperçu des tôles avec leurs faces, chants et ouvertures. Le formulaire du pied propose des choix de chanfrein et d’arrondi exclusifs.
+- Ancrages droits avec rondelles et écrous. Goussets d’âme et d’ailes cumulables, avec largeur et chanfrein de dégagement réglables.
+- Modification depuis la sélection d’une pièce et rotation liée des pieds lors de la modification du poteau.
+- Suppression du groupe d’historique complet et de ses traces de jonction. Les grugeages automatiques des nouveaux raccords de pannes rejoignent le groupe.
+
+## [1.30.5] - Raccordement des pannes en série
+
+- Ajoute la commande Raccorder les pannes pour poser des plats d’âme aux abouts des pannes I/H sélectionnées, avec aperçu et réglages communs au lot.
+- Repère les raccords existants et signale les abouts ambigus.
+
+## [1.30.4] - Fonctions des profils
+
+- Ajoute la fonction Barre, Poteau, Poutre ou Panne à la création et à la modification des profils acier.
+- Le bouton Poteaux utilise une icône dédiée en H, distincte des pieds de poteau.
+
+## [1.30.3] - Accès directs et profils éditables
+
+- Corrige l’ouverture du formulaire d’assemblage en utilisant des libellés de sélection fixes.
+- Accès directs aux pieds de poteau, raccords poutre-poteau, raccords poutre-poutre et contreventements.
+- Commande Poteaux depuis des points et commande Modifier un profil avec ses réglages de création.
+
+## [1.30.2] - Dialogue des assemblages
+
+- Accès direct aux pieds de poteau, avec quatre onglets et des cases pour les accessoires facultatifs.
+- Aperçu sur les profils sélectionnés avec contour des perçages et message en cas d’échec.
+
+## [1.30.1] - Appuis de goussets et coupes de barreaux
+
+- Gousset soudé pour une cornière avec flanc incliné, retour d’équerre et couverture de toute l’aile dans la zone boulonnée.
+- Appui des goussets au choix sur l’aile ou sur l’âme, avec centrage ou déport réglable selon le plan de la cornière.
+- Jeu réglable entre l’about de la cornière et la face soudée. L’ajustage se fait avant les perçages et contrôle la position de l’autre bout.
+- Les barreaux se terminent sur une coupe plane tangente sous la main courante ronde.
+
+## [1.30.0] - Cornières opposées, arborescence et garde-corps
+
+- Deux secondaires face à face partagent une grille de boulons traversants dans l’âme principale. La proposition de cornières mesure la hauteur d’âme réellement libre après grugeage.
+- Les assemblages regroupent leurs pièces nommées et leur visserie par tête, diamètre et longueur. Les créations sont repliées dans l’historique par commande.
+- Le tronçonnage au droit d’un poteau plat crée deux demi-poteaux ou un plat adjacent. En rampant, seule la main courante est coupée d’équerre à son axe. La sous-lisse et la plinthe suivent la jonction des plats.
+- Le modèle barreaudé, en pose à la française ou à l’anglaise, propose des barreaux carrés, ronds ou plats et contrôle le vide au repos en géométrie, avec un plafond de 100 mm.
+
+## [1.29.4] - Repère des garde-corps et inserts sertis
+
+- Le garde-corps accepte Y ou Z comme verticale. En automatique, la préférence Fusion est utilisée si les appuis et le parcours concordent.
+- Le bourrelet RIVKLE ressort derrière la paroi et le corps se termine par un chanfrein extérieur. Le modèle après pose conserve l'enveloppe du catalogue.
+- Le guide Fusion et MCP est référencé depuis les consignes du dépôt.
+
+## [1.29.3] - Goussets de contreventement et garde-corps industriels
+
+- Les goussets sur porteur ont une assise évasée et suivent les cornières. La longueur d'appui est réglable sur les modèles à une, deux et trois diagonales.
+- Les garde-corps ont une plinthe 150 × 6 par défaut, avec choix du côté et un jeu réglable de 10 mm au-dessus du parcours. Les poteaux plats reçoivent une tête à deux biais avec méplat sous la main courante, en palier et en rampant.
+
+## [1.29.2] - Changement de section avec assemblage lié
+
+- La commande de remplacement modifie le balayage existant d’une barre liée. Elle conserve le chemin, le composant et les références si les assemblages correspondent à la nouvelle section.
+- Vérifié dans Fusion sur un pied lié. Passage IPE 160 vers IPE 200, puis retour automatique à l’IPE 200 après refus de l’IPE 450 incompatible avec la platine.
+
+## [1.29.1] - Éclissages liés et inspection des assemblages
+
+- Les nouveaux éclissages suivent un déplacement commun des deux profils avec le même jeu. Les perçages sont projetés depuis les tôles et les boulons suivent leur groupe. Les couvre-joints sur ailes inclinées UPN conservent leur pose calculée à la création.
+- La commande Inspecter un assemblage accepte le groupe ou l’une de ses tôles et signale les écarts avec la géométrie attendue.
+
+## [1.29.0] - Contreventements, raccords en pente et garde-corps
+
+- Recoupe de deux cornières en X en quatre branches, avec un gousset de niveau. Goussets soudés sur porteur I/H pour une à trois cornières.
+- About d’arbalétrier sur poteau et suivi des abouts droits avec ou sans jarret après un déplacement du nœud.
+- Ancrages droits, préscellement et assises biaises pour l’éclissage d’ailes UPN.
+- Vis et rondelle associées aux RIVKLE. Garde-corps acier sur dessus ou sur âme, raccord palier-rampant, perçage optionnel du support acier et représentation d’ancrages sur béton.
+
+## [1.28.3] - Plats d’âme et perçages liés au squelette
+
+- Pour un nouveau plat d’âme, les perçages de la poutre secondaire sont projetés depuis le plat. Le raccord et sa boulonnerie suivent l’extrémité de la poutre.
+- L’inspection contrôle les perçages traversants et la pose des boulons. Les changements de position et de longueur ont été essayés dans Fusion, avec le plat sur les deux faces de l’âme.
+
+## [1.28.2] - Têtes cylindriques et bombées six pans creux
+
+- Pose CHC de M4 à M24 et TBHC de M4 à M16 dans Boulonnerie JHR et via le MCP, avec empreinte creuse et longueur calculée depuis les appuis.
+- Contrôle Fusion des deux formes de tête, dont une pose M6 sur perçage rond et une pose M6 sur oblong.
+
+## [1.28.1] - Pieds liés au squelette
+
+- À la création, une liaison rigide Fusion rattache le pied à l’extrémité choisie. La platine, ses perçages, les cales et les goussets suivent le déplacement du profil.
+- L’inspection compare la position réelle des tôles à la position calculée. La commande interdit un deuxième pied au même bout, même après déplacement du poteau.
+
+## [1.28.0] - Assemblages boulonnés et portique d’essai
+
+- Pieds chanfreinés ou déportés, cales fourchettes, chanfreins et arrondis de platines.
+- Boulonnage automatique des abouts, faîtages, plats d’âme et doubles cornières avec contrôle d’interférence.
+- Éclissage d’âme d’un côté, des deux côtés ou avec couvre-joints d’ailes. Jarrets de faîtage et gousset central de quatre cornières.
+- Écrous RIVKLE à trois formes de tête avec référence de catalogue et option de préparation de l’avant-trou.
+- Diagnostic MCP des profils sources modifiés depuis la pose. Nouveaux pictogrammes isométriques.
+
+## [1.27.0] - Coupes stables et assemblages à platines
+
+- Plan d’onglet piloté par les deux lignes d’esquisse, avec remplacement des faces d’about.
+- Jonction droite avec jeu conservé au recalcul et pose des cornières capturée avant perçage.
+- Catalogue à platines partagé par le ruban et le mode script du MCP Autodesk Fusion.
+- Boulons H sur trou rond ou oblong, tête fraisée avec empreinte six pans et bord droit, vis H en taraudage ISO.
+
+## [1.26.0] - Regroupement automatique de la timeline
+
+- chaque nouvelle barre est regroupée et repliée dans la timeline sous le nom de son composant ;
+- les jonctions, onglets et grugeages sont regroupés après leur réussite, dans le groupe de la barre si les opérations sont adjacentes, sinon dans des groupes distincts nommés d'après la barre ; aucun déplacement de fonction paramétrique ;
+- dégroupage sans suppression de fonctions avant le retrait d'une barre lors d'un remplacement ou d'une annulation ;
+- toutes les corrections de grugeage de la V1.25.3 sont conservées ; bibliothèque DXF inchangée ;
+- un prolongement isolé non adjacent reste individuel : Fusion exige au moins deux fonctions par groupe.
+
+## [1.25.3] - Plans de grugeage rattachés aux faces principales
+
+### Corrigé
+
+- l'analyse visuelle dans Fusion a isolé le premier défaut : après modification de longueur, `PLAN_ORIENTATION_AME_PRINCIPALE` reste en place mais sa direction interne peut s'inverser ; ses deux décalages signés envoient alors `PLAN_DEBUT_GRUGEAGE` et `PLAN_COUPE_AME_PRINCIPALE` du mauvais côté ;
+- ces deux plans ne dépendent plus du sens de cette normale. Ils référencent directement les faces longitudinales correspondantes de la barre principale : face extérieure et face d'âme ;
+- `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, qui restait correctement placé, n'est pas modifié.
+
+### Garde-fous sur les corps
+
+- l'extrusion de grugeage conserve son corps secondaire participant explicitement désigné ;
+- la séparation doit produire exactement deux corps ; le corps intérieur est choisi par sa position géométrique, un seul excédent est retiré, puis Fusion doit retrouver exactement un corps du bon côté ;
+- la coupe directe défectueuse de la V1.25.1 n'est pas réintroduite.
+
+### Périmètre du test
+
+- recréer un seul grugeage I/H neuf à `90°`, afficher les trois plans, modifier uniquement une longueur et contrôler leurs positions avant d'examiner les fonctions de coupe ;
+- les anciens grugeages ne sont pas migrés automatiquement.
+
+## [1.25.2] - Rétablissement du grugeage stable
+
+### Corrigé
+
+- la coupe directe expérimentale de la V1.25.1 est retirée : selon l'orientation du composant, elle pouvait supprimer le mauvais volume et détruire la forme de la barre secondaire ;
+- la séparation contrôlée puis la suppression de l'excédent sont restaurées, ainsi que la limitation explicite de la coupe aux corps participants ;
+- la création géométrique correcte du grugeage redevient prioritaire. La mise à jour dynamique après modification du squelette reste ouverte et ne doit pas être considérée comme corrigée.
+
+### Important
+
+- un grugeage créé avec la V1.25.1 conserve sa mauvaise opération dans l'historique Fusion et doit être supprimé puis recréé avec la V1.25.2 ;
+- ce correctif ne modifie automatiquement aucun document Fusion existant.
+
+## [1.25.1] - Coupe directe du grugeage
+
+### Corrigé
+
+- la chaîne fragile `Split Body` puis `Remove Body` est supprimée du grugeage ;
+- une extrusion de coupe enlève désormais directement le demi-espace extérieur au plan de l'âme principale ;
+- aucun petit corps intermédiaire ne doit donc perdre sa référence lorsque le balayage du profil se recalcule ;
+- la coupe principale du grugeage ne mémorise plus explicitement un corps participant : le composant de barre, qui contient un corps unique, fournit automatiquement le corps intersecté.
+
+### Diagnostic confirmé
+
+- le test Fusion V1.25.0 a confirmé l'échec de `COUPE_DROITE_AME_PRINCIPALE`, puis la perte du corps temporaire dans `RETRAIT_APRES_AME_PRINCIPALE` ;
+- un grugeage V1.25.1 neuf ne doit plus créer la fonction `RETRAIT_APRES_AME_PRINCIPALE` dans l'historique.
+
+### Résultat Fusion
+
+- solution retirée en V1.25.2 : l'essai réel a montré que le mauvais demi-espace pouvait être supprimé selon l'orientation du profil.
+
+## [1.25.0] - Première liaison dynamique du grugeage
+
+### Corrigé
+
+- les plans de station du grugeage ne mémorisent plus la proportion calculée sur la ligne principale au moment de la création ;
+- les deux plans prennent maintenant leur position sur le point d'extrémité réel de la ligne secondaire et leur orientation sur les plans médians paramétriques des deux barres ;
+- une modification de longueur du squelette peut ainsi déplacer la rencontre sans laisser les fonctions `COUPE_DROITE_AME_PRINCIPALE`, `RETRAIT_APRES_AME_PRINCIPALE` et `GRUGEAGE_PROFIL_OUVERT` à leur ancienne station ;
+- chaque nouveau grugeage enregistre le mode de référence dynamique utilisé afin de distinguer les anciennes opérations.
+
+### Périmètre de validation
+
+- cette première étape vise un unique grugeage IPE/HEA/HEB neuf ; les opérations créées avec une version antérieure doivent être supprimées puis recréées ;
+- le test porte d'abord sur une variation de longueur à direction constante. Le changement d'angle et la mise à jour des anciens grugeages restent séparés.
+
+## [1.24.5] - Centrage indépendant de l'ancrage
+
+### Corrigé
+
+- `Décalage vertical = 0 mm` centre maintenant les doubles cornières et leur motif de perçage sur la hauteur libre réelle de l'âme secondaire ;
+- le point d'ancrage DXF choisi pour générer la barre ne sert plus, à tort, de centre vertical à l'assemblage ;
+- la prévisualisation, les contrôles de sortie d'âme et la création finale partagent le même décalage géométrique ;
+- un essai automatique couvre désormais le cas d'un profil ancré en haut, qui reproduisait le refus observé dans Fusion.
+
+### Inchangé
+
+- le décalage saisi par l'utilisateur reste appliqué dans l'axe vertical du profil, mais il est désormais mesuré depuis le centre de l'âme libre ;
+- le chemin sûr V1.24.4 pour ouvrir la fenêtre native d'attaches reste inchangé et aucune commande texte automatique n'est réintroduite.
+
+## [1.24.4] - Test manuel sécurisé
+
+### Corrigé
+
+- la sonde automatique et son second événement personnalisé sont entièrement retirés ; l'ouverture native revient au chemin déjà validé de la V1.24.2 ;
+- le diagnostic éventuel doit maintenant être lancé manuellement, une seule fois, uniquement après avoir traité la demande `Capturer la position` et attendu le chargement complet du catalogue ;
+- `UI.CurrentCommandInfo`, identifié dans la pile du crash, n'est plus utilisé pour cette fenêtre.
+
+### Sécurité du test
+
+- le complément n'exécute plus aucune commande texte pendant que `FusionFastenersCommand` est actif ;
+- le prochain essai se fait dans un document jetable et commence par la seule commande de lecture `Toolkit.cmdDialog` saisie manuellement dans la palette Fusion.
+
+## [1.24.3] - Échec confirmé dans Fusion le 2026-08-21
+
+### Incident
+
+- une première sonde automatique devait lire `UI.CurrentCommandInfo`, puis `Toolkit.cmdDialog`, après l'ouverture des attaches ;
+- Fusion s'est fermé pendant la première lecture, avant toute écriture de résultat ; le fichier local ne contient que son en-tête ;
+- le CER horodaté `08:36:18` place `Application::executeTextCommand_raw`, `InteractiveCommandBase::commandInputSet` et `Application::fireCustomEvent` sur le thread du crash, pendant le chargement asynchrone de la bibliothèque d'attaches.
+
+### Conclusion
+
+- une temporisation fixe n'est pas un critère de disponibilité fiable pour cette fenêtre web native ;
+- la V1.24.3 ne doit plus être utilisée et est remplacée par la V1.24.4.
+
 ## [1.24.2] - En validation
 
 ### Corrigé

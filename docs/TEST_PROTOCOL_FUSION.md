@@ -492,27 +492,35 @@ Effectuer d'abord un seul assemblage avec les valeurs proposées. Ne pas ajouter
 14. Vérifier dans l'historique la présence des extrusions et perçages, sans composant de boulon.
 15. Annuler l'opération complète avec l'historique Fusion, puis la rétablir ; les deux composants et tous les trous doivent disparaître puis revenir ensemble sans erreur.
 16. Faire un seul essai d'échec en déplaçant le motif hors de la hauteur libre de l'âme : `OK` doit rester inactif et aucune nouvelle entité ne doit apparaître.
+17. Refaire la sélection avec une secondaire générée depuis un ancrage haut ou bas : à `0 mm`, les cornières et les trous doivent rester centrés dans la hauteur libre réelle de l'âme. Le changement d'ancrage ne doit produire ni déplacement vers une semelle ni refus du motif.
 
 ## Test 28 — Passage vers les attaches natives Fusion
 
 Effectuer uniquement ce test sur le cas déjà validé du test 27. Ne modifier ni les cornières ni les distances de perçage pendant ce premier contrôle.
 
-1. Supprimer ou annuler l'assemblage précédent, puis arrêter et exécuter le complément et vérifier la version `V1.24.2`.
-2. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.24.2`.
-3. Vérifier que `M16 — classe 8.8 — trou Ø18 mm` est proposé et que le diamètre des perçages vaut `18 mm`.
-4. Sélectionner la principale puis la secondaire avec la cornière `50 × 50 — ép. 5 mm`, une hauteur de `100 mm`, deux rangées et un entraxe de `50 mm`.
-5. Vérifier les deux cornières jaunes, les trous rouges et exactement six boulons indicatifs bleus : quatre sur l'âme principale et deux traversant l'âme secondaire.
-6. Contrôler visuellement qu'aucune tête bleue n'est retournée, décalée ou placée sur une mauvaise rangée.
-7. Choisir temporairement `M12`, puis `M20` : le diamètre de trou doit passer respectivement à `14 mm` puis `22 mm`, et l'aperçu bleu doit changer de diamètre. Revenir à `M16`.
-8. Saisir temporairement un trou de `16 mm` pour M16 : le rapport doit refuser le diamètre et `OK` doit rester inactif. Revenir à `18 mm`.
-9. Cliquer une seule fois sur `OK`, lire le message de création puis le fermer.
-10. Vérifier que la fenêtre native `Insérer une attache` s'ouvre automatiquement. Ne confirmer encore aucune attache.
-11. Vérifier dans le canevas que six arêtes sont proposées : quatre sur la face arrière de l'âme principale et deux sur la face extérieure de la cornière gauche.
-12. Si Fusion n'accepte qu'une partie des six positions ou mélange les deux orientations, annuler la fenêtre native et noter exactement les positions conservées ; la prochaine correction séparera les deux groupes.
-13. Si les six positions sont acceptées, choisir un boulon hexagonal ISO M16 et vérifier les tailles et longueurs proposées par Fusion avant de confirmer.
-14. Confirmer uniquement les boulons. Vérifier qu'ils sont des attaches natives Fusion et non des composants JHR reconstruits.
-15. Tester ensuite manuellement, dans une session séparée, l'insertion native des rondelles puis des écrous sur les boulons ; cette partie n'est pas automatisée en V1.24.2.
-16. Annuler la commande native ne doit pas supprimer les deux cornières ni les trous créés par la commande JHR précédente.
+1. Utiliser uniquement un document de test sans donnée importante. Arrêter et exécuter le complément puis vérifier la version `V1.24.5`.
+2. Avant l'assemblage, afficher la palette `TEXT COMMANDS` avec `Ctrl+Alt+C` et sélectionner le mode `Txt`.
+3. Ouvrir `STRUCTURE JHR > ASSEMBLAGES > Assemblage par cornières V1.24.5`.
+4. Vérifier que `M16 — classe 8.8 — trou Ø18 mm` est proposé, sélectionner la principale et la secondaire, puis valider la création.
+5. Si Fusion demande `Capturer la position`, choisir cette option pour ce document de test, puis ne rien faire tant que le catalogue natif charge encore.
+6. Attendre que `Insérer une attache` soit entièrement affiché et réagisse normalement à la souris. Il n'y a volontairement aucun délai fixe.
+7. Dans la palette `TEXT COMMANDS`, saisir exactement `Toolkit.cmdDialog` et valider une seule fois. Ne pas exécuter `UI.CurrentCommandInfo`.
+8. Si une sortie est affichée, la copier avant d'annuler la fenêtre native. Ne choisir et ne confirmer encore aucune attache.
+9. Si Fusion devient lent, ne répond plus ou affiche une erreur, ne pas répéter la commande ; fermer le test et conserver le nouveau CER.
+
+## Test 29 — Contrôle des plans dynamiques du grugeage
+
+Ne pas réutiliser un ancien grugeage : les nouvelles références aux faces principales sont enregistrées uniquement lors de la création.
+
+1. Arrêter puis exécuter le complément et vérifier la version `V1.25.3`.
+2. Dans un document de test paramétrique, créer deux lignes contraintes à `90°`, puis générer deux IPE sur ces lignes.
+3. Créer un unique grugeage I/H neuf à leur rencontre et vérifier que sa forme initiale est correcte.
+4. Afficher `PLAN_ORIENTATION_AME_PRINCIPALE`, `PLAN_DEBUT_GRUGEAGE`, `PLAN_COUPE_AME_PRINCIPALE` et `PLAN_REFERENCE_ESQUISSE_GRUGEAGE`, puis noter leur ordre.
+5. Modifier uniquement une cote de longueur, sans changer l'angle, puis terminer l'esquisse.
+6. Contrôler d'abord les plans : `PLAN_DEBUT_GRUGEAGE` doit rester sur la face extérieure, `PLAN_COUPE_AME_PRINCIPALE` sur l'âme et `PLAN_REFERENCE_ESQUISSE_GRUGEAGE` du côté intérieur attendu, même si la normale visuelle du plan d'orientation s'inverse.
+7. Ensuite seulement, confirmer que `COUPE_DROITE_AME_PRINCIPALE`, `RETRAIT_APRES_AME_PRINCIPALE` et `GRUGEAGE_PROFIL_OUVERT` n'ont aucune erreur.
+8. Vérifier qu'il reste exactement un corps dans le composant secondaire.
+9. Ne pas tester encore le changement d'angle ni plusieurs grugeages dans ce premier essai.
 
 ## Critères de validation
 

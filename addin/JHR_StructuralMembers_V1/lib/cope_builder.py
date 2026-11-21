@@ -40,7 +40,11 @@ class CopeEvaluation:
     origin: tuple
     cope_start_point: tuple
     flange_start_point: tuple
+    flange_start_face: object
+    flange_start_face_offset_cm: float
     web_cut_point: tuple
+    web_cut_face: object
+    web_cut_face_offset_cm: float
     web_cut_normal: tuple
     relief_radius_cm: float
     relief_edge_points: tuple
@@ -310,6 +314,15 @@ def evaluate_profile_cope(
             -float(longitudinal_clearance_cm),
         ),
     )
+    flange_start_face, flange_start_face_offset_cm = (
+        joint_builder._planar_face_reference(
+            primary_body,
+            primary_occurrence,
+            flange_start_point,
+            geometry.plane_normal,
+            "extérieure de la barre principale",
+        )
+    )
     available_length_cm = joint_geometry.length(
         joint_geometry.subtract(
             geometry.secondary_joint_endpoint,
@@ -336,6 +349,13 @@ def evaluate_profile_cope(
         primary_profile_x_axis,
         geometry.plane_normal,
         float(web_clearance_cm),
+    )
+    web_cut_face, web_cut_face_offset_cm = joint_builder._planar_face_reference(
+        primary_body,
+        primary_occurrence,
+        web_cut_point,
+        geometry.plane_normal,
+        "de l'âme principale",
     )
     relief_radius_cm = 0.0
     relief_edge_points = ()
@@ -439,7 +459,11 @@ def evaluate_profile_cope(
         origin=geometry.secondary_joint_endpoint,
         cope_start_point=cope_start_point,
         flange_start_point=flange_start_point,
+        flange_start_face=flange_start_face,
+        flange_start_face_offset_cm=flange_start_face_offset_cm,
         web_cut_point=web_cut_point,
+        web_cut_face=web_cut_face,
+        web_cut_face_offset_cm=web_cut_face_offset_cm,
         web_cut_normal=geometry.plane_normal,
         relief_radius_cm=relief_radius_cm,
         relief_edge_points=relief_edge_points,

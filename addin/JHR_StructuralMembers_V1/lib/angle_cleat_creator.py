@@ -8,10 +8,14 @@ import adsk.fusion
 from . import (
     addin_info,
     angle_cleat_geometry,
+    fastener_creator,
+    fastener_geometry,
     joint_builder,
     joint_geometry,
     member_builder,
     profile_catalog,
+    simple_fastener_creator,
+    timeline_groups,
 )
 
 
@@ -28,6 +32,15 @@ class DoubleAngleCreationResult:
     primary_hole_feature: object
     secondary_hole_feature: object
     native_fastener_edges: tuple
+    bolts_created: int = 0
+
+
+@dataclass(frozen=True)
+class OpposedAngleCreationResult:
+    angle_occurrences: tuple
+    primary_hole_feature: object
+    secondary_hole_features: tuple
+    bolts_created: int
 
 
 def _point_tuple(point):
@@ -87,7 +100,10 @@ def _native_fastener_edges(
 def _next_assembly_index(root_component):
     prefix = "ASSEMBLAGE_CORNIERES_"
     used = set()
-    for occurrence in root_component.allOccurrences:
+    for occurrence in root_component.occurrences:
+        group_index = occurrence.component.attributes.itemByName(ATTRIBUTE_GROUP, "assembly_index")
+        if group_index and group_index.value.isdigit():
+            used.add(int(group_index.value))
         name = occurrence.component.name
         if not name.startswith(prefix):
             continue
@@ -154,14 +170,8 @@ def _expected_occurrence_bounds(frame, profile, height_cm):
     )
 
 
-def _place_completed_occurrence(occurrence, frame, profile, height_cm):
-    """Place une cornière terminée et vérifie son enveloppe dans l'assemblage."""
-    transform = _matrix_for_frame(frame)
-    if getattr(occurrence, "isValidForEditInitialPosition", False):
-        occurrence.initialTransform = transform
-    else:
-        occurrence.transform2 = transform
-
+def _validate_occurrence_position(occurrence, frame, profile, height_cm):
+    """Vérifie l'enveloppe de la cornière dans l'assemblage."""
     bounds = occurrence.preciseBoundingBox
     if not bounds:
         raise RuntimeError(
@@ -342,8 +352,9 @@ def _planar_face_for_holes(body, occurrence, axis_world, centers_world):
     return face.nativeObject if face.nativeObject else face
 
 
-def _circular_profiles(sketch, expected_count):
-    """Exclut la région de fond d'une face et conserve les disques ajoutés."""
+def _circular_profiles(sketch, circles):
+    """Sélectionne uniquement les disques créés par cette opération."""
+    sources = tuple(circle.nativeObject or circle for circle in circles)
     profiles = adsk.core.ObjectCollection.create()
     for index in range(sketch.profiles.count):
         profile = sketch.profiles.item(index)
@@ -353,20 +364,21 @@ def _circular_profiles(sketch, expected_count):
         curves = loops.item(0).profileCurves
         if curves.count != 1:
             continue
-        if not adsk.core.Circle3D.cast(curves.item(0).geometry):
+        if curves.item(0).sketchEntity not in sources:
             continue
         profiles.add(profile)
-    if profiles.count != int(expected_count):
+    if profiles.count != len(sources):
         raise RuntimeError(
             "{} disques circulaires isolés au lieu de {} "
             "({} régions totales dans l'esquisse)"
-            .format(profiles.count, expected_count, sketch.profiles.count)
+            .format(profiles.count, len(sources), sketch.profiles.count)
         )
     return profiles
 
 
 def _add_cut_circles(sketch, centers_local, diameter_cm):
     radius_cm = float(diameter_cm) / 2.0
+    circles = []
     for center_local in centers_local:
         model_point = adsk.core.Point3D.create(*center_local)
         circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(
@@ -375,7 +387,8 @@ def _add_cut_circles(sketch, centers_local, diameter_cm):
         )
         if not circle:
             raise RuntimeError("un cercle de coupe n'a pas été créé")
-    return _circular_profiles(sketch, len(centers_local))
+        circles.append(circle)
+    return _circular_profiles(sketch, circles)
 
 
 def _extrude_symmetric_cuts(
@@ -452,6 +465,8 @@ def _create_member_cut_group(
     cut_span_cm,
     feature_name,
     sketch_name,
+    *,
+    source_circles=(),
 ):
     """Coupe symétriquement une âme depuis sa face réelle d'assemblage."""
     if not centers_world:
@@ -467,11 +482,18 @@ def _create_member_cut_group(
         raise RuntimeError("Fusion n'a pas pu créer l'esquisse des coupes.")
     sketch.name = sketch_name
     try:
-        centers_local = tuple(
-            _point_tuple(_world_to_local_point(occurrence, center))
-            for center in centers_world
-        )
-        profiles = _add_cut_circles(sketch, centers_local, diameter_cm)
+        if source_circles:
+            projected = sketch.createForAssemblyContext(occurrence).project2(source_circles, True) or ()
+            if (len(projected) != len(centers_world)
+                    or not all(adsk.fusion.SketchCircle.cast(entity) and entity.isReference for entity in projected)):
+                raise RuntimeError("Les perçages du plat n’ont pas tous été projetés sur l’âme.")
+            profiles = _circular_profiles(sketch, projected)
+        else:
+            centers_local = tuple(
+                _point_tuple(_world_to_local_point(occurrence, center))
+                for center in centers_world
+            )
+            profiles = _add_cut_circles(sketch, centers_local, diameter_cm)
         feature = _extrude_symmetric_cuts(
             component,
             body,
@@ -530,167 +552,155 @@ def _delete_valid(entities):
             pass
 
 
-def create_double_angle_assembly(root_component, evaluation):
-    """Crée les deux cornières puis les trous alignés dans les quatre pièces."""
-    primary_body = joint_builder._single_body(
-        evaluation.primary_occurrence,
-        "principale",
-    )
-    secondary_body = joint_builder._single_body(
-        evaluation.secondary_occurrence,
-        "secondaire",
-    )
-    material = secondary_body.material
-    if not material or not material.isValid:
-        raise ValueError(
-            "Le matériau physique de la barre secondaire est invalide."
-        )
+def _create_cleats(root, plan, material, face, created):
+    parts = []
+    for placement in plan.placements:
+        frame = angle_cleat_geometry.rigid_frame_for_placement(placement)
+        occurrence = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+        created.append(occurrence)
+        component = occurrence.component
+        component.name = f"{plan.angle_profile.designation} · {face} {placement.side}"
+        body = _create_angle_body(component, plan.angle_profile, plan.cleat_height_cm, material)
+        span = 2.0 * max(plan.angle_profile.width_mm, plan.angle_profile.height_mm) * profile_catalog.MM_TO_CM
+        primary, secondary = angle_cleat_geometry.hole_centers_for_placement(placement, plan.hole_pattern)
+        for member, plane, centers in (
+            ("PRINCIPALE", component.xZConstructionPlane, primary),
+            ("SECONDAIRE", component.yZConstructionPlane, secondary),
+        ):
+            local = tuple(angle_cleat_geometry.world_point_in_rigid_frame(frame, center) for center in centers)
+            _create_local_cut_group(component, body, local, plane, plan.hole_pattern.diameter_cm, span,
+                                    f"PERCAGES_VERS_AME_{member}", f"CENTRES_PERCAGES_{member}")
+        _add_attributes(component, plan, placement.side)
+        parts.append((occurrence, body, frame, plan))
+    return parts
 
-    assembly_index = _next_assembly_index(root_component)
-    created_occurrences = []
-    created_on_members = []
-    angle_occurrences = []
-    angle_bodies = []
+
+def _cut_web(occurrence, body, section, centers, axis, diameter, member, created):
+    span = 2.0 * max(section.width_mm, section.height_mm) * profile_catalog.MM_TO_CM
+    feature, sketch = _create_member_cut_group(
+        occurrence.component, occurrence, body, centers, axis, diameter, span,
+        f"PERCAGES_ASSEMBLAGE_CORNIERES_{member}", f"CENTRES_ASSEMBLAGE_CORNIERES_{member}",
+    )
+    created.extend((sketch, feature))
+    return feature
+
+
+def _make_bolts(design, group, placements, spec, assembly_parts):
+    washer = spec.washer_thickness_mm * .1
+    by_length = {}
+    for bolt in placements:
+        origin = joint_geometry.add(bolt.origin, joint_geometry.scale(bolt.z_axis, washer))
+        by_length.setdefault(round(bolt.bolt_length_cm*10, 6), []).append(
+            fastener_geometry.Placement(origin, bolt.x_axis, bolt.y_axis, bolt.z_axis, bolt.grip_length_cm),
+        )
+    count = 0
+    for length, poses in by_length.items():
+        result = simple_fastener_creator.create_modeled_fasteners(
+            design, poses, spec.nominal_diameter_mm, length, spec.thread_projection_mm, assembly=group,
+        )
+        count += result["created"]
+    if count != len(placements):
+        raise ValueError("Une position de boulon est déjà occupée dans ce raccord.")
+    if count:
+        modeled = [bolt for hardware in fastener_creator.assembly_hardware(group)
+                   for batch in hardware.childOccurrences for bolt in batch.childOccurrences]
+        fastener_creator.verify_clearance(design, (*assembly_parts, *modeled))
+    return count
+
+
+def _create_angle_assembly(root, plans, bolts, model_bolts):
+    snapshots = root.parentDesign.snapshots
+    if snapshots.hasPendingSnapshot:
+        raise ValueError("Valider d’abord les positions en attente dans Fusion.")
+    first = plans[0]
+    primary = joint_builder._single_body(first.primary_occurrence, "principale")
+    secondaries = [joint_builder._single_body(plan.secondary_occurrence, "secondaire") for plan in plans]
+    materials = [body.material for body in secondaries]
+    if any(not material or not material.isValid for material in materials):
+        raise ValueError("Le matériau physique d’une barre secondaire est invalide.")
+
+    index = _next_assembly_index(root)
+    opposed = len(plans) > 1
+    timeline = root.parentDesign.timeline
+    start = timeline_groups.creation_start(timeline)
+    member_features, drafts = [], []
+    group = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+    if not group:
+        raise RuntimeError("Fusion n’a pas créé le composant d’assemblage.")
     try:
-        for placement in evaluation.placements:
-            rigid_frame = angle_cleat_geometry.rigid_frame_for_placement(placement)
-            occurrence = root_component.occurrences.addNewComponent(
-                adsk.core.Matrix3D.create()
-            )
-            created_occurrences.append(occurrence)
-            component = occurrence.component
-            component.name = "ASSEMBLAGE_CORNIERES_{:03d}_{}".format(
-                assembly_index,
-                placement.side.upper(),
-            )
-            body = _create_angle_body(
-                component,
-                evaluation.angle_profile,
-                evaluation.cleat_height_cm,
-                material,
-            )
-            primary_centers, secondary_centers = (
-                angle_cleat_geometry.hole_centers_for_placement(
-                    placement,
-                    evaluation.hole_pattern,
-                )
-            )
-            primary_centers_local = tuple(
-                angle_cleat_geometry.world_point_in_rigid_frame(
-                    rigid_frame,
-                    center,
-                )
-                for center in primary_centers
-            )
-            secondary_centers_local = tuple(
-                angle_cleat_geometry.world_point_in_rigid_frame(
-                    rigid_frame,
-                    center,
-                )
-                for center in secondary_centers
-            )
-            cut_span_cm = 2.0 * max(
-                evaluation.angle_profile.width_mm,
-                evaluation.angle_profile.height_mm,
-            ) * profile_catalog.MM_TO_CM
-            _create_local_cut_group(
-                component,
-                body,
-                primary_centers_local,
-                component.xZConstructionPlane,
-                evaluation.hole_pattern.diameter_cm,
-                cut_span_cm,
-                "PERCAGES_VERS_AME_PRINCIPALE",
-                "CENTRES_PERCAGES_PRINCIPALE",
-            )
-            _create_local_cut_group(
-                component,
-                body,
-                secondary_centers_local,
-                component.yZConstructionPlane,
-                evaluation.hole_pattern.diameter_cm,
-                cut_span_cm,
-                "PERCAGES_VERS_AME_SECONDAIRE",
-                "CENTRES_PERCAGES_SECONDAIRE",
-            )
-            _place_completed_occurrence(
-                occurrence,
-                rigid_frame,
-                evaluation.angle_profile,
-                evaluation.cleat_height_cm,
-            )
-            _add_attributes(component, evaluation, placement.side)
-            angle_occurrences.append(occurrence)
-            angle_bodies.append(body)
+        label = "Cornières opposées" if opposed else "Assemblage par cornières"
+        group.component.name = f"{label} {index:03d}"
+        group.component.attributes.add(ATTRIBUTE_GROUP, "assembly_index", str(index))
+        parts = []
+        for side, (plan, material) in enumerate(zip(plans, materials), start=1):
+            face = f"face {side}" if opposed else "côté"
+            parts.extend(_create_cleats(root, plan, material, face, drafts))
 
-        primary_cut_span_cm = 2.0 * max(
-            evaluation.primary_profile_geometry.width_mm,
-            evaluation.primary_profile_geometry.height_mm,
-        ) * profile_catalog.MM_TO_CM
-        primary_feature, primary_sketch = _create_member_cut_group(
-            evaluation.primary_occurrence.component,
-            evaluation.primary_occurrence,
-            primary_body,
-            evaluation.primary_hole_centers_world,
-            evaluation.geometry.plane_normal,
-            evaluation.hole_pattern.diameter_cm,
-            primary_cut_span_cm,
-            "PERCAGES_ASSEMBLAGE_CORNIERES_PRINCIPALE",
-            "CENTRES_ASSEMBLAGE_CORNIERES_PRINCIPALE",
-        )
-        created_on_members.extend((primary_sketch, primary_feature))
+        for occurrence, _, frame, _ in parts:
+            occurrence.transform2 = _matrix_for_frame(frame)
+        if snapshots.hasPendingSnapshot:
+            snapshot = snapshots.add()
+            if not snapshot:
+                raise RuntimeError("Fusion n’a pas conservé la position des cornières.")
+            member_features.append(snapshot)
+        moved_parts = []
+        for occurrence, _, frame, plan in parts:
+            moved = occurrence.moveToComponent(group)
+            if not moved:
+                raise RuntimeError("Fusion n’a pas rangé la cornière dans l’assemblage.")
+            contextual = moved if moved.assemblyContext else moved.createForAssemblyContext(group)
+            _validate_occurrence_position(contextual, frame, plan.angle_profile, plan.cleat_height_cm)
+            moved_parts.append((contextual, contextual.component.bRepBodies.item(0), frame, plan))
+        parts = moved_parts
 
-        secondary_cut_span_cm = 2.0 * max(
-            evaluation.secondary_profile_geometry.width_mm,
-            evaluation.secondary_profile_geometry.height_mm,
-        ) * profile_catalog.MM_TO_CM
-        secondary_feature, secondary_sketch = _create_member_cut_group(
-            evaluation.secondary_occurrence.component,
-            evaluation.secondary_occurrence,
-            secondary_body,
-            evaluation.secondary_hole_centers_world,
-            evaluation.secondary_profile_x_axis,
-            evaluation.hole_pattern.diameter_cm,
-            secondary_cut_span_cm,
-            "PERCAGES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
-            "CENTRES_ASSEMBLAGE_CORNIERES_SECONDAIRE",
+        diameter = first.hole_pattern.diameter_cm
+        primary_feature = _cut_web(first.primary_occurrence, primary, first.primary_profile_geometry,
+                                   first.primary_hole_centers_world, first.geometry.plane_normal,
+                                   diameter, "PRINCIPALE", member_features)
+        secondary_features = tuple(
+            _cut_web(plan.secondary_occurrence, body, plan.secondary_profile_geometry,
+                     plan.secondary_hole_centers_world, plan.secondary_profile_x_axis,
+                     diameter, "SECONDAIRE", member_features)
+            for plan, body in zip(plans, secondaries)
         )
-        created_on_members.extend((secondary_sketch, secondary_feature))
-        hole_radius_cm = evaluation.hole_pattern.diameter_cm / 2.0
-        primary_fastener_edges = _native_fastener_edges(
-            body=primary_body,
-            occurrence=evaluation.primary_occurrence,
-            centers_world=evaluation.primary_hole_centers_world,
-            axis_world=evaluation.geometry.plane_normal,
-            radius_cm=hole_radius_cm,
-            prefer_negative_station=True,
-            label="sur l'âme principale",
+        occurrences = tuple(occurrence for occurrence, _, _, _ in parts)
+        assembly_parts = (first.primary_occurrence, *(plan.secondary_occurrence for plan in plans), *occurrences)
+        count = 0
+        if model_bolts:
+            with timeline_groups.defer_grouping():
+                count = _make_bolts(root.parentDesign, group, bolts, first.bolt_spec, assembly_parts)
+        if opposed:
+            if not model_bolts:
+                fastener_creator.verify_clearance(root.parentDesign, assembly_parts)
+            timeline_groups.group_creation(timeline, start, group.component.name)
+            return OpposedAngleCreationResult(occurrences, primary_feature, secondary_features, count)
+
+        left_secondary_centers = angle_cleat_geometry.hole_centers_for_placement(first.placements[0],
+                                                                                first.hole_pattern)[1]
+        primary_edges = _native_fastener_edges(
+            primary, first.primary_occurrence, first.primary_hole_centers_world, first.geometry.plane_normal,
+            diameter/2, True, "sur l’âme principale",
         )
-        left_secondary_centers = (
-            angle_cleat_geometry.hole_centers_for_placement(
-                evaluation.placements[0],
-                evaluation.hole_pattern,
-            )[1]
+        secondary_edges = _native_fastener_edges(
+            parts[0][1], occurrences[0], left_secondary_centers, first.secondary_profile_x_axis,
+            diameter/2, True, "sur la cornière gauche",
         )
-        secondary_fastener_edges = _native_fastener_edges(
-            body=angle_bodies[0],
-            occurrence=angle_occurrences[0],
-            centers_world=left_secondary_centers,
-            axis_world=evaluation.secondary_profile_x_axis,
-            radius_cm=hole_radius_cm,
-            prefer_negative_station=True,
-            label="sur la cornière gauche",
-        )
-        return DoubleAngleCreationResult(
-            left_occurrence=angle_occurrences[0],
-            right_occurrence=angle_occurrences[1],
-            primary_hole_feature=primary_feature,
-            secondary_hole_feature=secondary_feature,
-            native_fastener_edges=(
-                primary_fastener_edges + secondary_fastener_edges
-            ),
-        )
+        timeline_groups.group_creation(timeline, start, group.component.name)
+        return DoubleAngleCreationResult(*occurrences, primary_feature, secondary_features[0],
+                                         primary_edges + secondary_edges, count)
     except Exception:
-        _delete_valid(created_on_members)
-        _delete_valid(created_occurrences)
+        _delete_valid(member_features)
+        _delete_valid(drafts)
+        _delete_valid([group])
         raise
+
+
+def create_double_angle_assembly(root_component, evaluation, model_bolts=False):
+    """Crée les deux cornières et les perçages d’une poutre secondaire."""
+    return _create_angle_assembly(root_component, (evaluation,), evaluation.bolt_placements, model_bolts)
+
+
+def create_opposed_double_angle_assembly(root_component, evaluation, model_bolts=True):
+    """Crée les quatre cornières et une seule grille dans l’âme principale."""
+    return _create_angle_assembly(root_component, (evaluation.first, evaluation.opposite),
+                                  evaluation.bolt_placements, model_bolts)

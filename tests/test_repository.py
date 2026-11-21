@@ -61,7 +61,7 @@ class RepositoryTests(unittest.TestCase):
             settings_source,
         )
         self.assertIn(
-            'COMMAND_NAME = "Assemblage par cornières V{}".format(addin_info.VERSION)',
+            'COMMAND_NAME = "Attaches de poutres par cornières V{}".format(addin_info.VERSION)',
             cleat_source,
         )
         self.assertIn('"extension_version", addin_info.VERSION', builder_source)
@@ -169,7 +169,7 @@ class RepositoryTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("preview_angle_cleat.start()", entry_source)
         self.assertIn("preview_angle_cleat.stop()", entry_source)
-        self.assertEqual(command_source.count('addSelectionFilter("Occurrences")'), 2)
+        self.assertEqual(command_source.count('addSelectionFilter("Occurrences")'), 3)
         self.assertIn('"Barre principale"', command_source)
         self.assertIn('"Barre secondaire"', command_source)
         self.assertIn('ANGLE_PROFILE_ID = "angleCleatProfile"', command_source)
@@ -183,6 +183,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertNotIn("bRepBodies.add", command_source)
         self.assertNotIn("extrudeFeatures", command_source)
         self.assertIn("create_double_angle_assembly", command_source)
+        self.assertIn("create_opposed_double_angle_assembly", command_source)
         self.assertIn("I_H_FAMILIES", builder_source)
         self.assertIn("allow_arc=False", builder_source)
         self.assertIn("web_face_cut_point", builder_source)
@@ -201,11 +202,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("_rebase_sketch_to_anchor", creator_source)
         self.assertIn("sketch.move", creator_source)
         self.assertNotIn("creationOccurrence = occurrence", creator_source)
-        self.assertIn(
-            "occurrences.addNewComponent(\n                adsk.core.Matrix3D.create()",
-            creator_source,
-        )
-        self.assertIn("occurrence.initialTransform = transform", creator_source)
+        self.assertIn("occurrence.transform2 = _matrix_for_frame(frame)", creator_source)
+        self.assertIn("occurrence.moveToComponent(group)", creator_source)
         self.assertIn("occurrence.preciseBoundingBox", creator_source)
         self.assertIn("adsk.fusion.FeatureOperations.CutFeatureOperation", creator_source)
         self.assertIn("cut_input.setSymmetricExtent", creator_source)
@@ -219,6 +217,9 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("time.sleep(0.1)", command_source)
         self.assertIn("ui.activeSelections", command_source)
         self.assertIn("definition.execute()", command_source)
+        self.assertNotIn("UI.CurrentCommandInfo", command_source)
+        self.assertNotIn("Toolkit.cmdDialog", command_source)
+        self.assertNotIn("executeTextCommand", command_source)
         self.assertIn("native_fastener_edges", creator_source)
         self.assertFalse((ADDIN / "lib" / "bolt_creator.py").exists())
 
@@ -262,6 +263,9 @@ class RepositoryTests(unittest.TestCase):
             encoding="utf-8"
         )
         creator_source = (ADDIN / "lib" / "cope_creator.py").read_text(
+            encoding="utf-8"
+        )
+        joint_builder_source = (ADDIN / "lib" / "joint_builder.py").read_text(
             encoding="utf-8"
         )
         self.assertIn("create_cope.start()", entry_source)
@@ -309,8 +313,29 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("_extend_primary_end", creator_source)
         self.assertIn("_extend_body", creator_source)
         self.assertIn("_split_and_keep_interior", creator_source)
+        self.assertIn("WEB_REMOVE_FEATURE_NAME", creator_source)
+        self.assertIn("participantBodies = [body]", creator_source)
+        self.assertNotIn("_cut_exterior_halfspace", creator_source)
+        self.assertEqual(creator_source.count("_add_face_offset_plane"), 2)
+        self.assertIn("flange_start_face", cope_builder_source)
+        self.assertIn("web_cut_face", cope_builder_source)
+        self.assertIn("_planar_face_reference", cope_builder_source)
+        self.assertIn("if len(bodies) != 2", joint_builder_source)
+        self.assertIn("remaining_body = _single_body", joint_builder_source)
+        self.assertIn(
+            '"reference_mode": "primary_faces_and_skeleton_endpoint_v2"',
+            creator_source,
+        )
         self.assertIn("_add_intersection_axis", creator_source)
         self.assertIn("_add_oriented_plane", creator_source)
+        self.assertIn("_curve_endpoint_sketch_point", creator_source)
+        self.assertEqual(
+            creator_source.count("_add_member_station_plane_through_point"),
+            2,
+        )
+        self.assertIn("MEMBER_MID_PLANE_NAME", joint_builder_source)
+        self.assertIn("setByOffsetThroughPoint", joint_builder_source)
+        self.assertNotIn("evaluation.geometry.main_parameter", creator_source)
         self.assertIn('COPE_TYPE = "open_profile_cope"', creator_source)
         self.assertIn(
             'LEGACY_COPE_TYPES = frozenset(("double_ipe_cope", "double_ih_cope"))',

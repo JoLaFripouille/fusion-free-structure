@@ -244,6 +244,32 @@ def build_hole_pattern(
     )
 
 
+def web_center_offset_from_anchor_cm(web_min_y_cm, web_max_y_cm):
+    """Retourne le centre de l'âme libre par rapport à l'ancrage du profil."""
+    web_min = float(web_min_y_cm)
+    web_max = float(web_max_y_cm)
+    if web_max - web_min <= joint_geometry.GEOMETRY_TOLERANCE_CM:
+        raise ValueError("La hauteur libre de l'âme est invalide.")
+    return (web_min + web_max) / 2.0
+
+
+def hole_row_offsets_from_web_center(
+    pattern,
+    cleat_height_cm,
+    vertical_offset_cm,
+    web_min_y_cm,
+    web_max_y_cm,
+):
+    """Place les rangées autour du centre réel de l'âme, pas de l'ancrage."""
+    center = web_center_offset_from_anchor_cm(web_min_y_cm, web_max_y_cm)
+    bottom = (
+        center
+        + float(vertical_offset_cm)
+        - float(cleat_height_cm) / 2.0
+    )
+    return tuple(bottom + row for row in pattern.row_positions_cm)
+
+
 def hole_centers_for_placement(placement, pattern):
     """Calcule les centres monde sur les deux branches d'une cornière."""
     bottom, outward_axis, toward_secondary = placement.frames[0]
