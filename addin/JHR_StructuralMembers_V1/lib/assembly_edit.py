@@ -128,14 +128,14 @@ def _use_hardware(target, settings):
                 and settings.get("anchor_diameter"))
 
 
-def evaluate(design, target, parameters_mm, alternate=None):
+def evaluate(design, target, parameters_mm, alternate=None, *, preview_support=False):
     """Prépare le nouvel état mécanique et l’aperçu du pied sans créer d’entités."""
     if not target.writable:
         raise ValueError(target.reason)
     if target.template.family != "Pieds de poteau":
         side = target.alternate if alternate is None else alternate
         return assemblies.evaluate(design, target.template.key, target.occurrences, parameters_mm, side,
-                                   check_material=False)
+                                   check_material=False, preview_support=preview_support)
     if alternate is not None and alternate != target.alternate:
         raise ValueError("Le remplacement d’un pied d’une extrémité à l’autre changerait sa liaison.")
     dimensions = shapes.dimensions(target.template, parameters_mm)
@@ -178,6 +178,8 @@ def apply(design, target, plan):
     """Applique une édition du formulaire avec le groupe et sa liaison d’origine."""
     if _marker(target.group).value != target.original:
         raise ValueError("Cet assemblage a changé depuis l’ouverture du formulaire.")
+    if plan.support_errors:
+        raise assemblies.support_error(plan.support_errors)
     from . import assembly_copy
 
     if target.template.family != "Pieds de poteau":

@@ -4,6 +4,13 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.27] - Raccords sur profils imbriqués
+
+- Accepte les poteaux et poutres JHR de sous-assemblages locaux pour les montages Poutre-poteau.
+- Accepte une poutre dont l’about arrive sur l’aile et prolonge les profils trop courts si leurs axes se rencontrent.
+- Ajuste l’entraxe automatique à l’aile du poteau et montre en rouge les fixations hors appui dans l’aperçu.
+- Accepte les faces de poteaux imbriqués pour l’auto-contreventement.
+
 ## [1.30.26] - Copies liées des assemblages
 
 - Étend la copie indépendante et la copie liée au catalogue d’assemblages, aux cornières d’attache et à l’auto-contreventement.

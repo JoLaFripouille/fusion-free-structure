@@ -366,10 +366,10 @@ class AssemblyForm:
         if self.editing:
             from ..lib import assembly_edit
 
-            return assembly_edit.evaluate(self.design, self.edit_target, parameters, alternate)
+            return assembly_edit.evaluate(self.design, self.edit_target, parameters, alternate, preview_support=True)
         return assembly_operations.evaluate(
             self.design, model.key, [fusion.Occurrence.cast(s.selection(0).entity) for s in selection],
-            parameters, alternate,
+            parameters, alternate, preview_support=True,
         )
 
     def clear_feedback(self):
@@ -413,6 +413,8 @@ class AssemblyForm:
         self.graphics = self.design.rootComponent.customGraphicsGroups.add()
         self.graphics.id = "EI_JHR_ASSEMBLY_PREVIEW"
         plate_preview.draw_plates(self.graphics, plan.plates)
+        if plan.support_errors:
+            plate_preview.draw_unsupported_holes(self.graphics, plan.drilling[0], plan.support_errors)
         if self.editing and self.edit_target:
             self.visibility.hide(self.edit_target.group)
         self.app.activeViewport.refresh()
@@ -457,6 +459,11 @@ class Validate(core.ValidateInputsEventHandler):
                 self.form.bay_form.set_status("Auto-contreventement · Aperçu")
                 self.form.report.formattedText = self.form.bay_form.report.formattedText
                 args.areInputsValid = True
+                return
+            if plan.support_errors:
+                self.form.preview(plan)
+                self.form.show_error(assembly_operations.support_error(plan.support_errors))
+                args.areInputsValid = False
                 return
             self.form.report.formattedText = (
                 f"Aperçu · {len(plan.plates)} pièce(s)"

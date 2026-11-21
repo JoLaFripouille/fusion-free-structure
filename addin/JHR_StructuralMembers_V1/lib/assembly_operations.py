@@ -69,10 +69,15 @@ class AssemblyPlan:
     brace_ends: tuple = ()
     brace_gaps_cm: tuple = ()
     base_flush: bool = False
+    support_errors: tuple = ()
 
 
-def _member(design, occurrence, role, body=None):
-    if not occurrence or not occurrence.isValid or occurrence not in design.rootComponent.occurrences:
+def _member(design, occurrence, role, body=None, *, allow_nested=False):
+    root = design.rootComponent
+    if not occurrence or not occurrence.isValid:
+        raise ValueError(f"Sélectionner {role} parmi les profils JHR.")
+    candidates = root.allOccurrences if allow_nested and occurrence.assemblyContext else root.occurrences
+    if occurrence not in candidates:
         raise ValueError(f"Sélectionner {role} parmi les profils JHR à la racine.")
     metadata = joints._member_metadata(occurrence, role)
     curve = joints._linked_curve(design, metadata, role, allow_arc=False)
@@ -251,25 +256,35 @@ def _fastener_plan(centres, normal, thickness, support_thickness, hole, spec):
     return positions, spec.nominal_diameter_mm, length
 
 
-def _end_plate(design, post, beam, dims, with_haunch, raked=False):
+def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_support=False):
+    root = design.rootComponent
+    for member in (post, beam):
+        occurrence = member.occurrence
+        cursor = occurrence
+        while cursor:
+            if cursor.isReferencedComponent:
+                raise ValueError(f"{occurrence.name} : modifier le profil dans son fichier Fusion source.")
+            cursor = cursor.assemblyContext
+        if root.allOccurrencesByComponent(occurrence.component).count != 1:
+            raise ValueError(f"{occurrence.name} : le perçage ou la coupe toucherait plusieurs occurrences.")
     post_shape, beam_shape = _i_geometry(post), _i_geometry(beam)
     thickness = dims["thickness"]
     if thickness <= 0:
         raise ValueError("Saisir une épaisseur positive pour la platine d’about.")
-    trim = joints.evaluate_straight_joint(design, post.occurrence, beam.occurrence, thickness)
+    trim = joints.evaluate_straight_joint(design, post.occurrence, beam.occurrence, thickness,
+                                         allow_support_end=True)
     paths = trim.geometry
     if not raked and abs(paths.angle_degrees - 90.) > .1:
         raise ValueError("Choisir About d’arbalétrier sur poteau pour un raccord en biais.")
-    if trim.primary_extensions and not raked:
-        raise ValueError("La poutre doit se raccorder sur la face du poteau, sans le prolonger.")
     direction = trim.cut_normal
     if abs(geo.dot(direction, post.section_y)) < .995:
         raise ValueError("Sélectionner un raccord côté aile du poteau.")
     if not raked and abs(geo.dot(beam.section_y, paths.main_direction)) < .995:
         raise ValueError("La hauteur de la poutre doit suivre l’axe du poteau.")
-    up = paths.main_direction if paths.main_direction[2] >= 0 else geo.scale(paths.main_direction, -1)
+    vertical = max((1, 2), key=lambda index: abs(paths.main_direction[index]))
+    up = paths.main_direction if paths.main_direction[vertical] >= 0 else geo.scale(paths.main_direction, -1)
     if not raked:
-        up = beam.section_y if beam.section_y[2] >= 0 else geo.scale(beam.section_y, -1)
+        up = beam.section_y if geo.dot(beam.section_y, up) >= 0 else geo.scale(beam.section_y, -1)
     across = geo.cross(up, direction)
     end = paths.secondary_joint_endpoint
     section_y = beam.section_y
@@ -317,11 +332,19 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False):
     center_y = (bottom+top)/2
     center = geo.add(support, geo.scale(up, center_y))
     post_start, _ = joints._line_endpoints(post.curve)
-    stations = tuple(sorted(geo.dot(geo.subtract(p, post_start), paths.main_direction)
-                            for p in joints._line_endpoints(post.curve)))
-    if raked:
-        points = joints._body_sample_points(post.body, post.occurrence)
-        levels = [geo.dot(geo.subtract(point, support), up) for point in points]
+    face_x = _range(post, 0)
+    if diameter and not dims["gauge"]:
+        centre_x = geo.dot(geo.subtract(support, post_start), post.section_x)
+        usable = min(centre_x-face_x[0], face_x[1]-centre_x) - clearance - TOL
+        gauge = min(gauge, 2*usable)
+    original_stations = tuple(geo.dot(geo.subtract(p, post_start), paths.main_direction)
+                              for p in joints._line_endpoints(post.curve))
+    plate_points = tuple(geo.add(support, geo.scale(up, height)) for height in (bottom, top))
+    plate_stations = tuple(geo.dot(geo.subtract(p, post_start), paths.main_direction) for p in plate_points)
+    stations = min(*original_stations, *plate_stations), max(*original_stations, *plate_stations)
+    trim = replace(trim, primary_extensions=joints._primary_extensions_to_cover(
+        post.occurrence, post.body, post.curve, paths, plate_points,
+    ))
     holes = ()
     if diameter:
         if gauge <= 2*clearance or width-gauge <= 2*clearance:
@@ -347,10 +370,6 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False):
                                     2*clearance, blocked, dims["pitch"])
         else:
             row_min, row_max = low+clearance, top-clearance
-            if raked:
-                end_margin = clearance+.02
-                row_min = max(row_min, min(levels)+end_margin)
-                row_max = min(row_max, max(levels)-end_margin)
             rows = shapes.bolt_rows(dims["rows"], row_min, row_max,
                                    2*clearance, blocked, dims["pitch"])
         holes = tuple((x, y-center_y, diameter) for x in (-gauge/2, gauge/2) for y in rows)
@@ -361,19 +380,21 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False):
               (lower_flange-post_shape.min_y_mm)) * .1
     post_root = max(post_shape.web_min_y_mm-lower_flange, upper_flange-post_shape.web_max_y_mm)*.1
     # Coupe bornée à l’aile en sélectionnant sa face d’appui.
-    face_x = _range(post, 0)
     drilling, fasteners = (), ()
+    support_errors = []
     if holes:
         centres = tuple(plate.point(x, y) for x, y, _ in holes)
         web_limits = tuple((x-post.anchor[0])*.1 for x in (post_shape.web_min_x_mm, post_shape.web_max_x_mm))
-        for position in centres:
+        for index, position in enumerate(centres, 1):
             delta = geo.subtract(position, post_start)
             along, x = geo.dot(delta, paths.main_direction), geo.dot(delta, post.section_x)
             rad = clearance if bolt else diameter/2
             if not (face_x[0]+rad < x < face_x[1]-rad and stations[0]+rad < along < stations[1]-rad):
-                raise ValueError("Un perçage déborde de l’aile du poteau.")
-            if web_limits[0]-post_root-rad < x < web_limits[1]+post_root+rad:
-                raise ValueError("Le perçage ou son appui rencontre l’âme ou le congé du poteau.")
+                support_errors.append((index, "déborde de l’aile du poteau"))
+            elif web_limits[0]-post_root-rad < x < web_limits[1]+post_root+rad:
+                support_errors.append((index, "rencontre l’âme ou le congé du poteau"))
+        if support_errors and not preview_support:
+            raise support_error(support_errors)
         drilling = (Drilling(post, centres, direction, diameter, 2*flange+.2),)
         if bolt:
             fasteners = _fastener_plan(centres, direction, thickness, flange, diameter, bolt)
@@ -384,7 +405,12 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False):
     if dims["stiffener"]:
         plates += _stiffeners(post, post_shape, end, up, stiffener_levels, stations, post_start,
                               paths.main_direction, dims["stiffener"])
-    return plates, drilling, trim, fasteners
+    return plates, drilling, trim, fasteners, tuple(support_errors)
+
+
+def support_error(errors):
+    details = " · ".join(f"N°{index} {message}" for index, message in errors)
+    return shapes.DimensionError(("gauge", "pitch"), "Fixations sur le poteau. " + details + ".")
 
 
 def _shear_plate(main, beam, dims, other_side, *, check_material=True):
@@ -931,7 +957,8 @@ def _apply_ridge_trim(ridge, created):
                                    target.point, evaluation.cut_normal, "Coupe d’about du faîtage", created)
 
 
-def evaluate(design, kind, occurrences, parameters_mm=None, alternate=False, *, check_material=True):
+def evaluate(design, kind, occurrences, parameters_mm=None, alternate=False, *, check_material=True,
+             preview_support=False):
     """Prépare la géométrie à partir des barres sélectionnées. Aucun effet CAO."""
     template = assembly_catalog.template_for(kind)
     if len(occurrences) != len(template.roles) or len(set(o.entityToken for o in occurrences)) != len(occurrences):
@@ -948,10 +975,12 @@ def evaluate(design, kind, occurrences, parameters_mm=None, alternate=False, *, 
             members.append(_member(design, occurrence, role, branch))
         members = tuple(members)
     else:
-        members = tuple(_member(design, o, role) for o, role in zip(occurrences, template.roles))
+        members = tuple(_member(design, o, role, allow_nested=template.family == "Poutre-poteau")
+                        for o, role in zip(occurrences, template.roles))
     dims = shapes.dimensions(template, parameters_mm or {})
     drilling, trim, fasteners, ridge_trim, crossing = (), None, (), (), ()
     brace_ends, brace_gaps = (), ()
+    support_errors = ()
     if len(members) == 1:
         start, end = joints._line_endpoints(members[0].curve)
         end_index = int(end[2] < start[2])
@@ -972,8 +1001,9 @@ def evaluate(design, kind, occurrences, parameters_mm=None, alternate=False, *, 
     elif kind.startswith("ridge_"):
         plates, fasteners, ridge_trim = _ridge(design, members, dims, kind == "ridge_double")
     else:
-        plates, drilling, trim, hardware = _end_plate(
+        plates, drilling, trim, hardware, support_errors = _end_plate(
             design, *members, dims, kind == "beam_column_haunch", raked=kind == "beam_column_rake",
+            preview_support=preview_support,
         )
         fasteners = (hardware,) if hardware else ()
     settings = {field.key: dims[field.key]*(10 if field.unit == "mm" else 1)
@@ -982,7 +1012,7 @@ def evaluate(design, kind, occurrences, parameters_mm=None, alternate=False, *, 
                    if plate.finishable else plate for plate in plates)
     return AssemblyPlan(template, members, settings,
                         plates, drilling, trim, fasteners, ridge_trim, alternate, crossing, brace_ends, brace_gaps,
-                        base_flush=kind.startswith("base_"))
+                        base_flush=kind.startswith("base_"), support_errors=support_errors)
 
 
 def _create_plate(parent, plate, material):
@@ -1189,8 +1219,9 @@ def _linked_raccord_matches(design, group, record, template, members, link):
     elif template.key == "splice_web":
         plates, drilling, batches = _splice_web(*members, dimensions, link["alternate"], check_material=False)
     else:
-        plates, drilling, _, batch = _end_plate(design, *members, dimensions,
-                                                template.key == "beam_column_haunch")
+        plates, drilling, _, batch, _ = _end_plate(design, *members, dimensions,
+                                                   template.key == "beam_column_haunch",
+                                                   raked=template.key == "beam_column_rake")
         batches = (batch,) if batch else ()
     if not _plates_match(group, plates) or not _associated_bolts_match(group, batches):
         return False
@@ -1235,7 +1266,7 @@ def inspect_references(design, group):
                     raise ValueError("Le profil porteur est introuvable.")
                 member = _brace_member(design, occurrence, role, members[0])
             else:
-                member = _member(design, occurrence, role)
+                member = _member(design, occurrence, role, allow_nested=template.family == "Poutre-poteau")
             members.append(member)
             current = _reference_state(member)
             if link:
@@ -1262,6 +1293,9 @@ def inspect_references(design, group):
 def create(design, plan):
     """Applique la géométrie préparée à la conception active et indique l’étape en erreur."""
     from . import timeline_groups
+
+    if plan.support_errors:
+        raise support_error(plan.support_errors)
 
     root = design.rootComponent
     stage = "contrôle préalable"
@@ -1290,6 +1324,7 @@ def create(design, plan):
     timeline = design.timeline
     start = timeline_groups.creation_start(timeline)
     group, created, joint_markers = None, [], []
+    trim = plan.trim
     try:
         stage = "création du groupe"
         group = root.occurrences.addNewComponent(core.Matrix3D.create())
@@ -1319,6 +1354,11 @@ def create(design, plan):
 
             stage = "raccourcissement du poteau à la face de la platine"
             base_seat_trim.trim_to_plate(plan.members[0], group.childOccurrences.item(0), plan.plates[0], created)
+        if trim and trim.primary_extensions:
+            stage = "prolongement du poteau"
+            for extension in trim.primary_extensions:
+                joints._extend_primary_end(extension, created)
+            trim = replace(trim, primary_extensions=())
         changed_bodies = {}
         for adjustment in plan.brace_ends:
             stage = "ajustage de l’about de " + adjustment.member.occurrence.name
@@ -1382,12 +1422,17 @@ def create(design, plan):
                 raise RuntimeError(f"Implantation des boulons différente du plan ({actual} insérés, {planned} attendus).")
             stage = "contrôle des interférences"
             _check_bolted_assembly(design, plan, group)
-        if plan.trim and (plan.trim.treatment.requires_split or plan.trim.primary_extensions):
+        if trim and trim.treatment.requires_split:
             stage = "coupe d’about de la poutre"
-            support = plan.trim.secondary_occurrence
+            support = trim.secondary_occurrence
             existing = {value.name for value in support.component.attributes.itemsByGroup(joints.JOINT_ATTRIBUTE_GROUP)}
+            plate = group.childOccurrences.item(0)
+            extrusion = plate.component.features.extrudeFeatures.itemByName("Épaisseur de la tôle")
+            if not extrusion or extrusion.endFaces.count != 1:
+                raise RuntimeError("La face intérieure de la platine d’about est introuvable.")
+            seat = extrusion.endFaces.item(0).createForAssemblyContext(plate)
             with timeline_groups.defer_grouping():
-                created.extend(joints.create_straight_joint(plan.trim))
+                created.extend(joints.create_straight_joint(trim, seat_face=seat))
             joint_markers = [value for value in support.component.attributes.itemsByGroup(joints.JOINT_ATTRIBUTE_GROUP)
                              if value.name not in existing]
             definition["joint_records"] = [{"member": support.entityToken, "name": value.name}

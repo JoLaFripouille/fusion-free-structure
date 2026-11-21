@@ -73,3 +73,18 @@ def draw_plates(graphics, plates, *, fill_rgb=(255, 205, 0), edge_rgb=(190, 130,
         lines.color = edge
         lines.weight = 2.0
         lines.isSelectable = False
+
+
+def draw_unsupported_holes(graphics, drilling, errors):
+    manager = fusion.TemporaryBRepManager.get()
+    red = fusion.CustomGraphicsSolidColorEffect.create(core.Color.create(232, 59, 59, 255))
+    radius = drilling.diameter / 2
+    offset = geo.scale(drilling.axis, drilling.span / 2)
+    for index, message in errors:
+        centre = drilling.centres[index-1]
+        start = core.Point3D.create(*geo.subtract(centre, offset))
+        end = core.Point3D.create(*geo.add(centre, offset))
+        marker = graphics.addBRepBody(manager.createCylinderOrCone(start, radius, end, radius))
+        marker.name = f"Fixation n°{index} · {message}"
+        marker.color = red
+        marker.isSelectable = False

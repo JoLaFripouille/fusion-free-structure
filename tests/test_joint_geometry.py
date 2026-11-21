@@ -33,6 +33,44 @@ class JointGeometryTests(unittest.TestCase):
         )
         self.assertAlmostEqual(result.endpoint_distance_cm, 0.05)
 
+    def test_extended_joint_chooses_the_beam_end_towards_the_post(self):
+        bottom, top = (15.0, -3.0, 10.0), (15.0, -3.0, 60.0)
+        near, far = (25.0, -3.0, 30.0), (75.0, -3.0, 30.0)
+        for beam in ((near, far), (far, near)):
+            with self.subTest(beam=beam):
+                result = joint_geometry.analyze_extended_straight_joint(bottom, top, *beam)
+                self.assertEqual(result.secondary_joint_endpoint_index, beam.index(near))
+                self.assertEqual(result.secondary_joint_endpoint, near)
+                self.assertEqual(result.secondary_inner_endpoint, far)
+                self.assertEqual(result.main_point, (15.0, -3.0, 30.0))
+                self.assertAlmostEqual(result.main_parameter, 0.4)
+                self.assertEqual(result.approach_direction, (-1.0, 0.0, 0.0))
+                self.assertEqual(result.plane_normal, (1.0, 0.0, 0.0))
+                self.assertAlmostEqual(result.endpoint_distance_cm, 10.0)
+        with self.assertRaisesRegex(ValueError, "extrémité"):
+            joint_geometry.analyze_straight_joint(bottom, top, near, far)
+
+    def test_extended_joint_projects_a_sloping_beam_above_the_post_end(self):
+        result = joint_geometry.analyze_extended_straight_joint(
+            (0.0, 0.0, 0.0), (0.0, 0.0, 70.0),
+            (20.0, 0.0, 100.0), (40.0, 0.0, 110.0),
+        )
+        for actual, expected in zip(result.main_point, (0.0, 0.0, 90.0)):
+            self.assertAlmostEqual(actual, expected)
+        self.assertEqual(result.main_parameter, 1.0)
+        self.assertAlmostEqual(result.endpoint_distance_cm, math.sqrt(500.0))
+        self.assertEqual(result.plane_normal, (1.0, 0.0, 0.0))
+
+    def test_extended_joint_rejects_misaligned_or_crossing_members(self):
+        post = ((0.0, 0.0, 0.0), (0.0, 0.0, 40.0))
+        for beam, reason in (
+            (((10.0, 0.2, 30.0), (60.0, 0.2, 30.0)), "ne se rencontrent pas"),
+            (((-10.0, 0.0, 30.0), (60.0, 0.0, 30.0)), "milieu de la poutre"),
+            (((10.0, 0.0, 30.0), (10.0, 0.0, 60.0)), "parallèles"),
+        ):
+            with self.subTest(beam=beam), self.assertRaisesRegex(ValueError, reason):
+                joint_geometry.analyze_extended_straight_joint(*post, *beam)
+
     def test_curved_secondary_uses_its_endpoint_tangent_not_its_chord(self):
         result = joint_geometry.endpoint_joint_geometry(
             main_point=(0.0, 0.0, 0.0),

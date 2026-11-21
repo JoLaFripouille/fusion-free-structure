@@ -335,7 +335,8 @@ def _curve_end_data(curve):
     )
 
 
-def _analyze_adjusted_curve(reference_line, adjusted_curve):
+def _analyze_adjusted_curve(reference_line, adjusted_curve, *,
+                            endpoint_tolerance_cm=joint_geometry.JOINT_ENDPOINT_TOLERANCE_CM):
     reference_start, reference_end = _line_endpoints(reference_line)
     adjusted_endpoints, approaches = _curve_end_data(adjusted_curve)
     candidates = []
@@ -354,7 +355,7 @@ def _analyze_adjusted_curve(reference_line, adjusted_curve):
             )
         )
     distance_cm, endpoint_index, main_point, main_parameter = min(candidates)
-    if distance_cm > joint_geometry.JOINT_ENDPOINT_TOLERANCE_CM:
+    if endpoint_tolerance_cm is not None and distance_cm > endpoint_tolerance_cm:
         raise ValueError(
             "Une extrémité de la barre à ajuster doit rejoindre l'axe de la barre de référence."
         )
@@ -484,6 +485,10 @@ def _evaluate_primary_extensions(
         cut_point,
         cut_normal,
     )
+    return _primary_extensions_to_cover(primary_occurrence, primary_body, primary_curve, geometry, contact_points)
+
+
+def _primary_extensions_to_cover(primary_occurrence, primary_body, primary_curve, geometry, contact_points):
     primary_points = _body_sample_points(primary_body, primary_occurrence)
     negative_cm, positive_cm = joint_geometry.axis_coverage_extensions(
         primary_points,
@@ -525,7 +530,7 @@ def _evaluate_primary_extensions(
     return tuple(extensions)
 
 
-def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, gap_cm):
+def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, gap_cm, *, allow_support_end=False):
     if primary_occurrence == secondary_occurrence:
         raise ValueError("Les deux barres sélectionnées doivent être différentes.")
     if gap_cm < 0.0:
@@ -545,7 +550,10 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
         "à ajuster",
         allow_arc=True,
     )
-    geometry = _analyze_adjusted_curve(primary_curve, secondary_curve)
+    geometry = _analyze_adjusted_curve(
+        primary_curve, secondary_curve,
+        endpoint_tolerance_cm=None if allow_support_end else joint_geometry.JOINT_ENDPOINT_TOLERANCE_CM,
+    )
 
     primary_body = _single_body(primary_occurrence, "de référence")
     secondary_body = _single_body(secondary_occurrence, "à ajuster")
@@ -554,6 +562,17 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
         primary_occurrence,
         geometry.plane_normal,
     )
+    if geometry.endpoint_distance_cm > joint_geometry.JOINT_ENDPOINT_TOLERANCE_CM:
+        offset = joint_geometry.plane_signed_distance(
+            geometry.secondary_joint_endpoint, support_point, geometry.plane_normal,
+        )
+        if abs(offset) > joint_geometry.JOINT_ENDPOINT_TOLERANCE_CM:
+            geometry = joint_geometry.analyze_extended_straight_joint(
+                *_line_endpoints(primary_curve), *_line_endpoints(secondary_curve),
+            )
+            support_point, support_edge, support_fraction = _body_support_reference(
+                primary_body, primary_occurrence, geometry.plane_normal,
+            )
     cut_point = joint_geometry.cut_point_from_support(
         support_point,
         geometry.plane_normal,
@@ -1408,17 +1427,53 @@ def _miter_record(evaluation, treatment, peer_occurrence, peer_metadata):
     }
 
 
-def create_straight_joint(evaluation):
+def create_straight_joint(evaluation, *, seat_face=None):
     """Ajuste la seconde barre à l'enveloppe orientée de la première."""
     created_entities = []
     created_attributes = []
     try:
-        cut_plane = _add_direct_cut_plane(evaluation, created_entities)
+        treatment = evaluation.treatment
+        if seat_face:
+            occurrence = evaluation.secondary_occurrence
+            surface = adsk.core.Plane.cast(seat_face.geometry)
+            if (not surface or
+                    abs(joint_geometry.plane_signed_distance(
+                        evaluation.cut_point, _point_tuple(surface.origin), _vector_tuple(surface.normal),
+                    )) > 1e-3):
+                raise RuntimeError("La face intérieure de la platine ne coïncide pas avec la coupe prévue.")
+            reference = _add_face_offset_plane(
+                occurrence.component, occurrence, seat_face, 0.0, "PLAN_FACE_PLATINE_ABOUT",
+            )
+            created_entities.append(reference)
+            # Remplacer la face travaille dans le composant natif de la poutre.
+            # Le proxy d’un plan imbriqué peut être décalé par rapport au solide.
+            inverse = occurrence.transform2.copy()
+            local_point = adsk.core.Point3D.create(*evaluation.cut_point)
+            local_normal = adsk.core.Vector3D.create(*evaluation.cut_normal)
+            if not inverse.invert() or not local_point.transformBy(inverse) or not local_normal.transformBy(inverse):
+                raise RuntimeError("Le repère de la poutre n’est pas inversible.")
+            ref_geometry = (reference.nativeObject or reference).geometry
+            delta = joint_geometry.plane_signed_distance(
+                local_point.asArray(), ref_geometry.origin.asArray(), ref_geometry.normal.asArray(),
+            )
+            cut_plane = reference
+            if abs(delta) > 1e-3:
+                cut_plane = _add_face_offset_plane(
+                    occurrence.component, None, reference.nativeObject or reference, delta, CUT_PLANE_NAME,
+                )
+                created_entities.append(cut_plane)
+            target = (cut_plane.nativeObject or cut_plane).geometry
+            if (abs(joint_geometry.dot(local_normal.asArray(), target.normal.asArray())) < .9999
+                    or abs(joint_geometry.plane_signed_distance(
+                        local_point.asArray(), target.origin.asArray(), target.normal.asArray(),
+                    )) > 1e-3):
+                raise RuntimeError("Le plan natif de coupe ne coïncide pas avec la face intérieure de la platine.")
+        else:
+            cut_plane = _add_direct_cut_plane(evaluation, created_entities)
         plane_count = len(created_entities)
         for extension in evaluation.primary_extensions:
             _extend_primary_end(extension, created_entities)
         extension_count = len(created_entities)
-        treatment = evaluation.treatment
         end_face = None
         if treatment.requires_split and adsk.fusion.SketchLine.cast(treatment.curve):
             try:
@@ -1431,6 +1486,13 @@ def create_straight_joint(evaluation):
                 treatment, end_face, cut_plane, evaluation.cut_point, evaluation.cut_normal,
                 SPLIT_FEATURE_NAME, created_entities,
             )
+            if seat_face:
+                body = _single_body(treatment.occurrence, "après mise à l’appui")
+                _, offset = _planar_face_reference(
+                    body, treatment.occurrence, evaluation.cut_point, evaluation.cut_normal, "d’about",
+                )
+                if abs(offset) > 1e-3:
+                    raise RuntimeError("L’about de la poutre ne coïncide pas avec la face intérieure de la platine.")
         else:
             _extend_body(treatment, evaluation.cut_point, evaluation.cut_normal, created_entities)
             _split_and_keep_interior(

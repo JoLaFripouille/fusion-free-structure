@@ -373,13 +373,17 @@ def create_assembly(creation_id, kind, member_tokens, parameters_mm=None,
                     alternate=False, preview=False, file_id=None):
     design = active_design(creation_id, file_id)
     occurrences = [_entity(design, token, adsk.fusion.Occurrence.cast) for token in member_tokens]
-    plan = assembly_operations.evaluate(design, kind, occurrences, parameters_mm, alternate)
+    plan = assembly_operations.evaluate(design, kind, occurrences, parameters_mm, alternate,
+                                        preview_support=preview)
     report = {"type": kind, "plates": [{"name": p.name, "thickness_mm": 10*p.thickness_cm,
                                        "holes": len(p.holes)} for p in plan.plates],
               "holes_on_members": sum(len(drill.centres) for drill in plan.drilling),
               "bolts": sum(len(poses) for poses, _, _ in plan.fasteners)}
     if plan.brace_gaps_cm:
         report["brace_gaps_mm"] = [10*gap for gap in plan.brace_gaps_cm]
+    if plan.support_errors:
+        report["support_errors"] = [{"index": index, "message": message}
+                                    for index, message in plan.support_errors]
     if not preview:
         group = assembly_operations.create(design, plan)
         report.update(name=group.name, token=group.entityToken)
@@ -500,10 +504,14 @@ def edit_assembly(creation_id, assembly_token, parameters_mm=None, *, alternate=
         if profiles is not None:
             raise ValueError("La modification de l’assemblage ne remplace pas ses profils sources.")
         target = assembly_edit.read(design, entity)
-        plan = assembly_edit.evaluate(design, target, {**target.parameters_mm, **changes}, alternate)
+        plan = assembly_edit.evaluate(design, target, {**target.parameters_mm, **changes}, alternate,
+                                      preview_support=preview)
         group = target.group
         report = {"type": target.template.key, "parameters_mm": plan.settings_mm, "alternate": plan.alternate,
                   **_assembly_plan_report(plan.plates, plan.fasteners)}
+        if plan.support_errors:
+            report["support_errors"] = [{"index": index, "message": message}
+                                        for index, message in plan.support_errors]
         if not preview:
             result = assembly_edit.apply(design, target, plan)
             if target.template.family != "Pieds de poteau":

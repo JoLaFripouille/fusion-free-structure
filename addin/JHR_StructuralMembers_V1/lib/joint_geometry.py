@@ -223,6 +223,53 @@ def analyze_straight_joint(
     )
 
 
+def analyze_extended_straight_joint(
+    main_start,
+    main_end,
+    secondary_start,
+    secondary_end,
+    endpoint_tolerance_cm=JOINT_ENDPOINT_TOLERANCE_CM,
+):
+    """Cherche un raccord à l’about sur les prolongements de deux axes rectilignes."""
+    main_vector = subtract(main_end, main_start)
+    secondary_vector = subtract(secondary_end, secondary_start)
+    main_direction = normalize(main_vector)
+    secondary_direction = normalize(secondary_vector)
+    axis = cross(main_direction, secondary_direction)
+    squared_sine = dot(axis, axis)
+    if squared_sine <= GEOMETRY_TOLERANCE_CM ** 2:
+        raise ValueError("Les axes de la poutre et du poteau sont parallèles.")
+
+    delta = subtract(secondary_start, main_start)
+    separation = abs(dot(delta, axis)) / math.sqrt(squared_sine)
+    if separation > endpoint_tolerance_cm:
+        raise ValueError("Les axes de la poutre et du poteau ne se rencontrent pas.")
+
+    main_station = dot(cross(delta, secondary_direction), axis) / squared_sine
+    secondary_station = dot(cross(delta, main_direction), axis) / squared_sine
+    secondary_length = length(secondary_vector)
+    if min(secondary_station, secondary_length - secondary_station) > endpoint_tolerance_cm:
+        raise ValueError("Le raccord se trouve au milieu de la poutre. Sélectionner une poutre qui arrive par son about.")
+
+    endpoint_index = int(secondary_station > secondary_length / 2)
+    endpoints = (secondary_start, secondary_end)
+    endpoint, inner = endpoints[endpoint_index], endpoints[1-endpoint_index]
+    approach = scale(secondary_direction, 1.0 if endpoint_index else -1.0)
+    main_point = add(main_start, scale(main_direction, main_station))
+    # Le plan Fusion se référence à une station du chemin existant.
+    main_parameter = min(1.0, max(0.0, main_station / length(main_vector)))
+    return endpoint_joint_geometry(
+        main_point,
+        main_parameter,
+        endpoint,
+        inner,
+        endpoint_index,
+        approach,
+        main_direction,
+        length(subtract(endpoint, main_point)),
+    )
+
+
 def endpoint_joint_geometry(
     main_point,
     main_parameter,

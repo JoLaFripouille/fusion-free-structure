@@ -112,8 +112,10 @@ def prepare(design, source_entity, target_entity, linked=False):
                 raise ValueError(f"{role} cible : sélectionner une face d’un profil JHR.")
         else:
             target = fusion.Occurrence.cast(entity) or getattr(entity, "assemblyContext", None)
-            if not target or not target.isValid or target not in design.rootComponent.occurrences:
-                raise ValueError(f"{role} cible : sélectionner un profil JHR à la racine de la conception.")
+            root = design.rootComponent
+            candidates = root.allOccurrences if source.template.family == "Poutre-poteau" else root.occurrences
+            if not target or not target.isValid or target not in candidates:
+                raise ValueError(f"{role} cible : sélectionner un profil JHR dans la conception.")
         if target in targets:
             raise ValueError("Sélectionner un profil différent pour chaque rôle.")
         targets.append(target)

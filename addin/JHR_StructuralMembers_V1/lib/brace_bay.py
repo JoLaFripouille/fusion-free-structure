@@ -22,6 +22,14 @@ NAME = "JHR - Auto-contreventement"
 
 
 @dataclass(frozen=True)
+class Support:
+    occurrence: object
+    body: object
+    pilot: tuple
+    axis: tuple
+
+
+@dataclass(frozen=True)
 class Bay:
     faces: tuple
     supports: tuple
@@ -35,21 +43,49 @@ class Bay:
 
 def _support(design, face, role):
     occurrence = face.assemblyContext
-    if not occurrence:
+    if not occurrence or not occurrence.isValid:
         raise ValueError(f"Sélectionner une face du {role.lower()} JHR.")
-    member = asm._member(design, occurrence, role)
-    asm._i_geometry(member)
+    root = design.rootComponent
+    if occurrence in root.occurrences:
+        member = asm._member(design, occurrence, role)
+        asm._i_geometry(member)
+        body = member.body
+        pilot, end = asm.joints._line_endpoints(member.curve)
+        axis = geo.subtract(end, pilot)
+    else:
+        if occurrence not in root.allOccurrencesByComponent(occurrence.component):
+            raise ValueError(f"Sélectionner une face du {role.lower()} dans la conception active.")
+        metadata = asm.joints._member_metadata(occurrence, role)
+        if metadata.source_curve_type != "line":
+            raise ValueError(f"Le {role.lower()} doit être un profil JHR droit.")
+        source = profile_catalog.resolve_profile_source(metadata.profile_source)
+        asm._i_geometry(SimpleNamespace(family=metadata.profile_family, source=source))
+        body = asm.joints._single_body(occurrence, role)
+        plane = asm.joints._named_construction_plane(occurrence.component, asm.joints.MEMBER_MID_PLANE_NAME)
+        plane = plane.createForAssemblyContext(occurrence) if plane else None
+        if not plane or not plane.geometry:
+            raise ValueError(f"Le plan de section du {role.lower()} est introuvable dans le sous-assemblage.")
+        axis = tuple(plane.geometry.normal.asArray())
+    face_body = face.body
+    if (face_body.nativeObject or face_body) != body:
+        raise ValueError(f"La face du {role.lower()} doit appartenir au solide du profil.")
+    context_body = body.createForAssemblyContext(occurrence)
+    if not context_body:
+        raise ValueError(f"Le solide du {role.lower()} est introuvable dans son contexte d’assemblage.")
+    if occurrence.assemblyContext:
+        bounds = context_body.boundingBox
+        pilot = geo.scale(geo.add(bounds.minPoint.asArray(), bounds.maxPoint.asArray()), .5)
     if not core.Plane.cast(face.geometry):
         raise ValueError(f"La face du {role.lower()} doit être plane.")
     success, normal = face.evaluator.getNormalAtPoint(face.pointOnFace)
     if not success:
         raise ValueError(f"La normale de la face du {role.lower()} est introuvable.")
-    return member, tuple(face.pointOnFace.asArray()), tuple(normal.asArray())
+    support = Support(occurrence, context_body, pilot, geo.normalize(axis))
+    return support, tuple(face.pointOnFace.asArray()), tuple(normal.asArray())
 
 
-def _up(members):
-    axes = [geo.normalize(geo.subtract(b, a)) for a, b in
-            (asm.joints._line_endpoints(member.curve) for member in members)]
+def _up(supports):
+    axes = tuple(support.axis for support in supports)
     if abs(geo.dot(*axes)) < 1.-asm.TOL:
         raise ValueError("Les axes des poteaux doivent être parallèles.")
     axis = axes[0]
@@ -104,12 +140,11 @@ def _end_plate(arm, support, boundary, frame, dims, name):
     )
     plate = replace(result.plate, name=name)
     welded = tuple(x for x, y in plate.outline if abs(y) < asm.TOL)
-    proxy = asm.joints._body_proxy(support.body, support.occurrence)
     for x in (min(welded)+.01, sum(welded)/2, max(welded)-.01):
         for fraction in (.02, .98):
             point = geo.add(plate.point(x, 0), geo.scale(plate.normal, dims["thickness"]*fraction))
             point = core.Point3D.create(*geo.subtract(point, geo.scale(inward, .01)))
-            if proxy.pointContainment(point) != fusion.PointContainment.PointInsidePointContainment:
+            if support.body.pointContainment(point) != fusion.PointContainment.PointInsidePointContainment:
                 raise ValueError("Le chant du gousset sort de la face choisie. Ajuster le déport ou choisir une face plus large.")
     return replace(result, plate=plate), bolt
 
@@ -118,13 +153,13 @@ def _evaluate(design, faces, profile_keys, settings):
     if len(faces) != 2 or len(profile_keys) != 2:
         raise ValueError("Sélectionner deux faces et deux sections de cornières.")
     descriptions = tuple(_support(design, face, f"Poteau {index}") for index, face in enumerate(faces, 1))
-    members = tuple(item[0] for item in descriptions)
-    if members[0].occurrence == members[1].occurrence:
+    supports = tuple(item[0] for item in descriptions)
+    if supports[0].occurrence == supports[1].occurrence:
         raise ValueError("Sélectionner deux poteaux distincts.")
-    up = _up(members)
+    up = _up(supports)
     boundaries = tuple(_face_range(face, up, origin, normal)
                        for face, (_, origin, normal) in zip(faces, descriptions))
-    centre_axis = asm.joints._line_endpoints(members[0].curve)[0]
+    centre_axis = supports[0].pilot
     values = dict(bottom_mm=150., top_mm=150., setback_mm=20., offset_mm=0.,
                   flip_first=False, flip_second=False, central={}, ends={}, scalloped=False,
                   scallop_depth_mm=5.)
@@ -167,7 +202,7 @@ def _evaluate(design, faces, profile_keys, settings):
         index = i % 2
         arm = asm._brace_arm(diagonal, far, near)
         try:
-            end, bolt = _end_plate(arm, members[index], boundaries[index], frame, end_dims,
+            end, bolt = _end_plate(arm, supports[index], boundaries[index], frame, end_dims,
                                    f"Gousset d’extrémité {i+1}")
             new_plates, new_drills, new_batches = asm._brace_hardware(
                 (diagonal,), (arm,), end, end_dims, bolt, check_material=False,
@@ -177,7 +212,7 @@ def _evaluate(design, faces, profile_keys, settings):
         plates += new_plates
         batches += new_batches
         drilling[i].extend(new_drills)
-    return Bay(tuple(faces), members, tuple(profile_keys), values, branches, plates,
+    return Bay(tuple(faces), supports, tuple(profile_keys), values, branches, plates,
                tuple(tuple(items) for items in drilling), batches)
 
 
@@ -362,7 +397,7 @@ def _edit_central_scallops(design, group, record, plan, state, signature):
     journal = assembly_edit.Journal(design, marker, marker.value)
     try:
         assembly_edit._modify_part(design, target, old, new, journal)
-        asm._check_bolted_assembly(design, SimpleNamespace(trim=None, members=plan.supports), group)
+        _check_clearance(design, plan, group)
         record.update(settings=plan.settings, signature=signature, face_state=state)
         marker.value = json.dumps(record)
     except Exception:
@@ -405,13 +440,23 @@ def reconfigure(design, group, plan, *, allow_earlier=False):
 
 def check_free_faces(design, faces, *, replacing=None):
     """Détecte un X déjà posé entre les deux mêmes faces, dans les deux ordres."""
-    for group in design.rootComponent.occurrences:
-        record = _read_definition(group)
-        if group != replacing and record and all(
+    for marker in design.findAttributes(ATTRIBUTE_GROUP, "definition"):
+        if replacing and marker.parent == replacing.component:
+            continue
+        record = json.loads(marker.value)
+        if all(
             any(face == item for token in record["faces"] for item in design.findEntityByToken(token) or ())
             for face in faces
         ):
             raise ValueError("Un auto-contreventement existe déjà entre ces deux faces.")
+
+
+def _check_clearance(design, plan, group):
+    hardware = fastener_creator.assembly_hardware(group)
+    parts = [child for child in group.childOccurrences if child not in hardware]
+    parts.extend(asm._associated_bolts(group))
+    parts.extend(support.body for support in plan.supports)
+    fastener_creator.verify_clearance(design, parts)
 
 
 def create(design, plan, *, replacing=None):
@@ -441,7 +486,7 @@ def create(design, plan, *, replacing=None):
             )
             if result["occupied"] or result["created"] != len(placements):
                 raise ValueError("Une position de boulon est déjà occupée.")
-        asm._check_bolted_assembly(design, SimpleNamespace(trim=None, members=plan.supports), group)
+        _check_clearance(design, plan, group)
         if not asm._associated_bolts_match(group, plan.fasteners):
             raise RuntimeError("Les boulons ne correspondent pas aux axes de perçage.")
         payload = dict(faces=face_tokens, profiles=plan.profiles, settings=plan.settings, signature=_signature(plan),
