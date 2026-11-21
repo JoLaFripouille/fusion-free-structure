@@ -27,10 +27,10 @@ RIVNUT_SCREW = "Visser dans un RIVKLE posé"
 PANEL_IDS = (ui_layout.FASTENER_PANEL_ID,)
 MODES = (COPY_MODE, HEX_MODE, *SOCKET_MODES, COUNTERSUNK_MODE, TAPPED_MODE, RIVNUT_MODE)
 SHORTCUTS = (
-    ("EI_JHR_BoltH", "Boulon tête H", "visserie_boulon_h", HEX_MODE),
-    ("EI_JHR_BoltCHC", "Boulon tête cylindrique", "visserie_boulon_chc", CAP_MODE),
-    ("EI_JHR_BoltTBHC", "Boulon tête bombée", "visserie_boulon_tbhc", BUTTON_MODE),
-    ("EI_JHR_BoltTF", "Boulon tête fraisée", "visserie_boulon_tf", COUNTERSUNK_MODE),
+    ("EI_JHR_BoltH", "Boulon tête H", "visserie_boulon_h_3d", HEX_MODE),
+    ("EI_JHR_BoltCHC", "Boulon tête cylindrique", "visserie_boulon_chc_3d", CAP_MODE),
+    ("EI_JHR_BoltTBHC", "Boulon tête bombée", "visserie_boulon_tbhc_3d", BUTTON_MODE),
+    ("EI_JHR_BoltTF", "Boulon tête fraisée", "visserie_boulon_tf_3d", COUNTERSUNK_MODE),
     ("EI_JHR_TappedScrew", "Vis en trou taraudé", "visserie_taraudage", TAPPED_MODE),
     ("EI_JHR_Rivkle", "Écrou à sertir RIVKLE", "visserie_rivkle", RIVNUT_MODE),
 )

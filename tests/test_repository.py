@@ -125,7 +125,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('TAB_NAME = "STRUCTURE JHR"', layout_source)
         self.assertIn('CREATE_PANEL_NAME = "CRÉER"', layout_source)
         self.assertIn('MODIFY_PANEL_NAME = "MODIFIER"', layout_source)
-        self.assertIn('ASSEMBLY_PANEL_NAME = "ASSEMBLAGES"', layout_source)
+        self.assertIn('ASSEMBLY_PANEL_NAME = "CRÉER UN ASSEMBLAGE"', layout_source)
         self.assertIn('SETTINGS_PANEL_NAME = "PARAMÈTRES"', layout_source)
         self.assertIn("workspace.toolbarTabs.add", layout_source)
         self.assertIn("tab.toolbarPanels.add", layout_source)

@@ -9,6 +9,7 @@ from ..lib import addin_info, assembly_operations, ui_layout
 
 
 COMMAND_ID = "EI_JHR_InspectPlateAssembly"
+PANEL_ID = ui_layout.MODIFY_PANEL_ID
 _handlers = []
 
 
@@ -93,12 +94,12 @@ def start():
     handler = Created()
     definition.commandCreated.add(handler)
     _handlers.append(handler)
-    ui_layout.panel(ui, ui_layout.ASSEMBLY_PANEL_ID).controls.addCommand(definition)
+    ui_layout.panel(ui, PANEL_ID).controls.addCommand(definition)
 
 
 def stop():
     ui = core.Application.get().userInterface
-    panel = ui_layout.panel(ui, ui_layout.ASSEMBLY_PANEL_ID)
+    panel = ui_layout.panel(ui, PANEL_ID)
     control = panel and panel.controls.itemById(COMMAND_ID)
     if control:
         control.deleteMe()

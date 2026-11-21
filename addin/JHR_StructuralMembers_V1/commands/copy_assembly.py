@@ -11,7 +11,7 @@ from ..lib import addin_info, assembly_copy, plate_preview, ui_layout
 
 COMMAND_ID = "EI_JHR_CopyAssembly"
 COMMAND_NAME = "Copier un assemblage"
-PANEL_ID = ui_layout.ASSEMBLY_PANEL_ID
+PANEL_ID = ui_layout.MODIFY_PANEL_ID
 _handlers = []
 
 

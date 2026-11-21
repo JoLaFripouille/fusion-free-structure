@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Structure JHR V1.30.20, pose du RIVKLE et de sa vis en deux temps."
+    "": "Structure JHR V1.30.21, icônes de boulons rendues à partir des solides Fusion."
   },
-  "version": "1.30.20",
+  "version": "1.30.21",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

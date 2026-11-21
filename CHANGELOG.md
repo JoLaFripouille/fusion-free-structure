@@ -4,6 +4,12 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.21] - Icônes issues des solides Fusion
+
+- Remplace les quatre icônes de boulons par des rendus des vis et de leur écrou hexagonal, aux tailles du ruban Visserie.
+- Place **Copier un assemblage** et **Inspecter un assemblage** dans **Modifier**.
+- Renomme le groupe de création **Créer un assemblage**.
+
 ## [1.30.20] - Pose RIVKLE en deux temps
 
 - Pose l’écrou seul par défaut, puis permet d’ajouter la vis sur un RIVKLE déjà posé.

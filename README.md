@@ -10,7 +10,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 
 ## Fonction de la V1
 
-- onglet Fusion dédié `STRUCTURE JHR`, divisé en groupes `CRÉER`, `MODIFIER`, `ASSEMBLAGES`, `VISSERIE` et `PARAMÈTRES` ;
+- onglet Fusion dédié `STRUCTURE JHR`, divisé en groupes `CRÉER`, `MODIFIER`, `CRÉER UN ASSEMBLAGE`, `VISSERIE` et `PARAMÈTRES` ;
 - sélection d'une ou plusieurs lignes ou arcs d'esquisse dans le composant racine ;
 - choix de la catégorie, de la zone géographique, de la famille puis de la section parmi les 341 DXF disponibles ;
 - ajout de profils DXF personnels dans une catégorie `Personnalisés` séparée des zones géographiques ;
@@ -35,7 +35,7 @@ La V1 est volontairement limitée afin de valider progressivement la création, 
 - commande `Attaches de poutres par cornières` : deux cornières égales sont créées comme composants indépendants de part et d'autre de l'âme d'une secondaire IPE/HEA/HEB et contre l'âme d'une principale IPE/HEA/HEB, sur deux axes droits à `90°`. La section, la hauteur, le décalage vertical, le diamètre, le nombre de rangées, l'entraxe et les deux distances de perçage sont dynamiques. Les trous traversants sont alignés dans les deux cornières et les deux âmes. Depuis la V1.24.5, le décalage vertical est mesuré depuis le centre réel de la hauteur libre de l'âme, indépendamment du point d'ancrage DXF. La commande présélectionne ensuite les six positions et ouvre de manière différée la commande native `Insérer une attache`, sans interroger automatiquement sa fenêtre pendant son chargement.
 - commande `Paramètres Structure JHR` : onglet `Valeurs par défaut` sauvegardé localement, avec jeux distincts selon l'opération et le groupe de profils ; les valeurs sont proposées dans les commandes suivantes et restent modifiables pour une opération particulière.
 
-Dans l'onglet dédié, `CRÉER` contient **Profil acier**, **Poteaux** et **Gérer les profils personnalisés**. `MODIFIER` contient **Jonctions acier**, **Grugeage profils ouverts**, **Modifier un profil** et **Inspecter un profil acier**. `ASSEMBLAGES` contient notamment **Attaches de poutres par cornières**, **Pieds de poteau**, **Assemblages acier** et **Auto-contreventement**. `VISSERIE` contient **Boulonnerie JHR** avec ses raccourcis pour les boulons, les vis en trou taraudé et les écrous à sertir RIVKLE. `PARAMÈTRES` contient **Paramètres Structure JHR**.
+Dans l'onglet dédié, `CRÉER` contient **Profil acier**, **Poteaux** et **Gérer les profils personnalisés**. `MODIFIER` contient les jonctions, les grugeages, l’édition des profils ainsi que les commandes pour modifier, copier, inspecter ou supprimer un assemblage. `CRÉER UN ASSEMBLAGE` contient notamment **Attaches de poutres par cornières**, **Pieds de poteau**, **Assemblages acier** et **Auto-contreventement**. `VISSERIE` contient **Boulonnerie JHR** avec ses raccourcis pour les boulons, les vis en trou taraudé et les écrous à sertir RIVKLE. `PARAMÈTRES` contient **Paramètres Structure JHR**.
 
 Les assemblages à platines incluent les pieds de poteau avec cales fourchettes, les abouts avec ou sans jarret et le plat d’âme. Les assemblages boulonnés posent leurs boulons JHR, avec l’insertion native Fusion proposée en option pour les cornières. La commande de boulonnerie permet aussi de poser des fixations sur trou rond, oblong, fraisure et avant-trou à tarauder. Les entrées du mode script MCP sont décrites dans [Architecture](docs/ARCHITECTURE.md#assemblages-à-platines).
 

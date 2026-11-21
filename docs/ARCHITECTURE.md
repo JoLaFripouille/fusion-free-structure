@@ -49,7 +49,7 @@ Les cas de reprise donnés par EXPERT AdvanceSteel couvrent notamment une fixati
 
 ## Interface Fusion dédiée
 
-Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception, puis quatre panneaux propres au complément. Le panneau `CRÉER` reçoit la commande principale de profil et le gestionnaire de DXF personnels. Le panneau `MODIFIER` reçoit les jonctions acier, le grugeage et l'inspecteur. Le panneau `ASSEMBLAGES` reçoit les assemblages composés en cours de validation. Le panneau `PARAMÈTRES` reçoit les réglages locaux. Les définitions de commandes restent indépendantes de leur emplacement afin que cette organisation n'altère aucune fonction géométrique.
+Au démarrage, l'extension crée l'onglet `STRUCTURE JHR` dans l'espace de travail Conception. `CRÉER` reçoit les commandes de profils et le gestionnaire de DXF personnels. `MODIFIER` reçoit les jonctions, les grugeages et les opérations sur les profils et assemblages existants. `CRÉER UN ASSEMBLAGE` regroupe les commandes de création des raccords. `VISSERIE` reçoit les commandes de pose des fixations et `PARAMÈTRES` les réglages locaux.
 
 L'onglet et les panneaux utilisent des identifiants stables et sont réutilisés s'ils existent déjà. À l'arrêt, les commandes retirent d'abord leurs boutons et leurs définitions, puis l'extension supprime ses panneaux et son onglet. Aucun panneau natif de Fusion n'est supprimé.
 
