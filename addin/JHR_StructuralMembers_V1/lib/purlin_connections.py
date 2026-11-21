@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from math import radians, sin
 import json
 
-from . import joint_geometry as geometry
+from . import assembly_placement, joint_geometry as geometry
 
 KIND = "shear_plate"
 
@@ -155,7 +155,7 @@ def evaluate_batch(design, beams, purlins, settings_mm=None, *, allow_bars=False
     return Batch(tuple(plans), existing_count, unmatched, tuple(cope_plans), cope_clearances_cm)
 
 
-def create_batch(design, batch):
+def create_batch(design, batch, *, parent=assembly_placement.DEFAULT_PARENT):
     """Applique le lot dans la transaction de la commande Fusion."""
     from . import assembly_operations, cope_creator, joint_records, timeline_groups
 
@@ -176,7 +176,7 @@ def create_batch(design, batch):
                     cope_creator.create_profile_cope(cope)
                 if cope or already_modified:
                     plan = assembly_operations.evaluate(design, KIND, (beam, purlin), plan.settings_mm, plan.alternate)
-                group = assembly_operations.create(design, plan)
+                group = assembly_operations.create(design, plan, parent=parent)
                 marker = group.component.attributes.itemByName(assembly_operations.ATTRIBUTE_GROUP, "definition")
                 record = json.loads(marker.value)
                 record["purlin_connection"] = True

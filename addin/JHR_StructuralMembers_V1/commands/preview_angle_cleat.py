@@ -801,7 +801,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             if self._edit:
                 self._preview_manager.clear()
                 design = adsk.fusion.Design.cast(_app_and_ui()[0].activeProduct)
-                if self._edit.group not in design.rootComponent.occurrences:
+                if self._edit.group not in design.rootComponent.allOccurrences:
                     raise ValueError("La conception active a changé.")
                 settings = _edit_settings(event_args.command.commandInputs, self._profiles, self._edit.parameters_mm)
                 plan = angle_cleat_copy.evaluate_edit(design, self._edit, settings)

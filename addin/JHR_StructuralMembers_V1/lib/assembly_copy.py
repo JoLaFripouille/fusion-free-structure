@@ -210,7 +210,7 @@ def _linked_groups(design, master):
         # occurrences résolues puisque le texte du jeton peut changer.
         if master not in _occurrences_from_token(design, marker.value):
             continue
-        copies = [item for item in design.rootComponent.occurrences if item.component == marker.parent]
+        copies = list(design.rootComponent.allOccurrencesByComponent(marker.parent))
         if len(copies) != 1 or copies[0] == master:
             raise ValueError("Une copie liée n’est plus identifiable dans la conception.")
         yield copies[0]

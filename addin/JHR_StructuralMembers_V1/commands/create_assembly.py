@@ -26,13 +26,14 @@ TOOLS = (
     (COMMAND_ID, "Assemblages acier", "Tous les assemblages du catalogue.", "assemblages_platines", None),
 )
 FIXING_GROUPS = {"Perçages", "Boulonnerie", "Ancrages droits"}
-OPTION_GROUPS = {"Cales fourchettes", "Goussets d’âme", "Goussets d’ailes", "Raidisseurs", "Préscellement"}
-OPTIONAL_BASE_PARTS = {
+OPTION_GROUPS = {"Cales fourchettes", "Goussets d’âme", "Goussets d’ailes", "Préscellement"}
+OPTIONAL_PARTS = {
     "Cales fourchettes": ("Poser des cales fourchettes", "shim", 3),
     "Goussets d’âme": ("Ajouter des goussets d’âme", "gusset", 6),
     "Goussets d’ailes": ("Ajouter des goussets d’ailes", "flange_gusset", 6),
     "Ancrages droits": ("Poser des ancrages droits", "anchor_diameter", 16),
     "Préscellement": ("Ajouter une platine de préscellement", "preset_thickness", 6),
+    "Raidisseurs": ("Ajouter des raidisseurs", "stiffener", 8),
 }
 CORNER_CHOICES = {"chamfer": ("Chanfreiner les coins", "Taille du chanfrein"),
                   "corner_radius": ("Arrondir les coins", "Rayon")}
@@ -80,7 +81,7 @@ class AssemblyForm:
         self.settings_tabs = {
             key: inputs.addTabCommandInput(key + "Tab", label)
             for key, label in (("geometry", "Platine" if family == FOOT_FAMILY else "Géométrie"),
-                               ("fixings", "Fixations"), ("options", "Options"))
+                               ("fixings", "Fixations"), ("reinforcement", "Raidisseurs"), ("options", "Options"))
         }
         self.models = tuple(model for model in catalogue.TEMPLATES if family is None or model.family == family)
         self.family = family
@@ -200,6 +201,8 @@ class AssemblyForm:
                 elif field.unit:
                     if value or field.key not in (*switches, *corners):
                         control.value = value * .1
+                elif field.checkbox:
+                    control.value = bool(value)
                 else:
                     control.value = int(value)
                 control.isEnabled = target.writable
@@ -213,13 +216,15 @@ class AssemblyForm:
         values, groups, switches, corners = {}, [], {}, {}
         feedback = {}
         for index, (label, fields) in enumerate(model.groups):
-            tab = "fixings" if label in FIXING_GROUPS else "options" if label in OPTION_GROUPS else "geometry"
-            caption = {"Position": "Déport de la platine", "Angles": "Coins de la platine"}.get(label, label)
+            tab = ("fixings" if label in FIXING_GROUPS else "options" if label in OPTION_GROUPS else
+                   "reinforcement" if label == "Raidisseurs" else "geometry")
+            caption = {"Position": "Déport de la platine", "Angles": "Coins de la platine",
+                       "Raidisseurs": "Tôles dans le poteau"}.get(label, label)
             group = self.settings_tabs[tab].children.addGroupCommandInput(f"{model.key}_{index}", caption)
             group.isExpanded = True
             groups.append((tab, group))
             children = group.children
-            optional = OPTIONAL_BASE_PARTS.get(label) if model.family == FOOT_FAMILY else None
+            optional = OPTIONAL_PARTS.get(label)
             if optional:
                 title, main_key, _ = optional
                 switches[main_key] = (
@@ -229,6 +234,11 @@ class AssemblyForm:
             for field in fields:
                 key = f"{model.key}_{field.key}"
                 name = field.label.removesuffix(" (0 = aucune)").removesuffix(" (0 = aucun)") if optional else field.label
+                if field.key == "haunch_flat":
+                    switches[field.key] = (
+                        children.addBoolValueInput(f"{key}_enabled", "Ajouter des méplats aux pointes", True, "", False),
+                        (field,),
+                    )
                 if label == "Angles" and field.key in CORNER_CHOICES:
                     title, name = CORNER_CHOICES[field.key]
                     corners[field.key] = children.addBoolValueInput(
@@ -244,11 +254,15 @@ class AssemblyForm:
                     default = (field.default or 5) if field.key in corners else field.default
                     if optional and field.key == optional[1]:
                         default = optional[2]
+                    elif field.key == "haunch_flat":
+                        default = 10
                     elif optional and field.key in ("gusset_chamfer", "flange_gusset_chamfer"):
                         default = 8
                     control = children.addValueInput(
                         key, name, field.unit, core.ValueInput.createByString(f"{default:g} mm"),
                     )
+                elif field.checkbox:
+                    control = children.addBoolValueInput(key, name, True, "", bool(field.default))
                 else:
                     control = children.addIntegerSpinnerCommandInput(
                         key, name, field.min_count, field.max_count, 1, int(field.default),

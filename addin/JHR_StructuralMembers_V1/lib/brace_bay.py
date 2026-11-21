@@ -11,7 +11,7 @@ import adsk.fusion as fusion
 
 from . import (
     angle_cleat_creator, assembly_catalog, assembly_geometry as shapes,
-    assembly_operations as asm, bolt_specs, brace_bay_geometry, crossing_braces,
+    assembly_operations as asm, assembly_placement, bolt_specs, brace_bay_geometry, crossing_braces,
     dxf_geometry, fastener_creator, gusset_geometry, joint_geometry as geo,
     profile_catalog, simple_fastener_creator, timeline_groups,
 )
@@ -273,10 +273,16 @@ def find_group(entity):
     return group
 
 
+def _unique_occurrence(design, component):
+    occurrences = design.rootComponent.allOccurrencesByComponent(component)
+    return occurrences.item(0) if occurrences.count == 1 else None
+
+
 def read(design, entity):
     group = find_group(entity)
     if not group:
         raise ValueError("Sélectionner une pièce d’un auto-contreventement.")
+    group = _unique_occurrence(design, group.component) or group
     definition = _read_definition(group)
     faces = []
     for token in definition["faces"]:
@@ -309,8 +315,10 @@ def pending_update(design):
     last_item = timeline.item(timeline.count-1)
     if not last_item.isGroup:
         return None
-    for group in design.rootComponent.occurrences:
-        if group.timelineObject.parentGroup != last_item or not _read_definition(group):
+    for marker in design.findAttributes(ATTRIBUTE_GROUP, "definition"):
+        group = _unique_occurrence(design, marker.parent)
+        item = (group.nativeObject or group).timelineObject if group else None
+        if not item or item.parentGroup != last_item:
             continue
         _, faces, record = read(design, group)
         if _face_state(faces) != record.get("face_state"):
@@ -330,10 +338,10 @@ def target_group(design, entity):
     group = find_group(entity)
     if not group:
         raise ValueError("Sélectionner une pièce d’un auto-contreventement.")
-    root = design.rootComponent
-    if group not in root.occurrences or root.allOccurrencesByComponent(group.component).count != 1:
-        raise ValueError("Le X doit être une occurrence unique à la racine de la conception.")
-    item = group.timelineObject
+    group = _unique_occurrence(design, group.component)
+    if not group:
+        raise ValueError("Le X doit être une occurrence unique dans la conception.")
+    item = (group.nativeObject or group).timelineObject
     history = item.parentGroup if item else None
     if not history or not history.isValid or history.name != group.component.name:
         raise ValueError("Le groupe d’historique de ce X est introuvable ou a été renommé.")
@@ -349,9 +357,14 @@ def target_group(design, entity):
 
 def _remove_history(design, group, history):
     timeline = design.timeline
+    component = group.component
     if timeline.markerPosition != timeline.count:
         raise ValueError("Placer le marqueur en fin d’historique avant la suppression.")
-    other_occurrences = [item for item in design.rootComponent.occurrences if item != group]
+    parent = group.assemblyContext
+    siblings = parent.childOccurrences if parent else design.rootComponent.occurrences
+    other_occurrences = [item for item in siblings if item != group]
+    if parent:
+        other_occurrences.append(parent)
     was_collapsed = history.isCollapsed
     if not was_collapsed:
         history.isCollapsed = True
@@ -359,7 +372,9 @@ def _remove_history(design, group, history):
         if history.index < 0:
             raise RuntimeError("Fusion n’a pas identifié la position du groupe du X.")
         later = [timeline.item(index) for index in range(history.index + 1, timeline.count)]
-        if not history.deleteMe(True) or group.isValid:
+        if not history.deleteMe(True) or any(
+            item.component == component for item in design.rootComponent.allOccurrences if item.isValid
+        ):
             raise RuntimeError("Fusion refuse de retirer le groupe du X.")
         if any(not item.isValid for item in (*other_occurrences, *later)):
             raise RuntimeError("La suppression du X toucherait une autre opération de la conception.")
@@ -408,20 +423,20 @@ def _edit_central_scallops(design, group, record, plan, state, signature):
 
 def prepare_edit(design, group, plan, *, allow_earlier=False):
     """Vérifie les faces et l'historique avant la modification d'un X."""
-    _, faces, record = read(design, group)
+    group, faces, record = read(design, group)
     if faces != plan.faces:
         raise ValueError("Les faces porteuses du X ont changé. Rouvrir l’assemblage.")
     state, signature = _face_state(plan.faces), _signature(plan)
     if record["settings"] == plan.settings and tuple(record["profiles"]) == plan.profiles and record.get("signature") == signature:
-        return record, state, signature, None
+        return group, record, state, signature, None
     if design.timeline.markerPosition != design.timeline.count:
         raise ValueError("Placer le marqueur en fin d’historique avant la modification.")
     history = target_group(design, group)[1] if allow_earlier else editable_history(design, group)
-    return record, state, signature, history
+    return group, record, state, signature, history
 
 
 def reconfigure(design, group, plan, *, allow_earlier=False):
-    record, state, signature, history = prepare_edit(design, group, plan, allow_earlier=allow_earlier)
+    group, record, state, signature, history = prepare_edit(design, group, plan, allow_earlier=allow_earlier)
     if history is None:
         if record.get("face_state") != state:
             record["face_state"] = state
@@ -462,6 +477,8 @@ def _check_clearance(design, plan, group):
 def create(design, plan, *, replacing=None):
     """Construit les pièces dans un groupe unique. Les deux poteaux restent intacts."""
     root = design.rootComponent
+    parent = (replacing.assemblyContext if replacing else
+              assembly_placement.parent_for(design, tuple(support.occurrence for support in plan.supports)))
     face_tokens = [face.entityToken for face in plan.faces]
     check_free_faces(design, plan.faces, replacing=replacing)
     timeline = design.timeline
@@ -469,14 +486,15 @@ def create(design, plan, *, replacing=None):
     group = root.occurrences.addNewComponent(core.Matrix3D.create())
     if not group:
         raise RuntimeError("Fusion refuse le groupe de contreventement.")
-    group.component.name = NAME
+    component = group.component
+    component.name = NAME
     material = plan.supports[0].body.material
     created = []
     try:
         for index, (branch, holes) in enumerate(zip(plan.branches, plan.drills), 1):
             _create_branch(group, material, branch, holes, index)
         for plate in plan.plates:
-            asm._create_plate(group.component, plate, material)
+            asm._create_plate(component, plate, material)
         batches = sorted(plan.fasteners, key=lambda job: job[1:])
         for (diameter, length), jobs in groupby(batches, key=lambda job: job[1:]):
             placements = [placement for job, _, _ in jobs for placement in job]
@@ -486,14 +504,18 @@ def create(design, plan, *, replacing=None):
             )
             if result["occupied"] or result["created"] != len(placements):
                 raise ValueError("Une position de boulon est déjà occupée.")
+        if parent:
+            group = assembly_placement.move_group(design, group, parent)
         _check_clearance(design, plan, group)
         if not asm._associated_bolts_match(group, plan.fasteners):
             raise RuntimeError("Les boulons ne correspondent pas aux axes de perçage.")
         payload = dict(faces=face_tokens, profiles=plan.profiles, settings=plan.settings, signature=_signature(plan),
                        face_state=_face_state(plan.faces))
-        group.component.attributes.add(ATTRIBUTE_GROUP, "definition", json.dumps(payload))
-        timeline_groups.group_creation(timeline, start, group.component.name)
+        component.attributes.add(ATTRIBUTE_GROUP, "definition", json.dumps(payload))
+        timeline_groups.group_creation(timeline, start, component.name)
     except Exception:
+        if not group.isValid and component.isValid:
+            group = _unique_occurrence(design, component)
         angle_cleat_creator._delete_valid([group, *created])
         raise
     return group

@@ -85,8 +85,9 @@ def target_group(design, entity):
         return brace_bay.target_group(design, entity)
     assembly = _find_assembly(entity)
     root = design.rootComponent
-    if assembly not in root.occurrences or root.allOccurrencesByComponent(assembly.component).count != 1:
-        raise ValueError("L’assemblage est imbriqué ou sa définition est utilisée plusieurs fois.")
+    occurrences = root.allOccurrencesByComponent(assembly.component)
+    if occurrences.count != 1 or occurrences.item(0) != assembly:
+        raise ValueError("La définition de l’assemblage est utilisée plusieurs fois ou en dehors de la conception.")
     history = assembly.timelineObject
     group = history.parentGroup if history else None
     if not group or not group.isValid or group.name != assembly.component.name:
@@ -97,6 +98,10 @@ def target_group(design, entity):
     assembly_components = [assembly.component]
     assembly_components.extend(occ.component for occ in assembly.component.allOccurrences)
     allowed_owners = [root, *assembly_components, *_source_components(design, assembly)]
+    parent = assembly.assemblyContext
+    while parent:
+        allowed_owners.append(parent.component)
+        parent = parent.assemblyContext
     for i in range(group.count):
         item = group.item(i).entity
         occurrence = fusion.Occurrence.cast(item) if item else None
@@ -117,6 +122,7 @@ def remove(design, entity):
     if timeline.markerPosition != timeline.count:
         raise ValueError("Placer le marqueur en fin d’historique avant la suppression.")
     markers = _joint_markers(design, assembly)
+    component = assembly.component
     other_occurrences = [occ for occ in design.rootComponent.occurrences if occ != assembly]
     was_collapsed = group.isCollapsed
     if not was_collapsed:
@@ -136,7 +142,9 @@ def remove(design, entity):
             if snapshot.name in owned:
                 raise ValueError("Deux captures de position portent le même nom.")
             owned[snapshot.name] = snapshot
-        if not group.deleteMe(True) or assembly.isValid:
+        if not group.deleteMe(True) or any(
+            item.component == component for item in design.rootComponent.allOccurrences if item.isValid
+        ):
             raise RuntimeError("Fusion n’a pas supprimé complètement le groupe sélectionné.")
         for snapshot in owned.values():
             if snapshot.isValid and not snapshot.deleteMe():

@@ -93,6 +93,18 @@ class RidgeGeometryTests(unittest.TestCase):
                 for end in (toe_back, heel_back):
                     self.assertAlmostEqual(geo.length(geo.cross(geo.subtract(end, heel), direction)), DIMS["flange"])
 
+    def test_haunch_flats_hold_their_size_at_an_inclined_ridge(self):
+        plan = ridge.plan_ridge(POINT, beam(-1, .25), beam(1, .55), {**DIMS, "haunch_flat": 1.})
+        for web, cut in zip(plan.plates[2::2], plan.cuts):
+            weld, relief, heel, heel_flat, toe, toe_flat = web.outline
+            self.assertAlmostEqual(geo.length(geo.subtract(heel_flat, heel)), 1.)
+            self.assertAlmostEqual(geo.length(geo.subtract(toe_flat, toe)), 1.)
+            self.assertAlmostEqual(geo.plane_signed_distance(web.point(*heel), cut.point, cut.interior_normal), 0.)
+            self.assertAlmostEqual(geo.plane_signed_distance(web.point(*relief), cut.point, cut.interior_normal), 0.)
+            self.assertEqual(weld, (2., 0))
+            self.assertTrue(all(geo.plane_signed_distance(web.point(*vertex), cut.point, cut.interior_normal) >= -1e-8
+                                for vertex in web.outline))
+
     def test_rejects_invalid_meeting_slopes_and_plate_clearance(self):
         first = beam(-1, .3)
         second = beam(1, .6)

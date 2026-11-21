@@ -59,6 +59,34 @@ class AssemblyGeometryTests(unittest.TestCase):
         self.assertEqual(web.outline[:2], ((2., 0), (0, -2.)))
         self.assertLess(flange.normal[2], 0)
 
+    def test_haunch_flats_leave_the_weld_relief_and_sole_in_place(self):
+        model = catalogue.template_for("beam_column_haunch")
+        dims = geometry.dimensions(model, {"haunch_flat": 10})
+        axes = ((0, 0, 0), (1, 0, 0), (0, 0, 1), 8.2, -8)
+        old_web, old_sole = geometry.haunch(*axes, {**dims, "haunch_flat": 0.})
+        web, sole = geometry.haunch(*axes, dims)
+        self.assertEqual(old_web.outline, ((2., 0), (0, -2.), (0, -11.), (22., 0)))
+        self.assertEqual(web.outline, ((2., 0), (0, -2.), (0, -10.5), (1., -10.5), (20., -1.), (20., 0)))
+        self.assertEqual(sole, old_sole)
+        with self.assertRaises(geometry.DimensionError) as caught:
+            geometry.haunch(*axes, {**dims, "haunch_flat": 9.})
+        self.assertEqual(caught.exception.keys, ("haunch_flat",))
+
+    def test_column_stiffeners_keep_legacy_positions_and_limit_the_haunch_option(self):
+        for key in ("beam_column", "beam_column_rake", "beam_column_haunch"):
+            model = catalogue.template_for(key)
+            with self.subTest(key=key):
+                dims = geometry.dimensions(model, {"stiffener": 8})
+                self.assertEqual((dims["stiffener"], dims["stiffener_upper"], dims["stiffener_lower"]), (.8, 1, 1))
+                self.assertEqual(dims["stiffener_clearance"], .1)
+                legacy = catalogue.recorded_parameters(model, {"stiffener": 8})
+                self.assertEqual(geometry.dimensions(model, legacy)["stiffener_clearance"], 0.)
+                current = catalogue.recorded_parameters(model, {"stiffener": 8, "stiffener_clearance": 2})
+                self.assertEqual(geometry.dimensions(model, current)["stiffener_clearance"], .2)
+                self.assertEqual("stiffener_haunch" in dims, key == "beam_column_haunch")
+                with self.assertRaises(geometry.DimensionError):
+                    geometry.dimensions(model, {"stiffener_upper": 2})
+
     def test_rows_keep_spacing_and_skip_flange(self):
         rows = geometry.bolt_rows(4, 0, 20, 3, blocked=((6, 9), (17, 20.5)))
         self.assertEqual(len(rows), 4)

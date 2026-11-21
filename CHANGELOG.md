@@ -4,6 +4,12 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.28] - Rangement des assemblages et raidisseurs
+
+- Range les nouveaux assemblages dans le sous-assemblage actif ou dans le conteneur commun de leurs appuis. Une modification conserve leur emplacement.
+- Limite la largeur automatique d’une platine d’about à l’aile utile du poteau.
+- Ajoute l’onglet Raidisseurs pour les semelles de poutre et le niveau du jarret, ainsi que les méplats optionnels aux pointes du jarret.
+
 ## [1.30.27] - Raccords sur profils imbriqués
 
 - Accepte les poteaux et poutres JHR de sous-assemblages locaux pour les montages Poutre-poteau.

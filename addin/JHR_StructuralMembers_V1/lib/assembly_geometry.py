@@ -357,7 +357,7 @@ def fork_shims(origin, u, v, width, height, thickness, holes, extra, gap=2., ins
                  for side, sign in (("avant", 1), ("arrière", -1)))
 
 
-def haunch(origin, beam_axis, upward, section_width, bottom, dims):
+def haunch(origin, beam_axis, upward, section_width, bottom, dims, *, heel_ratio=0.):
     """Âme triangulaire centrée sous la poutre et semelle suivant sa pente."""
     reach, rise = dims["reach"], dims["drop"]
     web, flange, width = dims["web"], dims["flange"], dims["flange_width"]
@@ -369,9 +369,19 @@ def haunch(origin, beam_axis, upward, section_width, bottom, dims):
     relief = dims["weld_relief"]
     if relief >= min(reach, rise):
         raise ValueError("Le chanfrein de soudure doit tenir dans l’âme du jarret.")
-    corner = ((relief, 0), (0, -relief)) if relief else ((0, 0),)
-    gusset = Plate("Âme de jarret", web_origin, beam_axis, upward,
-                   corner + ((0, -rise), (reach, 0)), web)
+    corner = ((relief, 0), (-heel_ratio*relief, -relief)) if relief else ((0, 0),)
+    heel_x = -heel_ratio*rise
+    outline = corner + ((heel_x, -rise), (reach, 0))
+    flat = dims.get("haunch_flat", 0.)
+    if flat:
+        heel_y = -rise + flat*rise/reach
+        toe_x = reach - flat*(reach-heel_x)/rise
+        tolerance = geo.PLANE_RELATION_TOLERANCE_CM
+        if heel_y >= -max(relief, flat)-tolerance or toe_x <= relief+tolerance:
+            raise DimensionError(("haunch_flat",), "Réduire le méplat pour conserver les chants d’appui du jarret.")
+        heel = heel_ratio*heel_y
+        outline = corner + ((heel, heel_y), (heel+flat, heel_y), (toe_x, -flat), (toe_x, 0))
+    gusset = Plate("Âme de jarret", web_origin, beam_axis, upward, outline, web)
     low = geo.add(root, geo.scale(upward, -rise))
     diagonal = geo.add(geo.scale(beam_axis, reach), geo.scale(upward, rise))
     slope = geo.normalize(diagonal)

@@ -87,7 +87,7 @@ class PurlinConnectionsTests(unittest.TestCase):
             calls.append(("recalcul", pair[0]))
             return plan(pair[0])
 
-        def create(design, current):
+        def create(design, current, *, parent):
             beam = current.members[0].occurrence
             calls.append(("plat", beam))
             marker = SimpleNamespace(value="{}")

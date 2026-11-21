@@ -90,7 +90,7 @@ def store_definition(group, evaluations, model_bolts):
 def _member_matches(design, token):
     return [occurrence for entity in design.findEntityByToken(token) or ()
             if (occurrence := fusion.Occurrence.cast(entity)) and occurrence.isValid
-            and occurrence in design.rootComponent.occurrences]
+            and occurrence in design.rootComponent.allOccurrences]
 
 
 def _required_member(candidates, role):
@@ -153,7 +153,7 @@ def _legacy_settings(design, group):
     settings.update(bolt=f"M{diameter:g}", model_bolts=True)
     names = (next(iter(primary_names)), *ordered_names)
     members = tuple(_required_member(
-        [occ for occ in design.rootComponent.occurrences if occ.component.name == name], role,
+        [occ for occ in design.rootComponent.allOccurrences if occ.component.name == name], role,
     ) for name, role in zip(names, TEMPLATES[len(ordered_names)-1].roles))
     return members, settings
 
@@ -236,14 +236,14 @@ def apply_edit(design, source, plan):
                                            read, evaluate_edit, reconfigure)
 
 
-def create_copy(design, plan):
+def create_copy(design, plan, *, parent=...):
     if hasattr(plan.evaluation, "opposite"):
         result = angle_cleat_creator.create_opposed_double_angle_assembly(
-            design.rootComponent, plan.evaluation, model_bolts=plan.settings_mm["model_bolts"],
+            design.rootComponent, plan.evaluation, model_bolts=plan.settings_mm["model_bolts"], parent=parent,
         )
         return result.group
     result = angle_cleat_creator.create_double_angle_assembly(
-        design.rootComponent, plan.evaluation, model_bolts=plan.settings_mm["model_bolts"],
+        design.rootComponent, plan.evaluation, model_bolts=plan.settings_mm["model_bolts"], parent=parent,
     )
     return result.group
 
@@ -256,5 +256,6 @@ def reconfigure(design, source, plan):
         raise ValueError("Les réglages des cornières ont changé depuis l’ouverture de la commande.")
     if plan.settings_mm == source.parameters_mm:
         return source.group
+    parent = source.group.assemblyContext
     remove(design, source.group)
-    return create_copy(design, evaluate(design, source, source.occurrences, plan.settings_mm))
+    return create_copy(design, evaluate(design, source, source.occurrences, plan.settings_mm), parent=parent)

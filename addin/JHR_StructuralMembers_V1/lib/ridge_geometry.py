@@ -63,14 +63,13 @@ def _ridge_plane(beams, axes):
 
 def _haunch(root, axis, up, normal, section_width, dims, label):
     # La cote de délardement part du pied de l’aile, sur la face verticale de la platine.
-    web, _ = shapes.haunch(root, axis, up, section_width, 0., dims)
     rise, reach = dims["drop"], dims["reach"]
     heel_ratio = -geo.dot(up, normal) / geo.dot(axis, normal)
     heel_x = -rise * heel_ratio
     if reach <= heel_x + TOL:
         raise ValueError("Allonger le jarret pour conserver une semelle inclinée côté poutre.")
-    web = replace(web, name=f"Âme de jarret {label}",
-                  outline=tuple((x + heel_ratio*y, y) for x, y in web.outline))
+    web, _ = shapes.haunch(root, axis, up, section_width, 0., dims, heel_ratio=heel_ratio)
+    web = replace(web, name=f"Âme de jarret {label}")
 
     # La section longitudinale garde une épaisseur constante et se termine sur la platine.
     run = reach - heel_x

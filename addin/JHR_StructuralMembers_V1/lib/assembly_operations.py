@@ -7,7 +7,7 @@ import adsk.core as core
 import adsk.fusion as fusion
 
 from . import (
-    anchors, angle_cleat_creator, assembly_catalog, assembly_geometry as shapes,
+    anchors, angle_cleat_creator, assembly_catalog, assembly_geometry as shapes, assembly_placement,
     base_gusset_geometry, bolt_specs, cope_builder, cope_geometry, crossing_braces, dxf_geometry, fastener_creator, fastener_geometry,
     gusset_geometry, joint_builder as joints, joint_geometry as geo, profile_catalog,
     ridge_geometry, simple_fastener_creator, upn_splice,
@@ -217,26 +217,34 @@ def _inner_flange_levels(member, section):
     return bottom[0], top[-1]
 
 
-def _stiffeners(post, section, end, up, heights, stations, post_start, main_axis, thickness):
+def _stiffeners(post, section, support, up, heights, stations, post_start, main_axis, thickness, clearance):
     bottom, top = _inner_flange_levels(post, section)
     lower_relief = max(0, section.web_min_y_mm-bottom)*.1
     upper_relief = max(0, top-section.web_max_y_mm)*.1
     low, high = ((level-post.anchor[1])*.1 for level in (bottom, top))
+    low, high = low+clearance, high-clearance
+    if high-low <= lower_relief+upper_relief+TOL:
+        raise shapes.DimensionError(("stiffener_clearance",), "Le jeu réduit trop la hauteur utile du raidisseur.")
     u, v = post.section_x, post.section_y
     normal = geo.cross(u, v)
     x0, x1 = ((value-post.anchor[0])*.1 for value in (section.web_min_x_mm, section.web_max_x_mm))
     left, right = _range(post, 0)
+    levels = [geo.dot(geo.subtract(geo.add(support, geo.scale(up, height)), post_start), main_axis)
+              for height in heights]
+    ordered = sorted(levels)
+    if any(high-low < thickness+TOL for low, high in zip(ordered, ordered[1:])):
+        raise shapes.DimensionError(("stiffener",), "Réduire l’épaisseur pour séparer les raidisseurs.")
     plates = []
-    for height in heights:
-        raw = geo.add(end, geo.scale(up, height))
-        station = geo.dot(geo.subtract(raw, post_start), main_axis)
+    for station in levels:
         if station <= stations[0]+thickness/2 or station >= stations[1]-thickness/2:
-            raise ValueError("Un raidisseur déborde de l’extrémité du poteau.")
+            raise shapes.DimensionError(("stiffener",), "Un raidisseur déborde de l’extrémité du poteau.")
         centre = geo.add(post_start, geo.scale(main_axis, station))
         origin = geo.add(centre, geo.scale(normal, -thickness/2))
-        for heel, tip, sign in ((x0, left+.1, -1), (x1, right-.1, 1)):
-            if abs(tip-heel) <= max(lower_relief, upper_relief):
-                raise ValueError("Il manque du débord sous les ailes pour poser les raidisseurs.")
+        for web_edge, flange_edge, sign in ((x0, left, -1), (x1, right, 1)):
+            heel = web_edge+sign*clearance
+            tip = flange_edge-sign*max(.1, clearance)
+            if sign*(tip-heel) <= max(lower_relief, upper_relief)+TOL:
+                raise shapes.DimensionError(("stiffener_clearance",), "Le jeu réduit trop la largeur utile du raidisseur.")
             contour = [(heel, low+lower_relief), (heel+sign*lower_relief, low),
                        (tip, low), (tip, high),
                        (heel+sign*upper_relief, high), (heel, high-upper_relief)]
@@ -317,13 +325,33 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_su
         raise ValueError("Prévoir des perçages pour poser les boulons.")
     washer_radius = bolt.washer_outer_diameter_mm*.05 if bolt else 0
     clearance = max(diameter/2, washer_radius) + .1
-    stiffener_levels = tuple((level-beam.anchor[1])*.1*vertical_scale for level in (
-        (beam_shape.min_y_mm+flange_levels[0])/2, (beam_shape.max_y_mm+flange_levels[1])/2,
-    ))
+    haunch = ()
+    if with_haunch:
+        origin = geo.add(support, geo.scale(direction, thickness))
+        haunch = shapes.haunch(origin, direction, up, beam_width, low, dims)
+    stiffener_levels = []
+    if dims["stiffener"]:
+        levels = ((low+inner_low)/2, (high+inner_high)/2)
+        positions = ("stiffener_lower", "stiffener_upper")
+        if vertical_scale < 0.:
+            levels, positions = levels[::-1], positions[::-1]
+        stiffener_levels.extend(level for key, level in zip(positions, levels) if dims[key])
+        if haunch and dims["stiffener_haunch"]:
+            sole = haunch[1]
+            heel = min(geo.dot(geo.subtract(sole.point(x, y), support), up) for x, y in sole.outline)
+            stiffener_levels.append(heel + geo.dot(sole.normal, up)*sole.thickness_cm/2)
+        if not stiffener_levels:
+            raise shapes.DimensionError(("stiffener",), "Cocher au moins un emplacement de raidisseur.")
     min_gauge = max(beam_width, dims["flange_width"] + 2*clearance + .1) if with_haunch else beam_width
     if raked:
         min_gauge += 2*clearance + .1
-    width = dims["width"] or min_gauge + 2*max(margin, clearance+.1)
+    post_start, _ = joints._line_endpoints(post.curve)
+    face_x = _range(post, 0)
+    centre_x = geo.dot(geo.subtract(support, post_start), post.section_x)
+    bearing_half_width = min(centre_x-face_x[0], face_x[1]-centre_x)
+    width = dims["width"] or min(min_gauge + 2*max(margin, clearance+.1), 2*bearing_half_width)
+    if not dims["width"] and width < beam_width-TOL:
+        raise shapes.DimensionError(("width",), "L’aile du poteau ne couvre pas la largeur de la poutre à cet emplacement.")
     height = dims["height"] or top-min_z + 2*margin
     bottom = top-height
     gauge = dims["gauge"] or width - 2*margin
@@ -331,12 +359,8 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_su
         raise ValueError("La platine doit couvrir la section et, le cas échéant, le jarret.")
     center_y = (bottom+top)/2
     center = geo.add(support, geo.scale(up, center_y))
-    post_start, _ = joints._line_endpoints(post.curve)
-    face_x = _range(post, 0)
     if diameter and not dims["gauge"]:
-        centre_x = geo.dot(geo.subtract(support, post_start), post.section_x)
-        usable = min(centre_x-face_x[0], face_x[1]-centre_x) - clearance - TOL
-        gauge = min(gauge, 2*usable)
+        gauge = min(gauge, 2*(bearing_half_width-clearance-TOL))
     original_stations = tuple(geo.dot(geo.subtract(p, post_start), paths.main_direction)
                               for p in joints._line_endpoints(post.curve))
     plate_points = tuple(geo.add(support, geo.scale(up, height)) for height in (bottom, top))
@@ -398,13 +422,10 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_su
         drilling = (Drilling(post, centres, direction, diameter, 2*flange+.2),)
         if bolt:
             fasteners = _fastener_plan(centres, direction, thickness, flange, diameter, bolt)
-    plates = (plate,)
-    if with_haunch:
-        origin = geo.add(support, geo.scale(direction, thickness))
-        plates += shapes.haunch(origin, direction, up, beam_width, low, dims)
-    if dims["stiffener"]:
-        plates += _stiffeners(post, post_shape, end, up, stiffener_levels, stations, post_start,
-                              paths.main_direction, dims["stiffener"])
+    plates = (plate, *haunch)
+    if stiffener_levels:
+        plates += _stiffeners(post, post_shape, support, up, stiffener_levels, stations, post_start,
+                              paths.main_direction, dims["stiffener"], dims["stiffener_clearance"])
     return plates, drilling, trim, fasteners, tuple(support_errors)
 
 
@@ -1212,7 +1233,7 @@ def _base_still_matches(group, record, template, member, previous, current):
 
 
 def _linked_raccord_matches(design, group, record, template, members, link):
-    dimensions = shapes.dimensions(template, record["parameters_mm"])
+    dimensions = shapes.dimensions(template, assembly_catalog.recorded_parameters(template, record["parameters_mm"]))
     if template.key == "shear_plate":
         plates, drilling, batch = _shear_plate(*members, dimensions, link["alternate"], check_material=False)
         batches = (batch,) if batch else ()
@@ -1290,7 +1311,7 @@ def inspect_references(design, group):
     return {"type": record["kind"], "status": "à_revoir" if changes else "à_jour", "changes": changes}
 
 
-def create(design, plan):
+def create(design, plan, *, parent=assembly_placement.DEFAULT_PARENT):
     """Applique la géométrie préparée à la conception active et indique l’étape en erreur."""
     from . import timeline_groups
 
@@ -1298,6 +1319,8 @@ def create(design, plan):
         raise support_error(plan.support_errors)
 
     root = design.rootComponent
+    if parent is assembly_placement.DEFAULT_PARENT:
+        parent = assembly_placement.parent_for(design, (member.occurrence for member in plan.members))
     stage = "contrôle préalable"
     tokens = [member.occurrence.entityToken for member in plan.members]
     base_end_index = None
@@ -1323,11 +1346,12 @@ def create(design, plan):
                     raise ValueError("Un assemblage de ce type existe déjà à cet emplacement.")
     timeline = design.timeline
     start = timeline_groups.creation_start(timeline)
-    group, created, joint_markers = None, [], []
+    group, created, joint_markers, component = None, [], [], None
     trim = plan.trim
     try:
         stage = "création du groupe"
         group = root.occurrences.addNewComponent(core.Matrix3D.create())
+        component = group.component
         group.component.name = "JHR - " + plan.template.label
         plates = plan.plates
         if base_end_index is not None or linked_raccord:
@@ -1438,10 +1462,14 @@ def create(design, plan):
             definition["joint_records"] = [{"member": support.entityToken, "name": value.name}
                                            for value in joint_markers]
             marker.value = json.dumps(definition)
+        stage = "rangement dans le sous-assemblage"
+        group = assembly_placement.move_group(design, group, parent)
     except Exception as error:
         for value in joint_markers:
             if value.isValid:
                 value.deleteMe()
+        if group is not None and not group.isValid and component and component.isValid:
+            group = next(iter(root.allOccurrencesByComponent(component)), None)
         angle_cleat_creator._delete_valid(([group] if group is not None else []) + created)
         raise RuntimeError(f"{plan.template.label} — {stage} : {error}") from error
     timeline_groups.group_creation(timeline, start, group.component.name)

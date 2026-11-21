@@ -8,6 +8,7 @@ import adsk.fusion
 from . import (
     addin_info,
     angle_cleat_geometry,
+    assembly_placement,
     fastener_creator,
     fastener_geometry,
     joint_builder,
@@ -102,7 +103,7 @@ def _native_fastener_edges(
 def _next_assembly_index(root_component):
     prefix = "ASSEMBLAGE_CORNIERES_"
     used = set()
-    for occurrence in root_component.occurrences:
+    for occurrence in root_component.allOccurrences:
         group_index = occurrence.component.attributes.itemByName(ATTRIBUTE_GROUP, "assembly_index")
         if group_index and group_index.value.isdigit():
             used.add(int(group_index.value))
@@ -610,11 +611,15 @@ def _make_bolts(design, group, placements, spec, assembly_parts):
     return count
 
 
-def _create_angle_assembly(root, plans, bolts, model_bolts):
-    snapshots = root.parentDesign.snapshots
+def _create_angle_assembly(root, plans, bolts, model_bolts, parent):
+    design = root.parentDesign
+    snapshots = design.snapshots
     if snapshots.hasPendingSnapshot:
         raise ValueError("Valider d’abord les positions en attente dans Fusion.")
     first = plans[0]
+    members = (first.primary_occurrence, *(plan.secondary_occurrence for plan in plans))
+    if parent is ...:
+        parent = assembly_placement.parent_for(design, members)
     primary = joint_builder._single_body(first.primary_occurrence, "principale")
     secondaries = [joint_builder._single_body(plan.secondary_occurrence, "secondaire") for plan in plans]
     materials = [body.material for body in secondaries]
@@ -623,12 +628,13 @@ def _create_angle_assembly(root, plans, bolts, model_bolts):
 
     index = _next_assembly_index(root)
     opposed = len(plans) > 1
-    timeline = root.parentDesign.timeline
+    timeline = design.timeline
     start = timeline_groups.creation_start(timeline)
     member_features, drafts = [], []
     group = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
     if not group:
         raise RuntimeError("Fusion n’a pas créé le composant d’assemblage.")
+    group_component = group.component
     try:
         label = "Cornières opposées" if opposed else "Assemblage par cornières"
         group.component.name = f"{label} {index:03d}"
@@ -666,17 +672,26 @@ def _create_angle_assembly(root, plans, bolts, model_bolts):
             for plan, body in zip(plans, secondaries)
         )
         occurrences = tuple(occurrence for occurrence, _, _, _ in parts)
-        assembly_parts = (first.primary_occurrence, *(plan.secondary_occurrence for plan in plans), *occurrences)
+        assembly_parts = (*members, *occurrences)
         count = 0
         if model_bolts:
             with timeline_groups.defer_grouping():
-                count = _make_bolts(root.parentDesign, group, bolts, first.bolt_spec, assembly_parts)
+                count = _make_bolts(design, group, bolts, first.bolt_spec, assembly_parts)
+        elif opposed:
+            fastener_creator.verify_clearance(design, assembly_parts)
         from .angle_cleat_copy import store_definition
 
         store_definition(group, plans, model_bolts)
+        if parent:
+            cleat_components = tuple(occurrence.component for occurrence in occurrences)
+            group = assembly_placement.move_group(design, group, parent)
+            occurrences = tuple(next((child for child in group.childOccurrences if child.component == component), None)
+                                for component in cleat_components)
+            if any(occurrence is None for occurrence in occurrences):
+                raise RuntimeError("Les cornières déplacées ne sont plus identifiables dans leur groupe.")
+            for occurrence, (_, _, frame, plan) in zip(occurrences, parts):
+                _validate_occurrence_position(occurrence, frame, plan.angle_profile, plan.cleat_height_cm)
         if opposed:
-            if not model_bolts:
-                fastener_creator.verify_clearance(root.parentDesign, assembly_parts)
             timeline_groups.group_creation(timeline, start, group.component.name)
             return OpposedAngleCreationResult(occurrences, primary_feature, secondary_features, count, group)
 
@@ -687,25 +702,28 @@ def _create_angle_assembly(root, plans, bolts, model_bolts):
             diameter/2, True, "sur l’âme principale",
         )
         secondary_edges = _native_fastener_edges(
-            parts[0][1], occurrences[0], left_secondary_centers, first.secondary_profile_x_axis,
+            occurrences[0].component.bRepBodies.item(0), occurrences[0], left_secondary_centers,
+            first.secondary_profile_x_axis,
             diameter/2, True, "sur la cornière gauche",
         )
         timeline_groups.group_creation(timeline, start, group.component.name)
         return DoubleAngleCreationResult(*occurrences, primary_feature, secondary_features[0],
                                          primary_edges + secondary_edges, count, group)
     except Exception:
+        if not group.isValid and group_component.isValid:
+            group = next(iter(root.allOccurrencesByComponent(group_component)), None)
         _delete_valid(member_features)
         _delete_valid(drafts)
         _delete_valid([group])
         raise
 
 
-def create_double_angle_assembly(root_component, evaluation, model_bolts=False):
+def create_double_angle_assembly(root_component, evaluation, model_bolts=False, *, parent=...):
     """Crée les deux cornières et les perçages d’une poutre secondaire."""
-    return _create_angle_assembly(root_component, (evaluation,), evaluation.bolt_placements, model_bolts)
+    return _create_angle_assembly(root_component, (evaluation,), evaluation.bolt_placements, model_bolts, parent)
 
 
-def create_opposed_double_angle_assembly(root_component, evaluation, model_bolts=True):
+def create_opposed_double_angle_assembly(root_component, evaluation, model_bolts=True, *, parent=...):
     """Crée les quatre cornières et une seule grille dans l’âme principale."""
     return _create_angle_assembly(root_component, (evaluation.first, evaluation.opposite),
-                                  evaluation.bolt_placements, model_bolts)
+                                  evaluation.bolt_placements, model_bolts, parent)

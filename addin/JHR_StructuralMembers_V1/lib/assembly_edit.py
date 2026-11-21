@@ -109,8 +109,8 @@ def read(design, entity):
                 reason = "Le côté de montage d’origine de cet assemblage est introuvable."
     elif payload.get("base_end_index") not in (0, 1):
         reason = "Ce pied ancien ne comporte pas de liaison d’extrémité enregistrée."
-    elif group.assemblyContext or (_component_instances(design, group.component) != 1):
-        reason = "Le pied doit être une occurrence unique à la racine de la conception."
+    elif _component_instances(design, group.component) != 1:
+        reason = "Le pied doit être une occurrence unique dans la conception."
     else:
         member = assemblies._member(design, occurrences[0], template.roles[0])
         start, end = assemblies.joints._line_endpoints(member.curve)
@@ -198,6 +198,7 @@ def _rebuild(design, target, plan):
     if plan.settings_mm == target.parameters_mm and plan.alternate == target.alternate:
         return target.group
     record = json.loads(target.original)
+    parent = target.group.assemblyContext
     # Suppression et recréation restent dans la même transaction native de la commande.
     remove(design, target.group)
     if target.template.key == "shear_plate" and (record.get("purlin_connection") or record.get("joint_records")):
@@ -205,13 +206,13 @@ def _rebuild(design, target, plan):
         batch = purlin_connections.evaluate_batch(design, (main,), (purlin,), plan.settings_mm, allow_bars=True,
                                                   alternate=plan.alternate,
                                                   cope_clearances_cm=record.get("cope_clearances_cm"))
-        groups = purlin_connections.create_batch(design, batch)
+        groups = purlin_connections.create_batch(design, batch, parent=parent)
         if len(groups) != 1:
             raise RuntimeError("Fusion n’a pas régénéré le raccord de la panne.")
         return groups[0]
     return assemblies.create(design, assemblies.evaluate(
         design, target.template.key, target.occurrences, plan.settings_mm, plan.alternate,
-    ))
+    ), parent=parent)
 
 
 def _piece_family(name):

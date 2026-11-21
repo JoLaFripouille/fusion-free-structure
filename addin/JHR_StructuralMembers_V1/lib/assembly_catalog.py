@@ -12,6 +12,7 @@ class Field:
     min_count: int = 1
     max_count: int = 12
     choices: tuple[str, ...] = ()
+    checkbox: bool = False
 
 
 @dataclass(frozen=True)
@@ -108,11 +109,23 @@ def end_bolts(rows):
                          Field("hole", "Diamètre du trou", 14)))
 
 
-COLUMN_REINFORCEMENT = ("Raidisseurs", (Field("stiffener", "Épaisseur (0 = aucun)", 0),))
+COLUMN_REINFORCEMENT = ("Raidisseurs", (
+    Field("stiffener", "Épaisseur", 0),
+    Field("stiffener_clearance", "Jeu périphérique", 1),
+    Field("stiffener_upper", "Au droit de la semelle supérieure", 1, unit="",
+          min_count=0, max_count=1, checkbox=True),
+    Field("stiffener_lower", "Au droit de la semelle inférieure", 1, unit="",
+          min_count=0, max_count=1, checkbox=True),
+))
+COLUMN_HAUNCH_REINFORCEMENT = (COLUMN_REINFORCEMENT[0], (*COLUMN_REINFORCEMENT[1],
+    Field("stiffener_haunch", "Au droit de la semelle du jarret", 0, unit="",
+          min_count=0, max_count=1, checkbox=True),
+))
 HAUNCH = ("Jarret", (Field("reach", "Longueur sous poutre", 220), Field("drop", "Hauteur au poteau", 110),
                     Field("web", "Épaisseur de l’âme", 8), Field("flange", "Épaisseur de la semelle", 10),
                     Field("flange_width", "Largeur de la semelle", 70),
-                    Field("weld_relief", "Chanfrein de soudure à 45°", 20)))
+                    Field("weld_relief", "Chanfrein de soudure à 45°", 20),
+                    Field("haunch_flat", "Taille du méplat", 0)))
 SHEAR_PLATE = ("Plat d’âme", (Field("width", "Longueur le long de la poutre", 100),
                             Field("height", "Hauteur du plat", 100), Field("thickness", "Épaisseur", 8)))
 SHEAR_BOLTS = ("Perçages", (Field("gauge", "Dernière colonne depuis le support", 70),
@@ -173,7 +186,7 @@ TEMPLATES = (
     Template("beam_column_rake", "Poutre-poteau", "About d’arbalétrier sur poteau", BEAM_ROLES,
              (END_PLATE, end_bolts(2), COLUMN_REINFORCEMENT, FASTENERS, PLATE_CORNERS)),
     Template("beam_column_haunch", "Poutre-poteau", "Platine d’about avec jarret", BEAM_ROLES,
-             (END_PLATE, end_bolts(4), HAUNCH, COLUMN_REINFORCEMENT, FASTENERS, PLATE_CORNERS)),
+             (END_PLATE, end_bolts(4), HAUNCH, COLUMN_HAUNCH_REINFORCEMENT, FASTENERS, PLATE_CORNERS)),
     Template("shear_plate", "Poutre-poutre", "Plat d’âme soudé", ("Poutre principale", "Poutre secondaire"),
              (SHEAR_PLATE, SHEAR_BOLTS, FASTENERS, PLATE_CORNERS)),
     Template("splice_web", "Poutre-poutre", "Éclisses d’âme", ("Première poutre", "Deuxième poutre"),
@@ -197,9 +210,11 @@ TEMPLATES = (
 
 
 def recorded_parameters(template, settings):
-    """Les pieds enregistrés gardent leur profil de gousset et le jeu d’origine."""
+    """Préserve les contours enregistrés avant l’ajout des cotes de jeu."""
     if template.key == "base_ih":
         return {"gusset_flat": 0, "flange_gusset_flat": 0, "hole_gusset_clearance": 0, **settings}
+    if template.family == "Poutre-poteau" and settings.get("stiffener"):
+        return {"stiffener_clearance": 0, **settings}
     return settings
 
 

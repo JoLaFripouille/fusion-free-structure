@@ -77,7 +77,10 @@ class CopyTests(unittest.TestCase):
         self.module = load_copy(self.editor, self.operations)
         self.log = []
         self.design = SimpleNamespace(
-            rootComponent=SimpleNamespace(occurrences=self.items),
+            rootComponent=SimpleNamespace(
+                occurrences=self.items,
+                allOccurrencesByComponent=lambda component: [item for item in self.items if item.component == component],
+            ),
             findEntityByToken=lambda token: [item for item in self.items if item.entityToken == token],
             findAttributes=lambda group, key: [attribute for item in self.items
                                               if (attribute := item.component.attributes.itemByName(group, key))],

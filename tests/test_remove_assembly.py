@@ -54,15 +54,17 @@ class RemoveAssemblyTests(unittest.TestCase):
         component = self.component("Plat d’âme", {("assembly", "definition"): Entity(value=json.dumps(definition))})
         self.support = Occurrence(isValid=True, component=self.component("IPE", {("joint", "cope_end"): self.marker}),
                                   timelineObject=Entity(parentGroup=None))
-        self.assembly = Occurrence(isValid=True, component=component)
+        self.assembly = Occurrence(isValid=True, component=component, assemblyContext=None)
         self.plate = Occurrence(component=self.component("Platine"), assemblyContext=self.assembly)
         component.allOccurrences = [self.plate]
         self.items = [Entity(entity=self.assembly), Entity(entity=self.plate)]
         self.group = Entity(name=component.name, isValid=True, isCollapsed=True, index=1,
                             count=2, item=self.items.__getitem__, deleteMe=Mock(side_effect=self.delete_group))
         self.assembly.timelineObject = Entity(parentGroup=self.group)
-        self.root = Entity(occurrences=[self.support, self.assembly],
-                           allOccurrencesByComponent=lambda component: Entity(count=1))
+        self.root = Entity(occurrences=[self.support, self.assembly], allOccurrences=[self.support, self.assembly],
+                           allOccurrencesByComponent=lambda component: Entity(
+                               count=int(self.assembly.isValid), item=lambda index: self.assembly,
+                           ))
         self.tail = Entity(isValid=True)
         self.timeline = Entity(markerPosition=3, count=3, item=[None, self.group, self.tail].__getitem__)
         self.design = Entity(rootComponent=self.root, timeline=self.timeline,
