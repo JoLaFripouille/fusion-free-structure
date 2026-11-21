@@ -23,7 +23,9 @@ Les commandes visibles de **Structure JHR** utilisent le même code que les entr
 | Garde-corps | Garde-corps acier, Tronçonner un garde-corps, `create_guardrail`, `segment_guardrail` |
 | Bibliothèques et réglages locaux | Gérer les profils personnalisés, Paramètres Structure JHR |
 
-Dans **Visserie → Boulon tête fraisée**, sélectionner le bord rond côté tête pour créer la fraisure à la pose. Pour plusieurs pièces empilées, renseigner les faces d’appui extérieures du montage. Dans **Vis en trou taraudé**, la case **Tête fraisée** permet de fraiser l’avant-trou ou de réutiliser une fraisure existante. La longueur d’une vis fraisée se mesure tête comprise. Dans **Écrou à sertir RIVKLE**, sélectionner la paroi du trou et la face d’introduction, puis choisir si le montage comprend la vis et sa rondelle.
+Dans **Visserie → Boulon tête fraisée**, sélectionner le bord rond côté tête pour créer la fraisure à la pose. Pour plusieurs pièces empilées, renseigner les faces d’appui extérieures du montage. Dans **Vis en trou taraudé**, la case **Tête fraisée** permet de fraiser l’avant-trou ou de réutiliser une fraisure existante. La longueur d’une vis fraisée se mesure tête comprise.
+
+Dans **Écrou à sertir RIVKLE**, sélectionner la paroi du trou et la face d’introduction pour poser l’écrou seul. Une fois la pièce à serrer dessinée, revenir à la commande et choisir **Visser dans un RIVKLE posé**. Sélectionner l’insert, puis la face extérieure de la pièce percée ou saisir son épaisseur à serrer. La longueur de vis et la rondelle sous tête sont réglables.
 
 Le champ **Fonction du profil** distingue Barre, Poteau, Poutre et Panne de la section acier. Le rôle est modifiable dans **Modifier un profil** et visible dans **Inspecter un profil acier**. `create_members` accepte `role="BARRE"`, `"POTEAU"`, `"POUTRE"` ou `"PANNE"`. Les poteaux créés depuis des points partent du Z réel du point et montent suivant Z.
 

@@ -4,6 +4,11 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.20] - Pose RIVKLE en deux temps
+
+- Pose l’écrou seul par défaut, puis permet d’ajouter la vis sur un RIVKLE déjà posé.
+- Rétablit les icônes bleues d’origine pour les quatre boulons du ruban.
+
 ## [1.30.19] - Icônes du ruban Visserie
 
 - Rend l’écrou visible en doré au bout des quatre icônes de boulons, y compris au petit format du ruban.

@@ -1,4 +1,5 @@
 """Contrôle du choix de référence et de sa préparation hors Fusion."""
+import json
 from pathlib import Path
 import sys
 from types import SimpleNamespace as Entity
@@ -93,6 +94,52 @@ class RivetNutTests(unittest.TestCase):
         self.assertEqual(actual, preview)
         self.assertEqual(actual["support_cm"], 0)
         self.assertGreaterEqual(actual["beyond_nut_mm"], 1.)
+
+    def test_second_stage_measures_the_stack_and_checks_the_clearance_opening(self):
+        position = geometry.Placement((2., 3., 4.), (0., 1., 0.), (0., 0., 1.), (1., 0., 0.), .2)
+        rim = Entity(center=(1.45, 3., 4.), radius=.33)
+        support = Entity(geometry=object(), pointOnFace=(1.45, 8., 9.), edges=[Entity(geometry=rim)],
+                         evaluator=Entity(getNormalAtPoint=lambda _: (True, (-1., 0., 0.))))
+        core = Entity(Plane=Entity(cast=lambda shape: shape), Circle3D=Entity(cast=lambda shape: shape))
+        creator = Entity(point=tuple, read_hole=lambda _: geometry.Hole(rim.center, (1., 0., 0.), .66))
+        with (patch.dict(sys.modules, {"adsk": Entity(core=core), "adsk.core": core}),
+              patch.object(lib, "fastener_creator", creator, create=True)):
+            stack = rivet_nut._support_stack_mm(support, position, -.15, 6, "CHC", True)
+            self.assertAlmostEqual(stack, 4.)
+            rim.center = (1.45, 3.2, 4.)
+            with self.assertRaisesRegex(ValueError, "trou rond dans l’axe"):
+                rivet_nut._support_stack_mm(support, position, -.15, 6, "CHC", True)
+            support.pointOnFace = (2.1, 8., 9.)
+            with self.assertRaisesRegex(ValueError, "devant l’insert"):
+                rivet_nut._support_stack_mm(support, position, -.15, 6, "CHC", True)
+
+    def test_second_stage_uses_existing_catalog_reference_and_detects_an_existing_screw(self):
+        config = dict(model="JHR_rivet_nut", diameter_mm=6, head="flat", grip_cm=.3,
+                      reference="233 07 060 255", linked_to_hole=True, screws=0)
+        marker = Entity(value=json.dumps(config))
+        insert = Entity(name="Insert gauche", boundingBox=Entity(minPoint=Entity(z=-.15)))
+        bodies = Mock(count=1)
+        bodies.__iter__ = Mock(return_value=iter([insert]))
+        bodies.item.return_value = insert
+        component = Entity(attributes=Entity(itemByName=lambda *_: marker), bRepBodies=bodies,
+                           features=Entity(baseFeatures=[]))
+        selected = Entity(component=component, isReferencedComponent=False,
+                          transform2=Entity(getAsCoordinateSystem=lambda: ((0., 0., 0.), (1., 0., 0.),
+                                                                           (0., 1., 0.), (0., 0., 1.))))
+        occurrences = Entity(count=1, item=lambda _: selected)
+        design = Entity(designType="parametric", rootComponent=Entity(allOccurrencesByComponent=lambda _: occurrences))
+        fusion = Entity(Occurrence=Entity(cast=lambda value: value), BRepBody=Entity(cast=lambda _: None),
+                        DesignTypes=Entity(ParametricDesignType="parametric"))
+        creator = Entity(ATTRIBUTE_GROUP="test", point=tuple)
+        with (patch.dict(sys.modules, {"adsk": Entity(fusion=fusion), "adsk.fusion": fusion}),
+              patch.object(lib, "fastener_creator", creator, create=True)):
+            result = rivet_nut.attach_screw(design, selected, preview=True, screw_stack_mm=4, screw_washer=False)
+            self.assertEqual(result["reference"], "233 07 060 255")
+            self.assertEqual(result["screw"]["stack_mm"], 4.)
+            self.assertFalse(result["stack_measured"])
+            marker.value = json.dumps(dict(config, screws=1))
+            with self.assertRaisesRegex(ValueError, "déjà une vis"):
+                rivet_nut.attach_screw(design, selected, preview=True)
 
     def test_preparation_uses_native_opening_and_rolls_back_if_new_bore_cannot_be_resolved(self):
         hole_input = Mock()

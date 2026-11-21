@@ -265,7 +265,7 @@ def _head_front_cm(diameter_mm, row, position):
 
 
 def screw_dimensions(diameter_mm, row, position, head, length_mm=None,
-                     stack_mm=0., blind_clearance_mm=None, *, screw_washer=True):
+                     stack_mm=0., blind_clearance_mm=None, *, screw_washer=True, head_front_cm=None):
     """Longueur sous tête et enveloppe de la vis, à partir de la paroi mesurée."""
     if head not in SCREW_HEADS:
         raise ValueError("Choisir une vis CHC ou TBHC pour l’écrou à sertir.")
@@ -274,7 +274,7 @@ def screw_dimensions(diameter_mm, row, position, head, length_mm=None,
     if not math.isfinite(stack) or stack < 0:
         raise ValueError("L’épaisseur à serrer doit être positive ou nulle et finie.")
     # Appui sur l'insert ou la surface de la paroi s'il est en retrait.
-    front = min(0., _head_front_cm(diameter_mm, row, position))
+    front = min(0., _head_front_cm(diameter_mm, row, position) if head_front_cm is None else head_front_cm)
     support_cm = front - stack * .1
     pitch = _COARSE_PITCH_MM[diameter_mm]
     wall_mm = position.grip_cm * 10
@@ -320,6 +320,113 @@ def _screw_shapes(diameter_mm, position, screw):
     if screw["washer"]:
         shapes["Rondelle"] = parts["rondelle_tete"]
     return shapes
+
+
+def _support_stack_mm(face, position, front, diameter_mm, screw_head, screw_washer):
+    """Mesure la portée extérieure et contrôle son ouverture circulaire."""
+    import adsk.core as core
+    from . import fastener_creator as creator
+
+    if not core.Plane.cast(face.geometry):
+        raise ValueError("Choisir une face d’appui plane de la pièce à serrer.")
+    ok, normal = face.evaluator.getNormalAtPoint(face.pointOnFace)
+    if not ok or vec.dot(creator.point(normal), position.z_axis) > -1 + geometry.PARALLEL_TOLERANCE:
+        raise ValueError("Choisir la face extérieure de la pièce, perpendiculaire à l’axe de l’insert.")
+    station = vec.dot(vec.subtract(creator.point(face.pointOnFace), position.origin), position.z_axis)
+    tol = geometry.POSITION_TOLERANCE_CM
+    if station > min(0., front) + tol:
+        raise ValueError("La face d’appui doit se trouver devant l’insert.")
+    spec, socket = bolt_specs.modeled_spec(diameter_mm, screw_head)
+    bearing_mm = spec.washer_outer_diameter_mm if screw_washer else socket.diameter_mm
+    for edge in face.edges:
+        ring = core.Circle3D.cast(edge.geometry)
+        if not ring:
+            continue
+        offset = vec.subtract(creator.point(ring.center), position.origin)
+        if vec.length(vec.cross(offset, position.z_axis)) > tol:
+            continue
+        try:
+            hole = creator.read_hole(edge)
+        except ValueError:
+            continue
+        if (isinstance(hole, geometry.Hole) and diameter_mm <= hole.diameter_cm * 10 + _TOLERANCE_MM
+                and ring.radius * 20 < bearing_mm - _TOLERANCE_MM):
+            return max(0., (min(0., front) - station) * 10)
+    raise ValueError("L’appui doit présenter un trou rond dans l’axe, entre le diamètre de la vis et celui de son appui.")
+
+
+def attach_screw(design, selected_insert, *, preview=False, support_face=None, screw_head="CHC",
+                 screw_length_mm=None, screw_stack_mm=0., blind_clearance_mm=None, screw_washer=True):
+    """Ajoute la vis à une occurrence RIVKLE existante dans son propre repère."""
+    import adsk.fusion as fusion
+    from . import fastener_creator as creator
+
+    occurrence = fusion.Occurrence.cast(selected_insert)
+    body = fusion.BRepBody.cast(selected_insert)
+    component = occurrence.component if occurrence else body.parentComponent if body else None
+    marker = component.attributes.itemByName(creator.ATTRIBUTE_GROUP, "configuration") if component else None
+    if not marker or (config := json.loads(marker.value)).get("model") != "JHR_rivet_nut":
+        raise ValueError("Sélectionner le corps ou le composant d’un écrou à sertir RIVKLE JHR.")
+    occurrences = design.rootComponent.allOccurrencesByComponent(component)
+    if occurrences.count != 1:
+        raise ValueError("Le composant RIVKLE doit correspondre à une seule occurrence.")
+    occurrence = occurrences.item(0)
+    if occurrence.isReferencedComponent or design.designType != fusion.DesignTypes.ParametricDesignType:
+        raise ValueError("La vis doit être ajoutée dans le modèle paramétrique qui contient l’insert.")
+    features = component.features.baseFeatures
+    if (config.get("screws") or any(part.name.startswith("Vis ") for part in component.bRepBodies)
+            or any(feature.attributes.itemByName(creator.ATTRIBUTE_GROUP, "rivet_screw") for feature in features)):
+        raise ValueError("Ce RIVKLE comporte déjà une vis.")
+    bodies = component.bRepBodies
+    insert = bodies.item(0) if bodies.count == 1 else next(
+        (part for part in bodies if part.name == "Écrou à sertir"), None)
+    if not insert:
+        raise ValueError("Le corps de l’écrou à sertir a été supprimé ou renommé.")
+    diameter_mm, head = config["diameter_mm"], config["head"]
+    row = next((row for row in _specs(diameter_mm, head) if row.reference == config.get("reference")), None)
+    if not row:
+        raise ValueError("La référence enregistrée de cet écrou à sertir n’est pas dans le catalogue.")
+    position = geometry.Placement(*(creator.point(value) for value in occurrence.transform2.getAsCoordinateSystem()),
+                                  config["grip_cm"])
+    front = insert.boundingBox.minPoint.z
+    if support_face is not None:
+        face = fusion.BRepFace.cast(support_face)
+        if not face or face.body.parentComponent == component:
+            raise ValueError("Sélectionner l’appui extérieur sur la pièce à serrer.")
+        screw_stack_mm = _support_stack_mm(face, position, front, diameter_mm, screw_head, screw_washer)
+    screw = screw_dimensions(diameter_mm, row, position, screw_head, screw_length_mm, screw_stack_mm,
+                             blind_clearance_mm, screw_washer=screw_washer, head_front_cm=front)
+    result = dict(_preparation(diameter_mm, head, row), designation=f"RIVKLE M{diameter_mm:g}", head=head,
+                  grip_mm=position.grip_cm * 10, blind_projection_mm=row.blind_projection_mm,
+                  max_bulge_diameter_mm=_MAX_BULGE_MM[diameter_mm], preparation_required=False, screw=screw,
+                  linked_to_hole=config.get("linked_to_hole", False), stack_measured=support_face is not None)
+    if preview:
+        return result
+
+    shapes = _screw_shapes(diameter_mm, position, screw)
+    feature = features.add()
+    if not feature:
+        raise RuntimeError("Fusion n’a pas créé la fonction de pose de la vis.")
+    try:
+        feature.name = "JHR - Vis RIVKLE " + screw["designation"]
+        if not feature.startEdit():
+            raise RuntimeError("Fusion n’a pas ouvert la fonction de pose de la vis.")
+        try:
+            for name, shape in shapes.items():
+                part = component.bRepBodies.add(shape, feature)
+                if not part or not part.isSolid:
+                    raise RuntimeError(f"Fusion n’a pas ajouté le solide « {name} ».")
+                part.name = name
+        finally:
+            if not feature.finishEdit():
+                raise RuntimeError("Fusion n’a pas terminé la pose de la vis.")
+        if not feature.attributes.add(creator.ATTRIBUTE_GROUP, "rivet_screw", json.dumps(screw)):
+            raise RuntimeError("Fusion n’a pas enregistré la référence de la vis.")
+    except Exception as error:
+        if feature.isValid and not feature.deleteMe():
+            raise RuntimeError(f"La pose a échoué et Fusion n’a pas retiré sa fonction : {error}") from error
+        raise
+    return dict(result, created=1, occupied=0, parts=len(shapes), screw_feature=feature.name)
 
 
 @dataclass(frozen=True)

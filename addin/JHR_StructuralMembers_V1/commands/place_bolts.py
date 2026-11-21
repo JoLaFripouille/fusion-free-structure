@@ -22,13 +22,15 @@ BUTTON_MODE = "Modéliser tête bombée six pans creux"
 SOCKET_MODES = {CAP_MODE: "CHC", BUTTON_MODE: "TBHC"}
 TAPPED_MODE = "Vis en trou taraudé"
 RIVNUT_MODE = "Écrou à sertir RIVKLE"
+RIVNUT_INSTALL = "Poser un RIVKLE"
+RIVNUT_SCREW = "Visser dans un RIVKLE posé"
 PANEL_IDS = (ui_layout.FASTENER_PANEL_ID,)
 MODES = (COPY_MODE, HEX_MODE, *SOCKET_MODES, COUNTERSUNK_MODE, TAPPED_MODE, RIVNUT_MODE)
 SHORTCUTS = (
-    ("EI_JHR_BoltH", "Boulon tête H", "visserie_h_ecrou", HEX_MODE),
-    ("EI_JHR_BoltCHC", "Boulon tête cylindrique", "visserie_chc_ecrou", CAP_MODE),
-    ("EI_JHR_BoltTBHC", "Boulon tête bombée", "visserie_tbhc_ecrou", BUTTON_MODE),
-    ("EI_JHR_BoltTF", "Boulon tête fraisée", "visserie_tf_ecrou", COUNTERSUNK_MODE),
+    ("EI_JHR_BoltH", "Boulon tête H", "visserie_boulon_h", HEX_MODE),
+    ("EI_JHR_BoltCHC", "Boulon tête cylindrique", "visserie_boulon_chc", CAP_MODE),
+    ("EI_JHR_BoltTBHC", "Boulon tête bombée", "visserie_boulon_tbhc", BUTTON_MODE),
+    ("EI_JHR_BoltTF", "Boulon tête fraisée", "visserie_boulon_tf", COUNTERSUNK_MODE),
     ("EI_JHR_TappedScrew", "Vis en trou taraudé", "visserie_taraudage", TAPPED_MODE),
     ("EI_JHR_Rivkle", "Écrou à sertir RIVKLE", "visserie_rivkle", RIVNUT_MODE),
 )
@@ -63,6 +65,21 @@ def _hole_link(design, inputs, head, sources=None):
 def _is_conical(entity):
     face = adsk.fusion.BRepFace.cast(entity)
     return face and adsk.core.Cone.cast(face.geometry)
+
+
+def _rivet_screw_only(inputs):
+    return inputs.itemById("rivetOperation").selectedItem.name == RIVNUT_SCREW
+
+
+def _rivet_screw_options(inputs):
+    label = inputs.itemById("rivetScrewHead").selectedItem.name
+    return dict(
+        screw_head=next(key for key, name in rivet_nut.SCREW_HEADS.items() if name == label),
+        screw_length_mm=inputs.itemById("rivetScrewLength").value * 10 or None,
+        screw_stack_mm=inputs.itemById("rivetScrewStack").value * 10,
+        blind_clearance_mm=inputs.itemById("rivetBackClearance").value * 10 or None,
+        screw_washer=inputs.itemById("rivetScrewWasher").value,
+    )
 
 
 def _prepare_countersinks(entities, head_face, nut_face, diameter):
@@ -119,22 +136,24 @@ class Session:
     def insert(self, inputs, preview):
         app = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(app.activeProduct)
+        if app.activeDocument != self.document or not design:
+            raise ValueError("Le document actif a changé. Relancer Écrou à sertir RIVKLE.")
+        if _rivet_screw_only(inputs):
+            insert = inputs.itemById("rivetExisting")
+            if insert.selectionCount != 1:
+                raise ValueError("Sélectionner l’écrou à sertir déjà posé.")
+            support = inputs.itemById("rivetScrewSupport")
+            return rivet_nut.attach_screw(
+                design, insert.selection(0).entity, preview=preview,
+                support_face=support.selection(0).entity if support.selectionCount else None,
+                **_rivet_screw_options(inputs))
         hole, face = (inputs.itemById(key) for key in ("holes", "headSupport"))
-        if app.activeDocument != self.document or not design or hole.selectionCount != 1 or face.selectionCount != 1:
+        if hole.selectionCount != 1 or face.selectionCount != 1:
             raise ValueError("Sélectionner la paroi cylindrique du trou et le plan d’entrée.")
         style = inputs.itemById("rivetHead").selectedItem.name
         head = next(key for key, label in rivet_nut.HEADS.items() if label == style)
         diameter = float(inputs.itemById("rivetDiameter").selectedItem.name[1:])
-        screw_options = {}
-        if inputs.itemById("rivetAddScrew").value:
-            style = inputs.itemById("rivetScrewHead").selectedItem.name
-            screw_options = dict(
-                screw_head=next(key for key, label in rivet_nut.SCREW_HEADS.items() if label == style),
-                screw_length_mm=inputs.itemById("rivetScrewLength").value * 10 or None,
-                screw_stack_mm=inputs.itemById("rivetScrewStack").value * 10,
-                blind_clearance_mm=inputs.itemById("rivetBackClearance").value * 10 or None,
-                screw_washer=inputs.itemById("rivetScrewWasher").value,
-            )
+        screw_options = _rivet_screw_options(inputs) if inputs.itemById("rivetAddScrew").value else {}
         return rivet_nut.place(design, hole.selection(0).entity, face.selection(0).entity,
                               diameter, head, preview=preview,
                               prepare_hole=inputs.itemById("rivetPrepare").value,
@@ -219,12 +238,16 @@ def _refresh(inputs, session):
             report.formattedText = ("{} · {} · perçage Ø{:g} mm · paroi {:g} mm"
                                     .format(result["designation"], result["reference"],
                                             result["hole_diameter_mm"], result["grip_mm"]))
-            if result["preparation_required"]:
+            if result.get("preparation_required"):
                 report.formattedText += "<br>L’avant-trou sera préparé à ces cotes."
             if screw := result.get("screw"):
                 composition = "vis et rondelle" if screw["washer"] else "vis seule"
                 report.formattedText += "<br>{} · {} · débord arrière {:.2f} mm".format(
                     html.escape(screw["designation"]), composition, screw["blind_projection_mm"])
+                if result.get("stack_measured"):
+                    report.formattedText += "<br>Épaisseur à serrer mesurée : {:g} mm.".format(screw["stack_mm"])
+            else:
+                report.formattedText += "<br>Pose de l’écrou à sertir seul."
             return True
         if inputs.itemById("mode").selectedItem.name == TAPPED_MODE:
             result = session.tapped(inputs, preview=True)
@@ -261,16 +284,16 @@ def _configure_inputs(inputs, *, reset_holes=False, update_filters=False):
     modeled = mode != COPY_MODE
     tapped = mode == TAPPED_MODE
     riveted = mode == RIVNUT_MODE
+    rivet_screw = riveted and _rivet_screw_only(inputs)
     single_support = tapped or riveted
     tapped_countersunk = tapped and inputs.itemById("tappedCountersunk").value
     automatic = inputs.itemById("autoLength").value
-    show_screw = riveted and inputs.itemById("rivetAddScrew").value
+    show_screw = rivet_screw or (riveted and inputs.itemById("rivetAddScrew").value)
     if reset_holes or update_filters:
         holes = inputs.itemById("holes")
         if reset_holes or not tapped_countersunk and any(_is_conical(entity) for entity in _hole_sources(inputs)):
             holes.clearSelection()
         holes.clearSelectionFilter()
-        holes.setSelectionLimits(1, 1 if single_support else 100)
         filters = (("CylindricalFaces", "ConicalFaces") if tapped_countersunk
                    else ("CylindricalFaces",) if single_support
                    else ("ConicalFaces", "CylindricalFaces", "Edges") if mode == COUNTERSUNK_MODE
@@ -284,10 +307,17 @@ def _configure_inputs(inputs, *, reset_holes=False, update_filters=False):
         reverse.value = False
     for name in ("model", "modelLength", "head"):
         inputs.itemById(name).isVisible = not modeled
+    inputs.itemById("rivetOperation").isVisible = riveted
+    inputs.itemById("holes").isVisible = not rivet_screw
+    existing = inputs.itemById("rivetExisting")
+    existing.isVisible = rivet_screw
+    support = inputs.itemById("rivetScrewSupport")
+    support.isVisible = rivet_screw
     for name in ("rivetHead", "rivetDiameter", "rivetPrepare", "rivetAddScrew"):
-        inputs.itemById(name).isVisible = riveted
-    for name in ("rivetScrewHead", "rivetScrewLength", "rivetScrewWasher", "rivetScrewStack", "rivetBackClearance"):
+        inputs.itemById(name).isVisible = riveted and not rivet_screw
+    for name in ("rivetScrewHead", "rivetScrewLength", "rivetScrewWasher", "rivetBackClearance"):
         inputs.itemById(name).isVisible = show_screw
+    inputs.itemById("rivetScrewStack").isVisible = show_screw and not (rivet_screw and support.selectionCount)
     inputs.itemById("autoLength").isVisible = modeled and not riveted
     inputs.itemById("projection").isVisible = modeled and not single_support
     inputs.itemById("engagement").isVisible = tapped and automatic
@@ -296,10 +326,13 @@ def _configure_inputs(inputs, *, reset_holes=False, update_filters=False):
     inputs.itemById("diameter").isVisible = not riveted
     inputs.itemById("headWasher").isVisible = modeled and not (riveted or tapped_countersunk or mode == COUNTERSUNK_MODE)
     inputs.itemById("nutWasher").isVisible = modeled and not single_support
-    inputs.itemById("linkHole").isVisible = modeled
+    inputs.itemById("linkHole").isVisible = modeled and not rivet_screw
     nut_support = inputs.itemById("nutSupport")
     nut_support.setSelectionLimits(0 if single_support or mode == COUNTERSUNK_MODE else 1, 1)
-    inputs.itemById("headSupport").setSelectionLimits(0 if mode == COUNTERSUNK_MODE else 1, 1)
+    inputs.itemById("headSupport").isVisible = not rivet_screw
+    inputs.itemById("headSupport").setSelectionLimits(0 if mode == COUNTERSUNK_MODE or rivet_screw else 1, 1)
+    inputs.itemById("holes").setSelectionLimits(0 if rivet_screw else 1, 1 if single_support else 100)
+    existing.setSelectionLimits(1 if rivet_screw else 0, 1)
     nut_support.isVisible = not single_support
     length = inputs.itemById("length")
     length.isVisible = not riveted and (not tapped or not automatic)
@@ -312,7 +345,7 @@ class Changed(adsk.core.InputChangedEventHandler):
 
     def notify(self, args):
         event = adsk.core.InputChangedEventArgs.cast(args)
-        if event.input.id in ("mode", "autoLength", "rivetAddScrew", "tappedCountersunk"):
+        if event.input.id in ("mode", "autoLength", "rivetOperation", "rivetAddScrew", "rivetScrewSupport", "tappedCountersunk"):
             _configure_inputs(event.inputs, reset_holes=event.input.id == "mode",
                               update_filters=event.input.id == "tappedCountersunk")
         if event.input.id == "model" and event.input.selectionCount == 1:
@@ -386,6 +419,10 @@ class Created(adsk.core.CommandCreatedEventHandler):
         mode = inputs.addDropDownCommandInput("mode", "Méthode", adsk.core.DropDownStyles.TextListDropDownStyle)
         for label in MODES:
             mode.listItems.add(label, label == self.initial_mode)
+        rivet_operation = inputs.addDropDownCommandInput(
+            "rivetOperation", "Opération RIVKLE", adsk.core.DropDownStyles.TextListDropDownStyle)
+        for label in (RIVNUT_INSTALL, RIVNUT_SCREW):
+            rivet_operation.listItems.add(label, label == RIVNUT_INSTALL)
         model = inputs.addSelectionInput("model", "Ensemble modèle", "Un corps simple : vis, écrou et deux rondelles.")
         model.addSelectionFilter("SolidBodies"); model.addSelectionFilter("Occurrences")
         model.setSelectionLimits(0, 1)
@@ -395,6 +432,13 @@ class Created(adsk.core.CommandCreatedEventHandler):
         for name, title in (("headSupport", "Appui côté tête"), ("nutSupport", "Appui côté écrou")):
             selection = inputs.addSelectionInput(name, title, "Face extérieure plane de la pièce assemblée.")
             selection.addSelectionFilter("PlanarFaces"); selection.setSelectionLimits(1, 1)
+        insert = inputs.addSelectionInput("rivetExisting", "RIVKLE posé", "Corps ou composant de l’écrou à sertir.")
+        insert.addSelectionFilter("SolidBodies")
+        insert.addSelectionFilter("Occurrences")
+        support = inputs.addSelectionInput("rivetScrewSupport", "Appui sous tête de vis",
+                                           "Face plane de la pièce ajoutée où débouche le trou rond.")
+        support.addSelectionFilter("PlanarFaces")
+        support.setSelectionLimits(0, 1)
         for name, title, value in (("diameter", "Diamètre nominal", 1.6),
                                    ("modelLength", "Longueur de vis du modèle", 5.0),
                                    ("length", "Longueur de vis", 5.0)):
@@ -424,8 +468,7 @@ class Created(adsk.core.CommandCreatedEventHandler):
             insert_diameter.listItems.add(f"M{value:g}", value == 6)
         insert_diameter.isVisible = False
         inputs.addBoolValueInput("rivetPrepare", "Préparer l’avant-trou sélectionné", True, "", False).isVisible = False
-        inputs.addBoolValueInput("rivetAddScrew", "Ajouter une vis", True, "",
-                                 self.initial_mode == RIVNUT_MODE).isVisible = False
+        inputs.addBoolValueInput("rivetAddScrew", "Ajouter une vis à la pose", True, "", False).isVisible = False
         inputs.addBoolValueInput("rivetScrewWasher", "Rondelle sous tête", True, "", True).isVisible = False
         screw_head = inputs.addDropDownCommandInput(
             "rivetScrewHead", "Tête de vis", adsk.core.DropDownStyles.TextListDropDownStyle)
