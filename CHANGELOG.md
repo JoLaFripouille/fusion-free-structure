@@ -4,6 +4,10 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.22] - Icônes 3D dans tout le ruban
+
+- Applique les icônes validées aux 29 commandes de Structure JHR, dans les formats 16 et 32 px et leurs variantes haute densité.
+
 ## [1.30.21] - Icônes issues des solides Fusion
 
 - Remplace les quatre icônes de boulons par des rendus des vis et de leur écrou hexagonal, aux tailles du ruban Visserie.

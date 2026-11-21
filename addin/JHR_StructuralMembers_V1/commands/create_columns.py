@@ -312,7 +312,7 @@ def start():
     ui = app.userInterface
     if ui.commandDefinitions.itemById(COMMAND_ID):
         return
-    icon = str(addin_info.ADDIN_ROOT / "resources" / "poteaux")
+    icon = addin_info.ribbon_icon("poteaux")
     definition = ui.commandDefinitions.addButtonDefinition(
         COMMAND_ID, "Poteaux", "Crée des poteaux acier en Z positif depuis des points sélectionnés.", icon,
     )

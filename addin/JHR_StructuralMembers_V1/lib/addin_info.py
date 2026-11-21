@@ -8,6 +8,10 @@ ADDIN_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ADDIN_ROOT / "JHR_StructuralMembers_V1.manifest"
 
 
+def ribbon_icon(name):
+    return str(ADDIN_ROOT / "resources" / "ruban_3d" / name)
+
+
 def _read_version():
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     version = str(manifest.get("version", "")).strip()

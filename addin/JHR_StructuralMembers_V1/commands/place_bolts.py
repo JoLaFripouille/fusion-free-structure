@@ -499,7 +499,7 @@ def start():
         if not definition:
             definition = ui.commandDefinitions.addButtonDefinition(
                 command_id, label, COMMAND_DESCRIPTION,
-                str(addin_info.ADDIN_ROOT / "resources" / icon),
+                addin_info.ribbon_icon(icon),
             )
             handler = Created(mode)
             definition.commandCreated.add(handler)

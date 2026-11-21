@@ -186,9 +186,9 @@ def start():
     ui = core.Application.get().userInterface
     if ui.commandDefinitions.itemById(COMMAND_ID):
         return
-    icon = addin_info.ADDIN_ROOT / "resources" / "assemblages_platines"
     definition = ui.commandDefinitions.addButtonDefinition(
-        COMMAND_ID, COMMAND_NAME, "Reprendre un montage du catalogue JHR sur d’autres profils.", str(icon),
+        COMMAND_ID, COMMAND_NAME, "Reprendre un montage du catalogue JHR sur d’autres profils.",
+        addin_info.ribbon_icon("copier_assemblage"),
     )
     handler = Created()
     definition.commandCreated.add(handler)

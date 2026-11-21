@@ -224,7 +224,7 @@ def start():
         return
     definition = ui.commandDefinitions.addButtonDefinition(
         COMMAND_ID, COMMAND_NAME, "Supprimer le groupe d’historique d’un assemblage JHR.",
-        str(addin_info.ADDIN_ROOT / "resources" / "assemblages_platines"),
+        addin_info.ribbon_icon("supprimer_assemblage"),
     )
     handler = Created()
     definition.commandCreated.add(handler)

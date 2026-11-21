@@ -421,7 +421,7 @@ def start():
     definition = ui.commandDefinitions.addButtonDefinition(
         COMMAND_ID, COMMAND_NAME,
         "Créer et paramétrer un X complet depuis deux faces de poteaux opposées.",
-        str(addin_info.ADDIN_ROOT / "resources" / "auto_contreventement"),
+        addin_info.ribbon_icon("auto_contreventement"),
     )
     handler = Created()
     definition.commandCreated.add(handler)

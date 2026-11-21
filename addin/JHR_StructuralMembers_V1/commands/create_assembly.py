@@ -542,12 +542,12 @@ def start():
     panel = ui_layout.panel(ui, ui_layout.ASSEMBLY_PANEL_ID)
     commands = (*TOOLS, (EDIT_COMMAND_ID, "Modifier un assemblage",
                          "Retrouver les réglages de l’assemblage depuis l’une de ses pièces.",
-                         "assemblages_platines", None))
+                         "modifier_assemblage", None))
     for command_id, name, tooltip, icon, family in commands:
         if ui.commandDefinitions.itemById(command_id):
             continue
         definition = ui.commandDefinitions.addButtonDefinition(
-            command_id, name, tooltip, str(addin_info.ADDIN_ROOT / "resources" / icon),
+            command_id, name, tooltip, addin_info.ribbon_icon(icon),
         )
         editing = command_id == EDIT_COMMAND_ID
         handler = Created(family, editing)

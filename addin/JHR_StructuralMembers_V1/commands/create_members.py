@@ -1194,14 +1194,15 @@ def start():
         raise RuntimeError("Impossible de connecter l'événement d'import DXF différé.")
     _handlers.append(_custom_event_handler)
 
-    for command_id, name, description, panel_ids, editing in (
-        (COMMAND_ID, COMMAND_NAME, COMMAND_DESCRIPTION, PANEL_IDS, False),
+    for command_id, name, description, panel_ids, editing, icon in (
+        (COMMAND_ID, COMMAND_NAME, COMMAND_DESCRIPTION, PANEL_IDS, False, "profil_acier"),
         (EDIT_COMMAND_ID, EDIT_COMMAND_NAME, "Reprendre les réglages d’un profil JHR existant.",
-         (ui_layout.MODIFY_PANEL_ID,), True),
+         (ui_layout.MODIFY_PANEL_ID,), True, "modifier_profil"),
     ):
         definition = ui.commandDefinitions.itemById(command_id)
         if not definition:
-            definition = ui.commandDefinitions.addButtonDefinition(command_id, name, description, "")
+            definition = ui.commandDefinitions.addButtonDefinition(command_id, name, description,
+                                                                  addin_info.ribbon_icon(icon))
         handler = CommandCreatedHandler(editing)
         definition.commandCreated.add(handler)
         _handlers.append(handler)

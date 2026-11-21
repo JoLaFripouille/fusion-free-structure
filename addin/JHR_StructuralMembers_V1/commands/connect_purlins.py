@@ -183,7 +183,7 @@ def start():
         return
     definition = ui.commandDefinitions.addButtonDefinition(
         COMMAND_ID, COMMAND_NAME, "Créer les mêmes plats d’âme aux abouts des pannes sélectionnées.",
-        str(addin_info.ADDIN_ROOT / "resources" / "plat_ame_soude"),
+        addin_info.ribbon_icon("raccord_pannes"),
     )
     handler = Created()
     definition.commandCreated.add(handler)

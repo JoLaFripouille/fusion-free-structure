@@ -89,7 +89,7 @@ def start():
         return
     definition = ui.commandDefinitions.addButtonDefinition(
         COMMAND_ID, "Inspecter un assemblage", "Contrôler les références et le suivi du squelette.",
-        str(addin_info.ADDIN_ROOT / "resources" / "assemblages_platines"),
+        addin_info.ribbon_icon("inspecter_assemblage"),
     )
     handler = Created()
     definition.commandCreated.add(handler)

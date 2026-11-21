@@ -424,7 +424,7 @@ def start():
             COMMAND_ID,
             COMMAND_NAME,
             COMMAND_DESCRIPTION,
-            "",
+            addin_info.ribbon_icon("profils_personnalises"),
         )
     created_handler = CommandCreatedHandler()
     command_definition.commandCreated.add(created_handler)

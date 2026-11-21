@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Structure JHR V1.30.21, icônes de boulons rendues à partir des solides Fusion."
+    "": "Structure JHR V1.30.22, icônes du ruban à partir de géométries CAO."
   },
-  "version": "1.30.21",
+  "version": "1.30.22",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

@@ -796,7 +796,7 @@ def start():
             COMMAND_ID,
             COMMAND_NAME,
             COMMAND_DESCRIPTION,
-            "",
+            addin_info.ribbon_icon("attaches_cornieres"),
         )
     created_handler = CommandCreatedHandler()
     definition.commandCreated.add(created_handler)

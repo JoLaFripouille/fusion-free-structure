@@ -265,7 +265,7 @@ def start():
             COMMAND_ID,
             COMMAND_NAME,
             COMMAND_DESCRIPTION,
-            "",
+            addin_info.ribbon_icon("inspecter_profil"),
         )
 
     created_handler = CommandCreatedHandler()

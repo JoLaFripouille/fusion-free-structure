@@ -5,7 +5,7 @@ import traceback
 import adsk.core as core
 import adsk.fusion as fusion
 
-from ..lib import guardrail_layout, guardrail_operations, ui_layout
+from ..lib import addin_info, guardrail_layout, guardrail_operations, ui_layout
 
 
 COMMAND_ID = "EI_JHR_CreateGuardrail"
@@ -257,6 +257,7 @@ def start():
         return
     definition = ui.commandDefinitions.addButtonDefinition(
         COMMAND_ID, "Garde-corps acier", "Implanter un garde-corps sur des faces d'appui acier.",
+        addin_info.ribbon_icon("garde_corps"),
     )
     handler = Created()
     definition.commandCreated.add(handler)

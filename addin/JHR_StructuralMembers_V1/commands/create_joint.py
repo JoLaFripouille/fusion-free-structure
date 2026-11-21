@@ -449,7 +449,7 @@ def start():
             COMMAND_ID,
             COMMAND_NAME,
             COMMAND_DESCRIPTION,
-            "",
+            addin_info.ribbon_icon("jonctions_acier"),
         )
 
     created_handler = CommandCreatedHandler()

@@ -510,7 +510,7 @@ def start():
             COMMAND_ID,
             COMMAND_NAME,
             COMMAND_DESCRIPTION,
-            "",
+            addin_info.ribbon_icon("grugeage"),
         )
     created_handler = CommandCreatedHandler()
     definition.commandCreated.add(created_handler)
