@@ -25,10 +25,10 @@ RIVNUT_MODE = "Écrou à sertir RIVKLE"
 PANEL_IDS = (ui_layout.FASTENER_PANEL_ID,)
 MODES = (COPY_MODE, HEX_MODE, *SOCKET_MODES, COUNTERSUNK_MODE, TAPPED_MODE, RIVNUT_MODE)
 SHORTCUTS = (
-    ("EI_JHR_BoltH", "Boulon tête H", "visserie_h", HEX_MODE),
-    ("EI_JHR_BoltCHC", "Boulon tête cylindrique", "visserie_chc", CAP_MODE),
-    ("EI_JHR_BoltTBHC", "Boulon tête bombée", "visserie_tbhc", BUTTON_MODE),
-    ("EI_JHR_BoltTF", "Boulon tête fraisée", "visserie_tf", COUNTERSUNK_MODE),
+    ("EI_JHR_BoltH", "Boulon tête H", "visserie_h_ecrou", HEX_MODE),
+    ("EI_JHR_BoltCHC", "Boulon tête cylindrique", "visserie_chc_ecrou", CAP_MODE),
+    ("EI_JHR_BoltTBHC", "Boulon tête bombée", "visserie_tbhc_ecrou", BUTTON_MODE),
+    ("EI_JHR_BoltTF", "Boulon tête fraisée", "visserie_tf_ecrou", COUNTERSUNK_MODE),
     ("EI_JHR_TappedScrew", "Vis en trou taraudé", "visserie_taraudage", TAPPED_MODE),
     ("EI_JHR_Rivkle", "Écrou à sertir RIVKLE", "visserie_rivkle", RIVNUT_MODE),
 )

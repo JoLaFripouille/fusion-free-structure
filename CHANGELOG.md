@@ -4,6 +4,10 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.19] - Icônes du ruban Visserie
+
+- Rend l’écrou visible en doré au bout des quatre icônes de boulons, y compris au petit format du ruban.
+
 ## [1.30.18] - Fraisures et RIVKLE
 
 - Ajoute un accès RIVKLE dans **Visserie**, avec la liaison au trou et des options séparées pour la vis et la rondelle sous tête.
