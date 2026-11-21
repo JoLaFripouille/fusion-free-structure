@@ -4,9 +4,9 @@
   "id": "7d8f24f8-5e29-4c6d-b8a1-e6e1ed713100",
   "author": "EI_JHR",
   "description": {
-    "": "Structure JHR V1.30.28, rangement des assemblages et raidisseurs de poteau."
+    "": "Structure JHR V1.30.29, perçages du jarret par zone et aperçu des erreurs."
   },
-  "version": "1.30.28",
+  "version": "1.30.29",
   "runOnStartup": false,
   "supportedOS": "windows",
   "editEnabled": true

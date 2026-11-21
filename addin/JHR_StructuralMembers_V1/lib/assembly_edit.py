@@ -197,6 +197,8 @@ def _rebuild(design, target, plan):
         raise ValueError(target.reason)
     if plan.settings_mm == target.parameters_mm and plan.alternate == target.alternate:
         return target.group
+    if _edit_jarret_contours(design, target, plan):
+        return target.group
     record = json.loads(target.original)
     parent = target.group.assemblyContext
     # Suppression et recréation restent dans la même transaction native de la commande.
@@ -213,6 +215,46 @@ def _rebuild(design, target, plan):
     return assemblies.create(design, assemblies.evaluate(
         design, target.template.key, target.occurrences, plan.settings_mm, plan.alternate,
     ), parent=parent)
+
+
+def _edit_jarret_contours(design, target, plan):
+    """Retouche les tôles concernées quand les usinages et fixations gardent leur place."""
+    if target.template.key != "beam_column_haunch" or target.alternate != plan.alternate:
+        return False
+    changed = {key for key in target.parameters_mm.keys() | plan.settings_mm.keys()
+               if plan.settings_mm.get(key) != target.parameters_mm.get(key)}
+    if not changed or not changed <= {"haunch_flat", "weld_relief", "reach", "stiffener_clearance"}:
+        return False
+    old = evaluate(design, target, target.parameters_mm)
+    if not assemblies._plates_match(target.group, old.plates) or not assemblies._associated_bolts_match(
+        target.group, plan.fasteners,
+    ):
+        return False
+    if len(old.plates) != len(plan.plates) or any(
+        (before.origin, before.u, before.v, before.holes, before.thickness_cm)
+        != (after.origin, after.u, after.v, after.holes, after.thickness_cm)
+        for before, after in zip(old.plates, plan.plates)
+    ):
+        return False
+    hardware = assemblies.fastener_creator.assembly_hardware(target.group)
+    parts = [item for item in target.group.childOccurrences if item not in hardware]
+    modifications = [(part, before, after) for part, before, after in zip(parts, old.plates, plan.plates)
+                     if before != after]
+    if any(not _solid_matches(part, before) for part, before, _ in modifications):
+        return False
+    marker = _marker(target.group)
+    journal = Journal(design, marker, marker.value)
+    try:
+        for part, before, after in modifications:
+            _modify_part(design, part, before, after, journal)
+        assemblies._check_bolted_assembly(design, plan, target.group)
+        record = json.loads(marker.value)
+        record["parameters_mm"] = plan.settings_mm
+        marker.value = json.dumps(record)
+    except Exception:
+        journal.rollback()
+        raise
+    return True
 
 
 def _piece_family(name):

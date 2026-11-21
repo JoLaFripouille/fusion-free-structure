@@ -20,9 +20,10 @@ class BoltSpec:
 
     @property
     def display_label(self):
-        return "{} — classe {} — trou Ø{} mm".format(
+        grade = f"classe {self.strength_class}" if self.strength_class else "gabarit CAO"
+        return "{} — {} — trou Ø{} mm".format(
             self.designation,
-            self.strength_class,
+            grade,
             _format_number(self.recommended_hole_mm),
         )
 
@@ -34,9 +35,22 @@ def _format_number(value):
 
 BOLT_SPECS = (
     BoltSpec("M12", "8.8", 12.0, 14.0, 18.0, 7.5, 18.0, 10.0, 13.0, 24.0, 2.5),
+    BoltSpec("M14", "8.8", 14, 16, 21, 8.8, 21, 12.8, 15, 28, 2.5),
     BoltSpec("M16", "8.8", 16.0, 18.0, 24.0, 10.0, 24.0, 13.0, 17.0, 30.0, 3.0),
+    BoltSpec("M18", "8.8", 18, 20, 27, 11.5, 27, 15, 19, 34, 3),
     BoltSpec("M20", "8.8", 20.0, 22.0, 30.0, 12.5, 30.0, 16.0, 21.0, 37.0, 3.0),
+    BoltSpec("M22", "8.8", 22, 24, 34, 14, 34, 19.4, 23, 39, 3),
     BoltSpec("M24", "8.8", 24.0, 26.0, 36.0, 15.0, 36.0, 19.0, 25.0, 44.0, 4.0),
+    BoltSpec("M27", "8.8", 27, 30, 41, 17, 41, 23.8, 28, 50, 4, 6),
+    BoltSpec("M30", "8.8", 30, 33, 46, 18.7, 46, 25.6, 31, 56, 4, 7),
+    BoltSpec("M33", "8.8", 33, 36, 50, 21, 50, 28.7, 34, 60, 5, 7),
+    BoltSpec("M36", "8.8", 36, 39, 55, 22.5, 55, 31, 37, 66, 5, 8),
+    BoltSpec("M39", "8.8", 39, 42, 60, 25, 60, 33.4, 42, 72, 6, 8),
+    BoltSpec("M42", "8.8", 42, 45, 65, 26, 65, 34, 45, 78, 8, 9),
+    BoltSpec("M45", "8.8", 45, 48, 70, 28, 70, 36, 48, 85, 8, 9),
+    BoltSpec("M48", "8.8", 48, 52, 75, 30, 75, 38, 52, 92, 8, 10),
+    # Enveloppe CAO interpolée entre M48 et M52, sans classe de résistance attribuée.
+    BoltSpec("M50", "", 50, 54, 77.5, 31.5, 77.5, 40, 54, 95, 8, 10),
 )
 
 # Petits diamètres réservés à la pose manuelle. Le choix des assemblages

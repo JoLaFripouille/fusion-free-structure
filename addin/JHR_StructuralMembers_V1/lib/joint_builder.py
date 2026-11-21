@@ -589,15 +589,10 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
         cut_point,
         geometry.plane_normal,
     )
-    primary_extensions = _evaluate_primary_extensions(
-        primary_occurrence,
-        primary_body,
-        primary_curve,
-        secondary_occurrence,
-        secondary_body,
-        geometry,
-        cut_point,
-        geometry.plane_normal,
+    # Une platine d’about détermine elle-même la couverture du poteau.
+    primary_extensions = () if allow_support_end else _evaluate_primary_extensions(
+        primary_occurrence, primary_body, primary_curve, secondary_occurrence, secondary_body,
+        geometry, cut_point, geometry.plane_normal,
     )
     return JointEvaluation(
         primary_occurrence=primary_occurrence,

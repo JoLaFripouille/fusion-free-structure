@@ -63,7 +63,7 @@ class SlotAndModelPlans(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'dépassement'):
             geo.plan_modeled_fasteners([hole], self.head, self.nut, 12, projection_mm=-1)
         with self.assertRaisesRegex(ValueError, 'disponible'):
-            geo.plan_modeled_fasteners([hole], self.head, self.nut, 14)
+            geo.plan_modeled_fasteners([hole], self.head, self.nut, 15)
 
     def test_independent_washers_change_stack_and_keep_the_supports(self):
         hole = geo.Hole((0, 0, .5), (0, 0, 1), 1.4)
@@ -114,7 +114,7 @@ class SlotAndModelPlans(unittest.TestCase):
         self.assertEqual(dims['spec'].head_across_flats_mm, 18.)
         self.assertEqual(dims['spec'].washer_outer_diameter_mm, 24.)
         with self.assertRaisesRegex(ValueError, 'disponible'):
-            simple.dimensions(14, 50, 1.8)
+            simple.dimensions(15, 50, 1.8)
         with self.assertRaisesRegex(ValueError, 'trop courte'):
             simple.dimensions(12, 30, 1.8)
 

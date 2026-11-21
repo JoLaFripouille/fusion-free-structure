@@ -2,7 +2,7 @@
 from dataclasses import dataclass, replace
 from math import atan2, cos, hypot, isfinite, sin, sqrt, tau
 
-from . import bolt_specs, joint_geometry as geo
+from . import assembly_catalog, bolt_specs, joint_geometry as geo
 
 
 @dataclass(frozen=True)
@@ -59,6 +59,7 @@ class DimensionError(ValueError):
 
 
 def dimensions(template, supplied):
+    supplied = assembly_catalog.current_parameters(template, supplied)
     fields = {field.key: field for _, group in template.groups for field in group}
     unknown = set(supplied) - fields.keys()
     if unknown:
@@ -79,15 +80,36 @@ def rectangle(name, origin, u, v, width, height, thickness, holes=(), offset_x=0
         keys = tuple(key for key, value in (("width", width), ("height", height), ("thickness", thickness)) if value <= 0)
         raise DimensionError(keys, "Les dimensions de la tôle doivent être strictement positives.")
     for i, (x, y, diameter) in enumerate(holes):
-        if diameter <= 0 or min(width / 2 - abs(x - offset_x), height / 2 - abs(y)) <= diameter / 2:
+        if not _hole_fits_plate((x, y, diameter), width, height, offset_x):
             raise DimensionError(("hole", "gauge", "pitch"), "Un perçage déborde de la tôle ou touche son chant.")
-        for other_x, other_y, other_diameter in holes[:i]:
-            if ((x-other_x)**2 + (y-other_y)**2)**.5 <= (diameter+other_diameter)/2:
+        for other in holes[:i]:
+            if _holes_touch((x, y, diameter), other):
                 raise DimensionError(("hole", "gauge", "pitch"), "Deux perçages se touchent ou se recouvrent.")
     return Plate(name, origin, u, v, (
         (offset_x-width/2, -height/2), (offset_x+width/2, -height/2),
         (offset_x+width/2, height/2), (offset_x-width/2, height/2),
     ), thickness, tuple(holes), finishable=finishable)
+
+
+def _hole_fits_plate(hole, width, height, offset_x):
+    x, y, diameter = hole
+    return diameter > 0 and min(width/2-abs(x-offset_x), height/2-abs(y)) > diameter/2
+
+
+def _holes_touch(first, second):
+    x, y, diameter = first
+    other_x, other_y, other_diameter = second
+    return hypot(x-other_x, y-other_y) <= (diameter+other_diameter)/2
+
+
+def preview_holes(width, height, holes):
+    """Les cercles incompatibles avec la tôle sont représentés par les marqueurs d’erreur."""
+    hidden = {index for index, hole in enumerate(holes) if not _hole_fits_plate(hole, width, height, 0.)}
+    for index, hole in enumerate(holes):
+        for previous, other in enumerate(holes[:index]):
+            if _holes_touch(hole, other):
+                hidden.update((index, previous))
+    return tuple(hole for index, hole in enumerate(holes) if index not in hidden)
 
 
 def grid(gauge, pitch, hole):
@@ -141,9 +163,8 @@ def _anchor_spec(diameter):
     if nominal in (4, 5, 6, 8, 10):
         return bolt_specs.modeled_spec(nominal, "CHC")[0]
     designation = f"M{nominal:g}"
-    spec = next((item for item in bolt_specs.BOLT_SPECS if item.designation == designation), None)
-    if spec:
-        return spec
+    if nominal in (12, 16, 20, 24):
+        return bolt_specs.bolt_spec_by_designation(designation)
     reference = bolt_specs.default_bolt_spec()
     ratio = nominal / reference.nominal_diameter_mm
     # Les tiges de diamètre libre existaient déjà. Hors catalogue, garder une
@@ -276,10 +297,7 @@ def finish_rectangle(plate, chamfer=0., radius=0.):
     return replace(plate, outline=tuple((x0+x, y0+y) for x, y in outline), arcs=arcs)
 
 
-def bolt_rows(count, low, high, spacing, blocked=(), span=0):
-    if count != int(count) or not 1 <= count <= 12:
-        raise ValueError("Choisir entre 1 et 12 rangées entières.")
-    count = int(count)
+def _bolt_row_zones(low, high, blocked):
     allowed = [(low, high)] if low <= high else []
     for a, b in sorted(blocked):
         remaining = []
@@ -292,6 +310,14 @@ def bolt_rows(count, low, high, spacing, blocked=(), span=0):
                 if b < end:
                     remaining.append((b, end))
         allowed = remaining
+    return allowed
+
+
+def bolt_rows(count, low, high, spacing, blocked=(), span=0):
+    if count != int(count) or not 1 <= count <= 12:
+        raise ValueError("Choisir entre 1 et 12 rangées entières.")
+    count = int(count)
+    allowed = _bolt_row_zones(low, high, blocked)
 
     def fit(target, lower, upper):
         options = [min(max(target, l), r) for start, end in allowed
@@ -317,6 +343,53 @@ def bolt_rows(count, low, high, spacing, blocked=(), span=0):
         result.append(fit(target, lower, upper))
         lower = result[-1]+spacing
     return tuple(result)
+
+
+def bolt_rows_preview(count, low, high, spacing, blocked=(), span=0, *, pitch=0):
+    """Conserve les rangées demandées pour situer les conflits sur l’aperçu."""
+    if pitch and count > 1:
+        span = pitch*(count-1)
+    try:
+        return bolt_rows(count, low, high, spacing, blocked, span), ()
+    except ValueError:
+        if count != int(count) or not 1 <= count <= 12:
+            raise
+    count = int(count)
+    centre = (low+high)/2
+    requested_span = span or max(0., high-low)
+    targets = (centre,) if count == 1 else tuple(
+        centre+requested_span*(index/(count-1)-.5) for index in range(count)
+    )
+    notes = [[] for _ in targets]
+    allowed = _bolt_row_zones(low, high, blocked)
+    if count == 1 and span:
+        notes[0].append("L’écart entre rangées extrêmes exige au moins deux rangées dans cette zone")
+    minimum_span = (count-1)*spacing
+    if count > 1 and requested_span < minimum_span:
+        if pitch:
+            message = (f"Entraxe vertical de {pitch*10:.1f} mm. "
+                       f"Prévoir au moins {spacing*10:.1f} mm")
+        else:
+            message = (f"Écart entre rangées extrêmes de {requested_span*10:.1f} mm pour {count} rangées. "
+                       f"Prévoir au moins {minimum_span*10:.1f} mm ou réduire le nombre de rangées")
+        for row in notes:
+            row.append(message)
+    for index, target in enumerate(targets):
+        if target < low or target > high:
+            notes[index].append(f"Rangée hors de la hauteur disponible de {max(0., high-low)*10:.1f} mm dans cette zone")
+        elif not any(start <= target <= end for start, end in allowed):
+            if allowed:
+                displacement = min(min(abs(target-start), abs(target-end)) for start, end in allowed)
+                notes[index].append(
+                    "Rangée dans le dégagement d’une semelle ou d’un raidisseur. "
+                    f"Ajuster l’entraxe ou la distance aux limites pour la déplacer d’au moins {displacement*10:.1f} mm"
+                )
+            else:
+                notes[index].append("Aucune rangée ne tient entre les semelles et raidisseurs de cette zone")
+    if not any(notes):
+        for row in notes:
+            row.append(f"Répartir moins de rangées dans cette zone. Entraxe vertical minimum {spacing*10:.1f} mm")
+    return targets, tuple((index, ". ".join(reasons)) for index, reasons in enumerate(notes) if reasons)
 
 
 def pitch_series(count, pitch):

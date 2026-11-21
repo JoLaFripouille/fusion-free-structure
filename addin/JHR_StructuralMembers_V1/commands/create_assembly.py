@@ -7,7 +7,7 @@ import adsk.fusion as fusion
 
 from ..lib import (
     addin_info, assembly_catalog as catalogue, assembly_geometry, assembly_operations, plate_preview,
-    preview_visibility, ui_layout,
+    ui_layout,
 )
 
 COMMAND_ID = "EI_JHR_CreatePlateAssembly"
@@ -25,7 +25,7 @@ TOOLS = (
      "contreventement_gousset", "Contreventements"),
     (COMMAND_ID, "Assemblages acier", "Tous les assemblages du catalogue.", "assemblages_platines", None),
 )
-FIXING_GROUPS = {"Perçages", "Boulonnerie", "Ancrages droits"}
+FIXING_GROUPS = {"Perçages", "Perçages entre semelles", "Perçages sous la poutre", "Boulonnerie", "Ancrages droits"}
 OPTION_GROUPS = {"Cales fourchettes", "Goussets d’âme", "Goussets d’ailes", "Préscellement"}
 OPTIONAL_PARTS = {
     "Cales fourchettes": ("Poser des cales fourchettes", "shim", 3),
@@ -35,6 +35,7 @@ OPTIONAL_PARTS = {
     "Préscellement": ("Ajouter une platine de préscellement", "preset_thickness", 6),
     "Raidisseurs": ("Ajouter des raidisseurs", "stiffener", 8),
 }
+HAUNCH_BOLT_OPTION = ("Poser la boulonnerie", "bolt", 12)
 CORNER_CHOICES = {"chamfer": ("Chanfreiner les coins", "Taille du chanfrein"),
                   "corner_radius": ("Arrondir les coins", "Rayon")}
 HOLE_DIMENSIONS = (("gauge", "pitch"), ("hole_edge_x", "hole_edge_y"),
@@ -50,6 +51,9 @@ def _dimension_visibility(values):
             visible = alternatives[values[mode].selectedItem.index]
             for key in {field for combination in alternatives for field in combination}:
                 yield key, key in visible
+
+    if "bolt_clearance" in values:
+        yield "hole", not values["bolt_clearance"].isVisible
 
 
 class AssemblyForm:
@@ -68,7 +72,7 @@ class AssemblyForm:
         self.design = fusion.Design.cast(self.app.activeProduct)
         self.creation_id = self.app.activeDocument.creationId
         self.graphics = None
-        self.visibility = preview_visibility.PreviewVisibility()
+        self._plan_key = self._last_plan = self._last_plan_error = self._visible_plan = None
         inputs = command.commandInputs
         profiles = inputs.addTabCommandInput("profilesTab", "Assemblage" if editing else "Profils").children
         if editing:
@@ -156,9 +160,13 @@ class AssemblyForm:
         self.edit_target = None
         self.editing_bay = False
         self.edit_error = ""
+        self._plan_key = self._last_plan = self._last_plan_error = None
+        self.clear_preview()
         self.loading = True
         try:
-            if self.edit_selection.selectionCount:
+            if not self.edit_selection.selectionCount:
+                self.report.formattedText = "Sélectionner une pièce de l’assemblage JHR."
+            else:
                 entity = self.edit_selection.selection(0).entity
                 if angle_cleat_copy.find_group(entity):
                     preview_angle_cleat.open_edit(self.design, entity)
@@ -225,10 +233,12 @@ class AssemblyForm:
             groups.append((tab, group))
             children = group.children
             optional = OPTIONAL_PARTS.get(label)
+            if model.key == "beam_column_haunch" and label == "Boulonnerie":
+                optional = HAUNCH_BOLT_OPTION
             if optional:
                 title, main_key, _ = optional
                 switches[main_key] = (
-                    children.addBoolValueInput(f"{model.key}_{main_key}_enabled", title, True, "", False),
+                    children.addBoolValueInput(f"{model.key}_{main_key}_enabled", title, True, "", main_key == "bolt"),
                     fields,
                 )
             for field in fields:
@@ -377,14 +387,32 @@ class AssemblyForm:
                 parameters[field.key] = value
         alternate = ((self.alternate.isVisible and self.alternate.value)
                      or (self.alternate_end.isVisible and self.alternate_end.value))
-        if self.editing:
-            from ..lib import assembly_edit
+        occurrences = (() if self.editing else
+                       tuple(fusion.Occurrence.cast(s.selection(0).entity) for s in selection))
+        timeline = self.design.timeline
+        key = (model.key, occurrences, tuple(parameters.items()), alternate, timeline.markerPosition, timeline.count)
+        if key != self._plan_key:
+            self._plan_key = key
+            self._last_plan = self._last_plan_error = None
+            try:
+                if self.editing:
+                    from ..lib import assembly_edit
 
-            return assembly_edit.evaluate(self.design, self.edit_target, parameters, alternate, preview_support=True)
-        return assembly_operations.evaluate(
-            self.design, model.key, [fusion.Occurrence.cast(s.selection(0).entity) for s in selection],
-            parameters, alternate, preview_support=True,
-        )
+                    self._last_plan = assembly_edit.evaluate(
+                        self.design, self.edit_target, parameters, alternate, preview_support=True,
+                    )
+                else:
+                    self._last_plan = assembly_operations.evaluate(
+                        self.design, model.key, occurrences, parameters, alternate, preview_support=True,
+                    )
+            except (ValueError, FileNotFoundError) as error:
+                self._last_plan_error = error
+            except Exception:
+                self._plan_key = None
+                raise
+        if self._last_plan_error is not None:
+            raise self._last_plan_error.with_traceback(None)
+        return self._last_plan
 
     def clear_feedback(self):
         if self.active_feedback and self.active_feedback.isValid:
@@ -406,20 +434,22 @@ class AssemblyForm:
                     continue
                 message = f"<b>{escape(control.name)}</b> · {message}"
                 self.active_feedback = self.dimension_feedback[key][field]
-                self.active_feedback.formattedText = f'<font color="#D43B3B">{message}</font>'
+                self.active_feedback.formattedText = f'<font color="#FF9292">{message}</font>'
                 self.active_feedback.isVisible = True
                 break
-        self.report.formattedText = f'<font color="#D43B3B">{message}</font>'
+        self.report.formattedText = f'<font color="#FF9292">{message}</font>'
 
     def clear_preview(self):
-        self.visibility.restore()
         if self.bay_form:
             self.bay_form.clear_preview()
         if self.graphics and self.graphics.isValid:
             self.graphics.deleteMe()
         self.graphics = None
+        self._visible_plan = None
 
     def preview(self, plan):
+        if self._visible_plan is plan and self.graphics and self.graphics.isValid:
+            return
         self.clear_preview()
         if self.editing_bay:
             self.bay_form.preview(plan)
@@ -429,8 +459,8 @@ class AssemblyForm:
         plate_preview.draw_plates(self.graphics, plan.plates)
         if plan.support_errors:
             plate_preview.draw_unsupported_holes(self.graphics, plan.drilling[0], plan.support_errors)
-        if self.editing and self.edit_target:
-            self.visibility.hide(self.edit_target.group)
+        # L’occurrence du montage doit rester visible pour conserver la sélection Fusion.
+        self._visible_plan = plan
         self.app.activeViewport.refresh()
 
 
@@ -468,6 +498,14 @@ class Validate(core.ValidateInputsEventHandler):
     def notify(self, args):
         self.form.clear_feedback()
         try:
+            if self.form.editing and not (self.form.edit_target or self.form.editing_bay):
+                self.form.clear_preview()
+                if self.form.edit_error:
+                    self.form.show_error(self.form.edit_error)
+                else:
+                    self.form.report.formattedText = "Sélectionner une pièce de l’assemblage JHR."
+                args.areInputsValid = False
+                return
             plan = self.form.plan()
             if self.form.editing_bay:
                 self.form.bay_form.set_status("Auto-contreventement · Aperçu")
@@ -492,6 +530,9 @@ class Validate(core.ValidateInputsEventHandler):
             if plan.brace_gaps_cm:
                 gaps = ", ".join(f"{gap*10:.1f}" for gap in plan.brace_gaps_cm)
                 self.form.report.formattedText += f" · Jeux à l’appui en mm {gaps}"
+            if plan.template.key == "beam_column_haunch" and plan.drilling and plan.settings_mm["bolt"]:
+                diameter = f"{plan.drilling[0].diameter*10:g}".replace(".", ",")
+                self.form.report.formattedText += f" · Perçages Ø{diameter} mm"
             args.areInputsValid = True
         except (ValueError, FileNotFoundError) as error:
             self.form.clear_preview()

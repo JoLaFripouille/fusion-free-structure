@@ -54,7 +54,7 @@ class AssemblyGeometryTests(unittest.TestCase):
     def test_default_haunch_has_four_rows_and_weld_relief(self):
         dims = geometry.dimensions(catalogue.template_for("beam_column_haunch"), {})
         web, flange = geometry.haunch((0, 0, 0), (1, 0, 0), (0, 0, 1), 8.2, -8, dims)
-        self.assertEqual(dims["rows"], 4)
+        self.assertEqual((dims["rows_beam"], dims["rows_haunch"]), (2, 2))
         self.assertEqual(dims["top_setback"], .5)
         self.assertEqual(web.outline[:2], ((2., 0), (0, -2.)))
         self.assertLess(flange.normal[2], 0)
@@ -94,6 +94,43 @@ class AssemblyGeometryTests(unittest.TestCase):
         self.assertTrue(all(b-a >= 3 for a, b in zip(rows, rows[1:])))
         with self.assertRaises(ValueError):
             geometry.bolt_rows(4, 0, 5, 3, blocked=())
+
+    def test_haunch_legacy_bolt_grid_is_migrated_per_zone(self):
+        model = catalogue.template_for("beam_column_haunch")
+        dims = geometry.dimensions(model, {"rows": 5, "gauge": 55, "pitch": 15, "gauge_haunch": 106})
+        self.assertEqual((dims["rows_beam"], dims["rows_haunch"]), (3, 2))
+        self.assertAlmostEqual(dims["gauge_beam"], 5.5)
+        self.assertAlmostEqual(dims["gauge_haunch"], 10.6)
+        self.assertEqual((dims["pitch_beam"], dims["pitch_haunch"]), (.75, 1.5))
+        recorded = catalogue.recorded_parameters(model, {"rows": 4, "gauge": 100, "rows_beam": 0})
+        self.assertEqual(recorded, {"rows_beam": 0, "rows_haunch": 2, "gauge_beam": 100, "gauge_haunch": 100})
+
+    def test_haunch_hole_clearance_preserves_legacy_diameter(self):
+        model = catalogue.template_for("beam_column_haunch")
+        dims = geometry.dimensions(model, {"bolt": 16, "hole": 19})
+        self.assertAlmostEqual(dims["bolt_clearance"], .3)
+        dims = geometry.dimensions(model, {"bolt": 18, "hole": 19, "bolt_clearance": 2})
+        self.assertAlmostEqual(dims["bolt_clearance"], .2)
+
+    def test_bolt_row_preview_keeps_failed_positions_and_marks_the_affected_rows(self):
+        positions, errors = geometry.bolt_rows_preview(3, -12., 12., 3.2, span=1.5)
+        self.assertEqual(positions, (-.75, 0., .75))
+        self.assertEqual(tuple(index for index, _ in errors), (0, 1, 2))
+        self.assertIn("64.0 mm", errors[0][1])
+        positions, errors = geometry.bolt_rows_preview(3, -12., 12., 3.2, blocked=((-.5, .5),), span=8.)
+        self.assertEqual(positions, (-4., 0., 4.))
+        self.assertEqual(tuple(index for index, _ in errors), (1,))
+        self.assertIn("raidisseur", errors[0][1])
+        positions, errors = geometry.bolt_rows_preview(3, -12., 12., 3.2, pitch=4.)
+        self.assertEqual((positions, errors), ((-4., 0., 4.), ()))
+        positions, errors = geometry.bolt_rows_preview(3, -12., 12., 3.2, pitch=1.5)
+        self.assertEqual(positions, (-1.5, 0., 1.5))
+        self.assertIn("Entraxe vertical de 15.0 mm", errors[0][1])
+
+    def test_plate_preview_omits_only_impossible_hole_contours(self):
+        accepted = (2., 2., 1.5)
+        holes = ((-5., 0., 1.5), (0., 0., 1.5), (0., .5, 1.5), accepted)
+        self.assertEqual(geometry.preview_holes(8., 8., holes), (accepted,))
 
     def test_shims_open_toward_the_split_and_match_anchor_axes(self):
         holes = geometry.grid(19, 22, 1.8)

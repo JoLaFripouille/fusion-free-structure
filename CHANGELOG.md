@@ -4,6 +4,14 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.29] - Perçages du jarret par zone
+
+- Sépare les perçages entre semelles de ceux sous la poutre, avec rangées, entraxes et distances aux limites propres à chaque zone.
+- Centre automatiquement les colonnes dans les deux parties planes derrière l’aile du poteau et montre en rouge les fixations incompatibles.
+- Écarte automatiquement les colonnes sous la poutre pour dégager la semelle du jarret. Indique la place manquante si l’aile limite ce déplacement.
+- Calcule le perçage du jarret avec le jeu sur le diamètre et étend le catalogue des boulons hexagonaux jusqu’au M48, avec un gabarit CAO M50.
+- Conserve le montage sélectionné pendant l’aperçu, réutilise le calcul et retouche directement les contours du jarret quand les usinages restent identiques.
+
 ## [1.30.28] - Rangement des assemblages et raidisseurs
 
 - Range les nouveaux assemblages dans le sous-assemblage actif ou dans le conteneur commun de leurs appuis. Une modification conserve leur emplacement.

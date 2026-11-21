@@ -109,6 +109,22 @@ def end_bolts(rows):
                          Field("hole", "Diamètre du trou", 14)))
 
 
+def _haunch_bolt_zone(key, label):
+    return (label, (
+        Field(f"rows_{key}", "Rangées de deux trous", 2, unit="", min_count=0),
+        Field(f"gauge_{key}", "Entraxe horizontal des boulons (0 = auto)", 0),
+        Field(f"pitch_{key}", "Entraxe vertical des boulons (0 = auto)", 0),
+        Field(f"edge_{key}", "Axe du trou aux limites haut et bas (0 = auto)", 0),
+    ))
+
+
+HAUNCH_BORES = ("Perçages", (Field("hole", "Diamètre du trou", 14),))
+HAUNCH_BOLT_ZONES = (
+    _haunch_bolt_zone("beam", "Perçages entre semelles"),
+    _haunch_bolt_zone("haunch", "Perçages sous la poutre"),
+)
+
+
 COLUMN_REINFORCEMENT = ("Raidisseurs", (
     Field("stiffener", "Épaisseur", 0),
     Field("stiffener_clearance", "Jeu périphérique", 1),
@@ -134,6 +150,10 @@ SHEAR_BOLTS = ("Perçages", (Field("gauge", "Dernière colonne depuis le support
                            Field("rows", "Rangées", 2, unit=""),
                            Field("pitch", "Entraxe vertical", 50), Field("hole", "Diamètre du trou", 14)))
 FASTENERS = ("Boulonnerie", (Field("bolt", "Diamètre nominal (0 = aucun)", 12),))
+HAUNCH_FASTENERS = ("Boulonnerie", (
+    Field("bolt", "Diamètre nominal", 12),
+    Field("bolt_clearance", "Jeu de perçage sur le diamètre", 2),
+))
 SPLICE_PLATE = ("Éclisses", (Field("width", "Longueur le long des poutres", 250),
                             Field("height", "Hauteur des éclisses (0 = auto)", 0), Field("thickness", "Épaisseur", 8),
                             Field("copies", "Nombre d’éclisses d’âme", 2, unit="", max_count=2)))
@@ -186,7 +206,7 @@ TEMPLATES = (
     Template("beam_column_rake", "Poutre-poteau", "About d’arbalétrier sur poteau", BEAM_ROLES,
              (END_PLATE, end_bolts(2), COLUMN_REINFORCEMENT, FASTENERS, PLATE_CORNERS)),
     Template("beam_column_haunch", "Poutre-poteau", "Platine d’about avec jarret", BEAM_ROLES,
-             (END_PLATE, end_bolts(4), HAUNCH, COLUMN_HAUNCH_REINFORCEMENT, FASTENERS, PLATE_CORNERS)),
+             (END_PLATE, HAUNCH_BORES, *HAUNCH_BOLT_ZONES, HAUNCH, COLUMN_HAUNCH_REINFORCEMENT, HAUNCH_FASTENERS, PLATE_CORNERS)),
     Template("shear_plate", "Poutre-poutre", "Plat d’âme soudé", ("Poutre principale", "Poutre secondaire"),
              (SHEAR_PLATE, SHEAR_BOLTS, FASTENERS, PLATE_CORNERS)),
     Template("splice_web", "Poutre-poutre", "Éclisses d’âme", ("Première poutre", "Deuxième poutre"),
@@ -209,13 +229,41 @@ TEMPLATES = (
 )
 
 
+def current_parameters(template, settings):
+    """Répartit les anciennes cotes du jarret dans les deux zones indépendantes."""
+    if template.key != "beam_column_haunch":
+        return settings
+    result = dict(settings)
+    if "rows" in result:
+        count = float(result.pop("rows"))
+        if not count.is_integer() or not 1 <= count <= 12:
+            raise ValueError("Choisir entre 1 et 12 rangées entières.")
+        lower = int(count)//2
+        result.setdefault("rows_beam", int(count)-lower)
+        result.setdefault("rows_haunch", lower)
+    if "gauge" in result:
+        gauge = result.pop("gauge")
+        result.setdefault("gauge_beam", gauge)
+        result.setdefault("gauge_haunch", gauge)
+    if "pitch" in result:
+        span = float(result.pop("pitch"))
+        for zone in ("beam", "haunch"):
+            steps = max(1, float(result.get(f"rows_{zone}", 2))-1)
+            result.setdefault(f"pitch_{zone}", span/steps)
+    if "bolt_clearance" not in result and "hole" in result:
+        nominal = float(result.get("bolt", 12))
+        if nominal:
+            result["bolt_clearance"] = max(0, float(result["hole"])-nominal)
+    return result
+
+
 def recorded_parameters(template, settings):
     """Préserve les contours enregistrés avant l’ajout des cotes de jeu."""
     if template.key == "base_ih":
         return {"gusset_flat": 0, "flange_gusset_flat": 0, "hole_gusset_clearance": 0, **settings}
     if template.family == "Poutre-poteau" and settings.get("stiffener"):
-        return {"stiffener_clearance": 0, **settings}
-    return settings
+        settings = {"stiffener_clearance": 0, **settings}
+    return current_parameters(template, settings)
 
 
 def template_for(key):

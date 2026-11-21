@@ -74,6 +74,42 @@ class AssemblyEditingTests(unittest.TestCase):
         target = self.editor.read(self.design, self.group)
         self.assertTrue(self.editor._use_hardware(target, {"anchor_diameter": 16}))
 
+    def test_jarret_flat_edit_reworks_only_the_web(self):
+        from dataclasses import dataclass, replace
+
+        @dataclass(frozen=True)
+        class Plate:
+            outline: tuple
+            origin: tuple = (0., 0., 0.)
+            u: tuple = (1., 0., 0.)
+            v: tuple = (0., 1., 0.)
+            holes: tuple = ()
+            thickness_cm: float = .8
+
+        fixed, web_part, sole, bolts = object(), object(), object(), object()
+        group = SimpleNamespace(childOccurrences=(fixed, web_part, sole, bolts))
+        normal = Plate(((0, 0), (0, 10), (5, 0)))
+        flat = replace(normal, outline=((0, 0), (0, 9), (1, 8), (5, 0)))
+        before = SimpleNamespace(plates=(normal, normal, normal))
+        after = SimpleNamespace(plates=(normal, flat, normal), settings_mm={"haunch_flat": 10},
+                                alternate=False, fasteners=())
+        target = SimpleNamespace(group=group, alternate=False, parameters_mm={"haunch_flat": 0},
+                                 template=SimpleNamespace(key="beam_column_haunch"))
+        touched = []
+        with patch.object(self.editor, "_marker", return_value=self.marker), \
+                patch.object(self.editor, "evaluate", return_value=before), \
+                patch.object(self.editor, "_solid_matches", return_value=True), \
+                patch.object(self.editor, "_modify_part",
+                             side_effect=lambda design, part, *args: touched.append(part)), \
+                patch.multiple(self.editor.assemblies, _plates_match=lambda *args: True,
+                               _associated_bolts_match=lambda *args: True,
+                               _check_bolted_assembly=lambda *args: None,
+                               fastener_creator=SimpleNamespace(assembly_hardware=lambda group: (bolts,)),
+                               create=True):
+            self.assertTrue(self.editor._edit_jarret_contours(self.design, target, after))
+        self.assertEqual(touched, [web_part])
+        self.assertEqual(json.loads(self.marker.value)["parameters_mm"], {"haunch_flat": 10})
+
     def test_catalogue_assembly_edit_requires_an_owned_history_group(self):
         self.marker.value = json.dumps({"kind": "beam_column_haunch", "members": ["main", "side"],
                                         "parameters_mm": {"width": 135}, "end_plate_link": {"alternate": True}})

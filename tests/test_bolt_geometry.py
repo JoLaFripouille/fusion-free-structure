@@ -14,6 +14,14 @@ from lib import angle_cleat_geometry, bolt_geometry, bolt_specs
 
 
 class BoltGeometryTests(unittest.TestCase):
+    def test_large_metric_bolts_resolve_from_the_catalogue(self):
+        for designation, flats in (("M18", 27), ("M22", 34), ("M30", 46), ("M48", 75), ("M50", 77.5)):
+            with self.subTest(designation=designation):
+                spec = bolt_specs.bolt_spec_by_designation(designation)
+                self.assertEqual(spec.head_across_flats_mm, flats)
+                self.assertEqual(bolt_specs.bolt_spec_from_label(spec.display_label), spec)
+                self.assertGreater(spec.recommended_hole_mm, spec.nominal_diameter_mm)
+
     def setUp(self):
         self.placements = angle_cleat_geometry.build_double_angle_frames(
             primary_web_face_point=(0.0, 0.3, 0.0),

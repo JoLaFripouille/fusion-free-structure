@@ -320,8 +320,15 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_su
     top = high - dims["top_setback"]
     if top <= inner_high+TOL:
         raise ValueError("Le retrait haut doit laisser une partie de l’aile supérieure sur la platine.")
-    bolt = bolt_specs.bolt_spec_by_designation(f"M{dims['bolt']*10:g}") if dims["bolt"] else None
-    if bolt and not diameter:
+    try:
+        bolt = bolt_specs.bolt_spec_by_designation(f"M{dims['bolt']*10:g}") if dims["bolt"] else None
+    except ValueError as error:
+        raise shapes.DimensionError(("bolt",), str(error)) from error
+    if with_haunch and bolt:
+        if not dims["bolt_clearance"]:
+            raise shapes.DimensionError(("bolt_clearance",), "Renseigner un jeu sur le diamètre supérieur à zéro.")
+        diameter = dims["bolt"] + dims["bolt_clearance"]
+    if bolt and not diameter and (not with_haunch or dims["rows_beam"] or dims["rows_haunch"]):
         raise ValueError("Prévoir des perçages pour poser les boulons.")
     washer_radius = bolt.washer_outer_diameter_mm*.05 if bolt else 0
     clearance = max(diameter/2, washer_radius) + .1
@@ -347,6 +354,9 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_su
         min_gauge += 2*clearance + .1
     post_start, _ = joints._line_endpoints(post.curve)
     face_x = _range(post, 0)
+    web_limits = tuple((x-post.anchor[0])*.1 for x in (post_shape.web_min_x_mm, post_shape.web_max_x_mm))
+    lower_flange, upper_flange = _inner_flange_levels(post, post_shape)
+    post_root = max(post_shape.web_min_y_mm-lower_flange, upper_flange-post_shape.web_max_y_mm)*.1
     centre_x = geo.dot(geo.subtract(support, post_start), post.section_x)
     bearing_half_width = min(centre_x-face_x[0], face_x[1]-centre_x)
     width = dims["width"] or min(min_gauge + 2*max(margin, clearance+.1), 2*bearing_half_width)
@@ -354,13 +364,10 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_su
         raise shapes.DimensionError(("width",), "L’aile du poteau ne couvre pas la largeur de la poutre à cet emplacement.")
     height = dims["height"] or top-min_z + 2*margin
     bottom = top-height
-    gauge = dims["gauge"] or width - 2*margin
     if width < beam_width - TOL or bottom > min_z+TOL:
         raise ValueError("La platine doit couvrir la section et, le cas échéant, le jarret.")
     center_y = (bottom+top)/2
     center = geo.add(support, geo.scale(up, center_y))
-    if diameter and not dims["gauge"]:
-        gauge = min(gauge, 2*(bearing_half_width-clearance-TOL))
     original_stations = tuple(geo.dot(geo.subtract(p, post_start), paths.main_direction)
                               for p in joints._line_endpoints(post.curve))
     plate_points = tuple(geo.add(support, geo.scale(up, height)) for height in (bottom, top))
@@ -369,69 +376,127 @@ def _end_plate(design, post, beam, dims, with_haunch, raked=False, *, preview_su
     trim = replace(trim, primary_extensions=joints._primary_extensions_to_cover(
         post.occurrence, post.body, post.curve, paths, plate_points,
     ))
-    holes = ()
+    holes = []
+    hole_issues = {}
     if diameter:
-        if gauge <= 2*clearance or width-gauge <= 2*clearance:
-            raise ValueError("Écarter les deux colonnes ou augmenter la largeur de platine.")
-        if raked and gauge < min_gauge-TOL:
-            raise ValueError("Écarter les colonnes de boulons au-delà de l’enveloppe de l’arbalétrier.")
         blocked = []
-        if gauge/2-clearance < beam_width/2:
-            blocked.extend(((low-clearance, inner_low+clearance),
-                            (inner_high-clearance, high+clearance)))
         if dims["stiffener"]:
             keepout = dims["stiffener"]/2 + clearance
             blocked.extend((level-keepout, level+keepout) for level in stiffener_levels)
         if with_haunch:
-            if gauge/2-clearance < dims["flange_width"]/2:
-                raise ValueError("Écarter les deux colonnes de boulons pour dégager la semelle du jarret.")
-            under = int(dims["rows"])//2
-            if under < 1:
-                raise ValueError("Prévoir au moins deux rangées pour répartir la fixation entre l’IPE et le jarret.")
-            rows = shapes.bolt_rows(under, min_z+clearance, low-clearance,
-                                   2*clearance, blocked, dims["pitch"])
-            rows += shapes.bolt_rows(dims["rows"]-under, low+clearance, top-clearance,
-                                    2*clearance, blocked, dims["pitch"])
+            bearing_centres = ((face_x[0]+web_limits[0]-post_root)/2, (face_x[1]+web_limits[1]+post_root)/2)
+            flange_alignment = geo.dot(across, post.section_x)
+            x_mid = (sum(bearing_centres)/2-centre_x)/flange_alignment
+            gauge_auto = (bearing_centres[1]-bearing_centres[0])/abs(flange_alignment)
+            haunch_gauge = dims["flange_width"] + 2*(clearance+abs(x_mid))
+            outer_limits = sorted((edge-centre_x)/flange_alignment for edge in face_x)
+            horizontal_limit = 2*(min(width/2-abs(x_mid), x_mid-outer_limits[0], outer_limits[1]-x_mid)
+                                  - clearance - TOL)
+            lower_auto = min(max(gauge_auto, haunch_gauge), max(gauge_auto, horizontal_limit))
+            zones = (
+                ("Entre semelles", dims["rows_beam"], dims["gauge_beam"] or gauge_auto, dims["pitch_beam"],
+                 dims["edge_beam"] or clearance, inner_low, inner_high, 0., "",
+                 "beam", not dims["gauge_beam"], horizontal_limit),
+                ("Sous la poutre", dims["rows_haunch"], dims["gauge_haunch"] or lower_auto,
+                 dims["pitch_haunch"], dims["edge_haunch"] or clearance, bottom, low, haunch_gauge, "la semelle du jarret",
+                 "haunch", not dims["gauge_haunch"], horizontal_limit),
+            )
         else:
-            row_min, row_max = low+clearance, top-clearance
-            rows = shapes.bolt_rows(dims["rows"], row_min, row_max,
-                                   2*clearance, blocked, dims["pitch"])
-        holes = tuple((x, y-center_y, diameter) for x in (-gauge/2, gauge/2) for y in rows)
-    plate = shapes.rectangle("Platine d’about", center, across, up, width, height, thickness, holes)
+            x_mid = 0.
+            gauge = dims["gauge"] or min(width-2*margin, 2*(bearing_half_width-clearance-TOL))
+            if gauge/2-clearance < beam_width/2:
+                blocked.extend(((low-clearance, inner_low+clearance),
+                                (inner_high-clearance, high+clearance)))
+            zones = (("", dims["rows"], gauge, dims["pitch"], clearance, low, top,
+                      min_gauge if raked else 0., "l’arbalétrier", "", False, 0.),)
+        for label, count, gauge, spacing, edge, y_min, y_max, minimum_gauge, obstacle, zone, automatic, gauge_limit in zones:
+            if not count:
+                continue
+            positions, row_issues = shapes.bolt_rows_preview(
+                count, y_min+edge, y_max-edge, 2*clearance, blocked,
+                span=0 if zone else spacing, pitch=spacing if zone else 0,
+            )
+            row_issues = dict(row_issues)
+            minimum_column_offset = minimum_gauge/2-abs(x_mid)
+            for x in (x_mid-gauge/2, x_mid+gauge/2):
+                column_issues = []
+                if gauge <= 2*clearance:
+                    column_issues.append(
+                        f"Entraxe horizontal de {gauge*10:.1f} mm. Prévoir plus de {20*clearance:.1f} mm"
+                    )
+                if abs(x)+clearance >= width/2:
+                    max_gauge = (width-2*(clearance+abs(x_mid)))*10
+                    column_issues.append(f"Entraxe horizontal trop grand pour la platine. Maximum {max_gauge:.1f} mm")
+                if abs(x) < minimum_column_offset-TOL:
+                    if automatic and gauge_limit < minimum_gauge:
+                        column_issues.append(
+                            f"Auto : {minimum_gauge*10:.1f} mm nécessaires pour dégager {obstacle}, "
+                            f"{max(0.,gauge_limit)*10:.1f} mm disponibles sur l’appui. "
+                            "Réduire la largeur de la semelle du jarret ou le diamètre des fixations"
+                        )
+                    else:
+                        column_issues.append(
+                            f"Entraxe horizontal de {gauge*10:.1f} mm. "
+                            f"Prévoir au moins {minimum_gauge*10:.1f} mm pour dégager {obstacle}"
+                        )
+                for index, y in enumerate(positions):
+                    issues = list(column_issues)
+                    if index in row_issues:
+                        issues.append(row_issues[index])
+                    if y < y_min+clearance-TOL or y > y_max-clearance+TOL:
+                        issues.append(f"Distance entre axe et limite de la zone insuffisante. Prévoir {clearance*10:.1f} mm minimum")
+                    if issues:
+                        hole_issues[len(holes)+1] = [(f"{label} · " if label else "")+reason for reason in issues]
+                    holes.append((x, y-center_y, diameter))
+    holes = tuple(holes)
+    if hole_issues and not preview_support:
+        raise support_error(tuple((index, ". ".join(issues)) for index, issues in hole_issues.items()))
+    plate_holes = shapes.preview_holes(width, height, holes) if hole_issues else holes
+    if len(plate_holes) != len(holes):
+        for index, hole in enumerate(holes, 1):
+            if hole not in plate_holes and index not in hole_issues:
+                hole_issues[index] = ["Perçage hors de la platine ou chevauchement de perçages"]
+    plate = shapes.rectangle("Platine d’about", center, across, up, width, height, thickness, plate_holes)
     direction_on_post = geo.dot(direction, post.section_y)
-    lower_flange, upper_flange = _inner_flange_levels(post, post_shape)
     flange = ((post_shape.max_y_mm-upper_flange) if direction_on_post > 0 else
               (lower_flange-post_shape.min_y_mm)) * .1
-    post_root = max(post_shape.web_min_y_mm-lower_flange, upper_flange-post_shape.web_max_y_mm)*.1
     # Coupe bornée à l’aile en sélectionnant sa face d’appui.
     drilling, fasteners = (), ()
-    support_errors = []
     if holes:
         centres = tuple(plate.point(x, y) for x, y, _ in holes)
-        web_limits = tuple((x-post.anchor[0])*.1 for x in (post_shape.web_min_x_mm, post_shape.web_max_x_mm))
         for index, position in enumerate(centres, 1):
             delta = geo.subtract(position, post_start)
             along, x = geo.dot(delta, paths.main_direction), geo.dot(delta, post.section_x)
             rad = clearance if bolt else diameter/2
             if not (face_x[0]+rad < x < face_x[1]-rad and stations[0]+rad < along < stations[1]-rad):
-                support_errors.append((index, "déborde de l’aile du poteau"))
+                hole_issues.setdefault(index, []).append("Perçage hors de l’aile du poteau")
             elif web_limits[0]-post_root-rad < x < web_limits[1]+post_root+rad:
-                support_errors.append((index, "rencontre l’âme ou le congé du poteau"))
+                hole_issues.setdefault(index, []).append("Perçage contre l’âme ou le congé du poteau")
+        support_errors = tuple((index, ". ".join(issues)) for index, issues in sorted(hole_issues.items()))
         if support_errors and not preview_support:
             raise support_error(support_errors)
         drilling = (Drilling(post, centres, direction, diameter, 2*flange+.2),)
-        if bolt:
+        if bolt and not support_errors:
             fasteners = _fastener_plan(centres, direction, thickness, flange, diameter, bolt)
+    else:
+        support_errors = ()
     plates = (plate, *haunch)
     if stiffener_levels:
         plates += _stiffeners(post, post_shape, support, up, stiffener_levels, stations, post_start,
                               paths.main_direction, dims["stiffener"], dims["stiffener_clearance"])
-    return plates, drilling, trim, fasteners, tuple(support_errors)
+    return plates, drilling, trim, fasteners, support_errors
 
 
 def support_error(errors):
-    details = " · ".join(f"N°{index} {message}" for index, message in errors)
-    return shapes.DimensionError(("gauge", "pitch"), "Fixations sur le poteau. " + details + ".")
+    reasons = {}
+    for index, message in errors:
+        for reason in message.split(". "):
+            reasons.setdefault(reason, []).append(str(index))
+    details = ". ".join(f"{reason} (n° {', '.join(indices)})" for reason, indices in reasons.items())
+    keys = ("gauge_beam", "pitch_beam", "rows_beam", "edge_beam",
+            "gauge_haunch", "pitch_haunch", "rows_haunch", "edge_haunch",
+            "gauge", "pitch", "rows")
+    return shapes.DimensionError(keys, "Fixations sur le poteau. " + details + ".")
 
 
 def _shear_plate(main, beam, dims, other_side, *, check_material=True):
