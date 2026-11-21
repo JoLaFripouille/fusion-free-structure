@@ -148,22 +148,23 @@ def analyze_miter_joint(
     secondary_inner = secondary_endpoints[1 - secondary_index]
     primary_approach = normalize(subtract(primary_joint, primary_inner))
     secondary_approach = normalize(subtract(secondary_joint, secondary_inner))
-    cosine = min(1.0, max(-1.0, dot(primary_approach, secondary_approach)))
-    angle_degrees = math.degrees(math.acos(cosine))
-    if min(angle_degrees, 180.0 - angle_degrees) < MINIMUM_JOIN_ANGLE_DEGREES:
-        raise ValueError(
-            "Les deux barres sont presque alignées ; aucun onglet fiable ne peut être créé."
-        )
+    cosine = dot(primary_approach, secondary_approach)
+    sine = length(cross(primary_approach, secondary_approach))
+    if sine <= GEOMETRY_TOLERANCE_CM:
+        message = ("Les deux barres sont alignées bout à bout. Aucun onglet n’est nécessaire."
+                   if cosine < 0 else "Les deux barres alignées arrivent du même côté de la jonction.")
+        raise ValueError(message)
+    angle_degrees = math.degrees(math.atan2(sine, cosine))
 
     # Les deux directions sont orientées depuis l'intérieur de chaque barre vers le raccord.
     # Leur différence est normale au plan qui laisse chaque barre d'un côté opposé.
     plane_normal = normalize(subtract(primary_approach, secondary_approach))
-    joint_point = normal_plane_intersection_point(
-        primary_joint,
-        primary_approach,
-        secondary_joint,
-        secondary_approach,
-    )
+    if distance_cm <= GEOMETRY_TOLERANCE_CM:
+        joint_point = scale(add(primary_joint, secondary_joint), 0.5)
+    else:
+        joint_point = normal_plane_intersection_point(
+            primary_joint, primary_approach, secondary_joint, secondary_approach,
+        )
     return MiterJointGeometry(
         joint_point=joint_point,
         primary_joint_endpoint=primary_joint,

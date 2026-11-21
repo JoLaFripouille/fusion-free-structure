@@ -14,6 +14,7 @@ COMMAND_ID = "EI_JHR_CreatePlateAssembly"
 FOOT_COMMAND_ID = "EI_JHR_CreateColumnBase"
 EDIT_COMMAND_ID = "EI_JHR_EditAssembly"
 FOOT_FAMILY = "Pieds de poteau"
+MONTAGE_IMAGES = addin_info.ADDIN_ROOT / "resources" / "montages"
 TOOLS = (
     (FOOT_COMMAND_ID, FOOT_FAMILY, "Créer la platine de pied d’un poteau JHR.", "pied_de_poteau", FOOT_FAMILY),
     ("EI_JHR_BeamColumn", "Poutre-poteau", "Monter une poutre sur un poteau, avec platine ou jarret.",
@@ -110,6 +111,15 @@ class AssemblyForm:
         self.alternate_end = profiles.addBoolValueInput(
             "alternateEnd", "Platine à l’autre extrémité du poteau", True, "", False,
         )
+        self.illustrations = {model.key: str(path) for model in self.models
+                              if (path := MONTAGE_IMAGES / f"{model.key}.png").is_file()}
+        self.montage_image = None
+        if self.illustrations:
+            self.montage_image = profiles.addImageCommandInput(
+                "montageImage", "", next(iter(self.illustrations.values())),
+            )
+            if self.montage_image:
+                self.montage_image.isFullWidth = True
         self.options = {}
         self.corner_options = {}
         self.dimension_feedback = {}
@@ -263,6 +273,8 @@ class AssemblyForm:
             for control in self.settings_tabs.values():
                 control.isVisible = False
             self.choices.isVisible = self.alternate.isVisible = self.alternate_end.isVisible = False
+            if self.montage_image:
+                self.montage_image.isVisible = False
             self.role_hint.formattedText = "Auto-contreventement"
             return
         model = self.template
@@ -272,6 +284,11 @@ class AssemblyForm:
                 selection.isVisible = visible
             selection.setSelectionLimits(int(visible), 1)
         ready = not self.editing or self.edit_target is not None
+        if self.montage_image:
+            image = self.illustrations.get(model.key) if ready else None
+            if image and self.montage_image.imageFile != image:
+                self.montage_image.imageFile = image
+            self.montage_image.isVisible = bool(image)
         if self.role_hint:
             self.role_hint.formattedText = (
                 " · ".join(escape(o.name) for o in self.edit_target.occurrences) if self.edit_target

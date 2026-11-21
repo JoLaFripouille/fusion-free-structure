@@ -6,7 +6,8 @@ from math import isfinite, sqrt
 from . import assembly_geometry as shapes, joint_geometry as geo
 
 
-UP = (0., 0., 1.)
+VERTICAL_AXES = ((0., 0., 1.), (0., 1., 0.))
+MIN_SLOPE = .02
 TOL = geo.PLANE_RELATION_TOLERANCE_CM
 
 
@@ -37,14 +38,26 @@ class RidgePlan:
     bolt_axis: tuple
 
 
-def _pitched_axis(beam):
-    axis = geo.normalize(beam.interior_axis)
-    if geo.dot(axis, UP) >= -TOL:
-        raise ValueError("Les deux poutres doivent descendre depuis le faîtage.")
-    horizontal = geo.subtract(axis, geo.scale(UP, geo.dot(axis, UP)))
-    if geo.length(horizontal) <= TOL:
-        raise ValueError("Une poutre de faîtage ne peut pas être verticale.")
-    return axis, geo.normalize(horizontal)
+def _ridge_plane(axes):
+    candidates = []
+    for up in VERTICAL_AXES:
+        drops = tuple(-geo.dot(axis, up) for axis in axes)
+        horizontal = tuple(geo.add(axis, geo.scale(up, drop)) for axis, drop in zip(axes, drops))
+        runs = tuple(geo.length(direction) for direction in horizontal)
+        if min(runs) <= TOL:
+            continue
+        first, second = (geo.scale(direction, 1. / run) for direction, run in zip(horizontal, runs))
+        if geo.length(geo.add(first, second)) <= TOL:
+            slopes = tuple(drop / run for drop, run in zip(drops, runs))
+            candidates.append((up, first, slopes))
+    if not candidates:
+        raise ValueError("Les axes des deux poutres doivent former des versants opposés dans un même plan vertical Y ou Z.")
+    up, normal, slopes = max(candidates, key=lambda candidate: min(candidate[2]))
+    if min(slopes) < MIN_SLOPE - 1e-12:
+        first, second = (100 * slope for slope in slopes)
+        raise ValueError(f"Le faîtage demande au moins 2 % de pente descendante par versant. "
+                         f"Pentes relevées de {first:.6g} % et {second:.6g} %.")
+    return up, normal
 
 
 def _haunch(root, axis, up, normal, section_width, dims, label):
@@ -74,10 +87,10 @@ def _haunch(root, axis, up, normal, section_width, dims, label):
     return (web, sole), sole.point(heel_ratio*heel_bottom, heel_bottom)
 
 
-def _beam_plates(beam, axis, cut, across, dims, double, label):
+def _beam_plates(beam, axis, cut, across, model_up, dims, double, label):
     x_axis = geo.normalize(beam.across_axis)
     height_axis = geo.normalize(beam.height_axis)
-    sign = 1. if geo.dot(height_axis, UP) > 0 else -1.
+    sign = 1. if geo.dot(height_axis, model_up) > 0 else -1.
     up = geo.scale(height_axis, sign)
     if (geo.length(geo.cross(x_axis, across)) > TOL or
             geo.length(geo.cross(up, geo.cross(x_axis, axis))) > TOL):
@@ -116,17 +129,16 @@ def plan_ridge(joint_point, first, second, dims, double=False, washer_radius=0.)
     if (any(not isfinite(value) or value < 0 for value in dims.values()) or
             not isfinite(washer_radius) or washer_radius < 0 or dims["thickness"] <= 0):
         raise ValueError("Les dimensions de l’assemblage doivent être finies et positives.")
-    (axis_1, normal), (axis_2, opposite) = (_pitched_axis(beam) for beam in beams)
-    if geo.length(geo.add(normal, opposite)) > TOL:
-        raise ValueError("Les axes des deux poutres doivent être dans le même plan vertical.")
-    across = geo.cross(UP, normal)
+    axes = tuple(geo.normalize(beam.interior_axis) for beam in beams)
+    up, normal = _ridge_plane(axes)
+    across = geo.cross(up, normal)
     cuts = tuple(RidgeCut(geo.add(joint_point, geo.scale(n, dims["thickness"])), n)
                  for n in (normal, geo.scale(normal, -1.)))
     haunches, heights, widths = [], [], []
-    for beam, axis, cut, label in zip(beams, (axis_1, axis_2), cuts, ("1", "2")):
-        parts, height_points, width_points = _beam_plates(beam, axis, cut, across, dims, double, label)
+    for beam, axis, cut, label in zip(beams, axes, cuts, ("1", "2")):
+        parts, height_points, width_points = _beam_plates(beam, axis, cut, across, up, dims, double, label)
         haunches.extend(parts)
-        heights.extend(geo.dot(geo.subtract(point, joint_point), UP) for point in height_points)
+        heights.extend(geo.dot(geo.subtract(point, joint_point), up) for point in height_points)
         widths.extend(geo.dot(geo.subtract(point, joint_point), across) for point in width_points)
 
     min_width, min_height = max(widths)-min(widths), max(heights)-min(heights)
@@ -149,10 +161,10 @@ def plan_ridge(joint_point, first, second, dims, double=False, washer_radius=0.)
         raise ValueError("Prévoir des perçages pour poser les boulons.")
 
     centre = geo.add(joint_point, geo.add(geo.scale(across, (max(widths)+min(widths))/2),
-                                         geo.scale(UP, (max(heights)+min(heights))/2)))
-    first_plate = shapes.rectangle("Platine d’about de faîtage 1", centre, across, UP,
+                                         geo.scale(up, (max(heights)+min(heights))/2)))
+    first_plate = shapes.rectangle("Platine d’about de faîtage 1", centre, across, up,
                                    width, height, dims["thickness"], holes)
-    second_plate = shapes.rectangle("Platine d’about de faîtage 2", centre, geo.scale(across, -1.), UP,
+    second_plate = shapes.rectangle("Platine d’about de faîtage 2", centre, geo.scale(across, -1.), up,
                                     width, height, dims["thickness"], holes)
     centres = tuple(first_plate.point(x, y) for x, y, _ in holes)
     return RidgePlan((first_plate, second_plate, *haunches), cuts, centres, normal)

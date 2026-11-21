@@ -211,6 +211,19 @@ class JointGeometryTests(unittest.TestCase):
         self.assertAlmostEqual(result.endpoint_distance_cm, 0.0)
         self.assertGreater(result.angle_degrees, 5.0)
 
+    def test_miter_accepts_shallow_roofs_with_a_common_endpoint(self):
+        summit = (534.8, 1551.5, 329.4)
+        for pitch in (2., .125, .001):
+            with self.subTest(pitch=pitch):
+                fall = 920. * math.tan(math.radians(pitch))
+                first = joint_geometry.add(summit, (0., -fall, -920.))
+                second = joint_geometry.add(summit, (0., -fall, 920.))
+                result = joint_geometry.analyze_miter_joint(first, summit, summit, second)
+                self.assertAlmostEqual(result.angle_degrees, 180. - 2 * pitch)
+                self.assertEqual(result.joint_point, summit)
+                for actual, expected in zip(result.plane_normal, (0., 0., 1.)):
+                    self.assertAlmostEqual(actual, expected)
+
     def test_miter_rejects_disconnected_and_aligned_members(self):
         with self.assertRaisesRegex(ValueError, "extrémités"):
             joint_geometry.analyze_miter_joint(

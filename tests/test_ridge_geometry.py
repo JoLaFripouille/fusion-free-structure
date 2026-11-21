@@ -2,6 +2,7 @@ import pathlib
 import sys
 import unittest
 from dataclasses import replace
+from math import radians, tan
 
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "addin" / "JHR_StructuralMembers_V1"))
@@ -22,6 +23,38 @@ def beam(side, slope, width=(-4.1, 4.1), height=(-8., 8.)):
 
 
 class RidgeGeometryTests(unittest.TestCase):
+    def test_minimum_pente_is_two_percent_on_each_rafter(self):
+        for slope in (.02, tan(radians(2.))):
+            with self.subTest(slope=slope):
+                plan = ridge.plan_ridge(POINT, beam(-1, slope), beam(1, slope), DIMS)
+                self.assertEqual(len(plan.plates), 6)
+        with self.assertRaisesRegex(ValueError, r"2 %.*par versant.*50 % et 1\.9 %"):
+            ridge.plan_ridge(POINT, beam(-1, .5), beam(1, .019), DIMS)
+
+    def test_y_up_rotates_cuts_plates_and_bolts_together(self):
+        def rotate(vector):
+            x, y, z = vector
+            return x, z, -y
+
+        def rotated_beam(original):
+            return replace(original, endpoint=rotate(original.endpoint), interior_axis=rotate(original.interior_axis),
+                           height_axis=rotate(original.height_axis), across_axis=rotate(original.across_axis))
+
+        rafters = (beam(-1, .02), beam(1, .2, width=(-3.1, 8.), height=(-13., 7.)))
+        z_up = ridge.plan_ridge(POINT, *rafters, DIMS, double=True)
+        y_up = ridge.plan_ridge(rotate(POINT), *(rotated_beam(rafter) for rafter in rafters), DIMS, double=True)
+        self.assertEqual(y_up.plates[0].v, (0., 1., 0.))
+        self.assertEqual(y_up.bolt_axis, rotate(z_up.bolt_axis))
+        self.assertEqual(y_up.bolt_centres, tuple(map(rotate, z_up.bolt_centres)))
+        for original, rotated in zip(z_up.cuts, y_up.cuts):
+            self.assertEqual(rotated.point, rotate(original.point))
+            self.assertEqual(rotated.interior_normal, rotate(original.interior_normal))
+        for original, rotated in zip(z_up.plates, y_up.plates):
+            self.assertEqual(rotated.origin, rotate(original.origin))
+            self.assertEqual(rotated.u, rotate(original.u))
+            self.assertEqual(rotated.v, rotate(original.v))
+            self.assertEqual(rotated.outline, original.outline)
+
     def test_end_plates_share_holes_and_match_opposite_cut_planes(self):
         first = beam(-1, .3)
         second = beam(1, .6, width=(-2.5, 7.5), height=(-13., 7.))

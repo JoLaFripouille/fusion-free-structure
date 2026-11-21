@@ -4,6 +4,12 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.24] - Illustrations des montages
+
+- Affiche le montage sélectionné dans l’onglet des profils pour les quatre raccords Poutre-poutre et le jarret Poutre-poteau.
+- Autorise les onglets de faible angle sur les profils qui se rejoignent.
+- Calcule les faîtages en Y ou Z vertical à partir d’une pente de 2 % par versant.
+
 ## [1.30.23] - Commandes Structure JHR via le MCP Fusion
 
 - Permet de rechercher une section du catalogue et d’utiliser son contour DXF dans la création de profils et de poteaux.
