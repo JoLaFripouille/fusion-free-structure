@@ -10,18 +10,47 @@ Pour modifier la préférence générale, ouvrir **Avatar → Préférences → 
 
 Le MCP Autodesk Fusion donne accès à la session ouverte. Découvrir les schémas actifs de `fusion_mcp_read` et `fusion_mcp_execute`. Identifier d'abord le document, son état et la commande active. Pour une inspection par script utiliser `featureType="script"` et `readOnly=true`. L'API Design exprime les longueurs en centimètres et les angles en radians. Les opérations Structure JHR documentent leurs arguments en millimètres ou degrés dans la signature.
 
-Les commandes visibles de **Structure JHR** utilisent le même code que les entrées de [`mcp_operations.py`](../addin/JHR_StructuralMembers_V1/lib/mcp_operations.py), invoquées depuis le mode script du MCP.
+Les opérations de [`mcp_operations.py`](../addin/JHR_StructuralMembers_V1/lib/mcp_operations.py) s’appellent avec `fusion_mcp_execute` en mode `script`. Elles réutilisent les fonctions natives de **Structure JHR**. `list_operations()` affiche les noms et les signatures disponibles dans la version chargée. `active_context()` renvoie les identifiants du dessin et les jetons de la sélection active.
+
+Pour créer un profil, chercher sa référence avec `list_profiles`, puis la passer à `create_members` avec les jetons des lignes ou arcs du squelette. Utiliser le contour du catalogue avec ses rayons, même pour une cornière. Si la section recherchée est absente, importer un DXF vérifié dans les profils personnalisés avant de la créer.
+
+Exemple en lecture seule pour découvrir les entrées et rechercher une cornière égale de 60 × 60 × 6 mm.
+
+```python
+import importlib
+import json
+import sys
+from pathlib import Path
+
+import adsk.core
+
+
+def run(_context):
+    app = adsk.core.Application.get()
+    roots = {Path(item.folder).resolve() for item in app.scripts
+             if item.name == "JHR_StructuralMembers_V1" and item.isRunning}
+    packages = [module.__package__ for name, module in tuple(sys.modules.items())
+                if name.endswith(".lib.addin_info") and getattr(module, "ADDIN_ROOT", None) in roots]
+    if len(packages) != 1:
+        raise RuntimeError("Charger une seule instance de Structure JHR dans Fusion.")
+    jhr = importlib.import_module(packages[0] + ".mcp_operations")
+    print(json.dumps(jhr.list_operations()))
+    print(json.dumps(jhr.run_operation("list_profiles", {"family": "Cornière égale", "query": "60x60"})))
+```
+
+Appeler `active_context()` avant une opération sur le modèle et reprendre ses identifiants dans les paramètres `creation_id` et, pour un dessin enregistré, `file_id`. Lorsque l’opération accepte `preview=True`, vérifier son résultat avec `readOnly=true` avant d’appliquer. Faire passer `readOnly` à `false` uniquement pour l’écriture autorisée. L’opération ne sauvegarde pas le dessin.
 
 | Besoin | Commande Fusion ou entrée script JHR |
 |---|---|
-| Profils et squelette | Profil acier, Poteaux, Modifier un profil, Inspecter un profil acier, `create_members`, `replace_member_section` |
-| Coupes et grugeages | Jonctions acier, Grugeage profils ouverts, `create_joint` |
-| Pieds, abouts, jarrets, éclissages, goussets | Pieds de poteau, Assemblages acier, Copier un assemblage, Modifier un assemblage, Supprimer un assemblage, Inspecter un assemblage, `assembly_templates`, `create_assembly`, `inspect_assembly` |
-| Pannes I/H reprises sur des poutres I/H | Raccorder les pannes |
+| Profils et squelette | `list_profiles`, `create_members`, `create_columns`, `inspect_member`, `edit_member`, `replace_member_section` |
+| Coupes et grugeages | `create_joint`, `create_cope` |
+| Pieds, abouts, jarrets, éclissages, goussets | `assembly_templates`, `create_assembly`, `inspect_assembly`, `edit_assembly`, `copy_assembly`, `remove_assembly` |
+| Pannes I/H reprises sur des poutres I/H | `connect_purlins` |
+| Auto-contreventement depuis deux faces | `create_brace_bay`, `edit_assembly` |
 | Cornières d'attache | Attaches de poutres par cornières, `create_double_angle` avec `opposite_token` facultatif |
-| Boulons, vis et écrous à sertir | Visserie → Boulonnerie JHR, `place_bolts`, `place_tapped_screw`, `place_rivet_nut` |
+| Boulons, vis et écrous à sertir | `place_bolts`, `place_tapped_screw`, `place_rivet_nut`, `attach_rivet_screw` |
 | Garde-corps | Garde-corps acier, Tronçonner un garde-corps, `create_guardrail`, `segment_guardrail` |
-| Bibliothèques et réglages locaux | Gérer les profils personnalisés, Paramètres Structure JHR |
+| Bibliothèque personnelle et réglages locaux | `import_custom_profile`, `remove_custom_profile`, `get_defaults`, `set_defaults` |
 
 Dans **Visserie → Boulon tête fraisée**, sélectionner le bord rond côté tête pour créer la fraisure à la pose. Pour plusieurs pièces empilées, renseigner les faces d’appui extérieures du montage. Dans **Vis en trou taraudé**, la case **Tête fraisée** permet de fraiser l’avant-trou ou de réutiliser une fraisure existante. La longueur d’une vis fraisée se mesure tête comprise.
 

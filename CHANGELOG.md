@@ -4,6 +4,11 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.23] - Commandes Structure JHR via le MCP Fusion
+
+- Permet de rechercher une section du catalogue et d’utiliser son contour DXF dans la création de profils et de poteaux.
+- Répertorie 28 opérations natives accessibles depuis le mode script du MCP Autodesk Fusion, dont les assemblages, le grugeage et la visserie.
+
 ## [1.30.22] - Icônes 3D dans tout le ruban
 
 - Applique les icônes validées aux 29 commandes de Structure JHR, dans les formats 16 et 32 px et leurs variantes haute densité.
