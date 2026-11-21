@@ -92,24 +92,21 @@ def read(design, entity):
     alternate = bool(link.get("alternate", payload.get("alternate", False)))
     reason = ""
     if template.family != "Pieds de poteau":
-        if template.key in ("shear_plate", "splice_web") or template.key.startswith("gusset_end_"):
-            from ..commands.remove_assembly import target_group
+        from ..commands.remove_assembly import target_group
 
-            try:
-                target_group(design, group)
-            except (ValueError, RuntimeError) as error:
-                reason = str(error)
-            if not reason and not link and "alternate" not in payload:
-                for candidate in (False, True):
-                    plan = assemblies.evaluate(design, template.key, tuple(occurrences), params, candidate,
-                                               check_material=False)
-                    if assemblies._plates_match(group, plan.plates):
-                        alternate = candidate
-                        break
-                else:
-                    reason = "Le côté de montage d’origine de ce gousset est introuvable."
-        else:
-            reason = "La reprise des perçages et des coupes liés de ce montage reste à intégrer."
+        try:
+            target_group(design, group)
+        except (ValueError, RuntimeError) as error:
+            reason = str(error)
+        if not reason and not link and "alternate" not in payload:
+            for candidate in (False, True):
+                plan = assemblies.evaluate(design, template.key, tuple(occurrences), params, candidate,
+                                           check_material=False)
+                if assemblies._plates_match(group, plan.plates):
+                    alternate = candidate
+                    break
+            else:
+                reason = "Le côté de montage d’origine de cet assemblage est introuvable."
     elif payload.get("base_end_index") not in (0, 1):
         reason = "Ce pied ancien ne comporte pas de liaison d’extrémité enregistrée."
     elif group.assemblyContext or (_component_instances(design, group.component) != 1):
@@ -181,16 +178,16 @@ def apply(design, target, plan):
     """Applique une édition du formulaire avec le groupe et sa liaison d’origine."""
     if _marker(target.group).value != target.original:
         raise ValueError("Cet assemblage a changé depuis l’ouverture du formulaire.")
-    if target.template.family != "Pieds de poteau":
-        return _rebuild_linked(design, target, plan)
-    revision = prepare_refresh(design, target.group)
-    latest = evaluate(design, target, plan.settings_mm, plan.alternate)
     from . import assembly_copy
 
+    if target.template.family != "Pieds de poteau":
+        return assembly_copy.rebuild_linked(design, target, plan)
+    revision = prepare_refresh(design, target.group)
+    latest = evaluate(design, target, plan.settings_mm, plan.alternate)
     return assembly_copy.apply_master_settings(design, revision, latest)
 
 
-def _rebuild_linked(design, target, plan):
+def _rebuild(design, target, plan):
     from ..commands.remove_assembly import remove
     from . import purlin_connections
 
@@ -201,10 +198,11 @@ def _rebuild_linked(design, target, plan):
     record = json.loads(target.original)
     # Suppression et recréation restent dans la même transaction native de la commande.
     remove(design, target.group)
-    if record.get("joint_records") and target.template.key == "shear_plate":
+    if target.template.key == "shear_plate" and (record.get("purlin_connection") or record.get("joint_records")):
         main, purlin = target.occurrences
         batch = purlin_connections.evaluate_batch(design, (main,), (purlin,), plan.settings_mm, allow_bars=True,
-                                                  alternate=plan.alternate)
+                                                  alternate=plan.alternate,
+                                                  cope_clearances_cm=record.get("cope_clearances_cm"))
         groups = purlin_connections.create_batch(design, batch)
         if len(groups) != 1:
             raise RuntimeError("Fusion n’a pas régénéré le raccord de la panne.")

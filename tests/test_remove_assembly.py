@@ -32,6 +32,7 @@ def load_command():
     library.addin_info = library.ui_layout = SimpleNamespace()
     library.assembly_operations = SimpleNamespace(ATTRIBUTE_GROUP="assembly")
     library.angle_cleat_creator = SimpleNamespace(ATTRIBUTE_GROUP="angle")
+    library.brace_bay = SimpleNamespace(find_group=lambda entity: None)
     library.joint_records = SimpleNamespace(ATTRIBUTE_GROUP="joint")
     ancestry["adsk"].core = ancestry["adsk.core"]
     ancestry["adsk"].fusion = ancestry["adsk.fusion"]
@@ -96,6 +97,18 @@ class RemoveAssemblyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Escalier"):
             self.command.remove(self.design, self.plate)
         self.group.deleteMe.assert_not_called()
+
+    def test_angle_group_uses_source_token_after_profile_rename(self):
+        definition = Entity(value=json.dumps({"members": ["support"]}))
+        self.assembly.component.attributes.itemByName = (
+            lambda group, key: definition if (group, key) == ("angle", "definition") else None
+        )
+        self.support.component.name = "Poutre renommée"
+        self.items.append(Entity(entity=Entity(parentComponent=self.support.component)))
+        self.group.count += 1
+        self.command.remove(self.design, self.plate)
+        self.group.deleteMe.assert_called_once_with(True)
+        self.assertTrue(self.support.isValid)
 
     def test_raises_on_cascade_before_deleting_the_cope_marker(self):
         def cascade_delete(delete_contents):

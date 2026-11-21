@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import math
 import threading
 import time
 import traceback
@@ -11,6 +12,7 @@ import adsk.fusion
 from ..lib import (
     addin_info,
     angle_cleat_builder,
+    angle_cleat_copy,
     angle_cleat_creator,
     bolt_specs,
     profile_catalog,
@@ -20,6 +22,8 @@ from ..lib.angle_cleat_preview import DoubleAnglePreviewManager
 
 
 COMMAND_ID = "EI_JHR_PreviewDoubleAngleCleatV1"
+EDIT_COMMAND_ID = "EI_JHR_EditDoubleAngleCleat"
+EDIT_EVENT_ID = "EI_JHR_EditDoubleAngleCleatDeferred"
 COMMAND_NAME = "Attaches de poutres par cornières V{}".format(addin_info.VERSION)
 COMMAND_DESCRIPTION = "Assemble une ou deux poutres secondaires par doubles cornières."
 PRIMARY_SELECTION_ID = "angleCleatPrimaryMember"
@@ -39,6 +43,7 @@ SUGGEST_ID = "angleCleatSuggest"
 FASTENING_ID = "angleCleatFastening"
 MODELED_BOLTS = "Modéliser les boulons JHR"
 NATIVE_BOLTS = "Ouvrir Insérer une attache"
+HOLES_ONLY = "Percer uniquement"
 NATIVE_FASTENER_COMMAND_ID = "FusionFastenersCommand"
 NATIVE_FASTENER_EVENT_ID = "EI_JHR_OpenNativeFastenersV1_Deferred"
 PANEL_IDS = (ui_layout.ASSEMBLY_PANEL_ID,)
@@ -49,11 +54,65 @@ _panel_id = None
 _native_fastener_event = None
 _native_fastener_event_handler = None
 _native_fastener_launcher = None
+_pending_edit = None
+_edit_event = None
+_edit_event_handler = None
 
 
 def _app_and_ui():
     app = adsk.core.Application.get()
     return app, app.userInterface
+
+
+def open_edit(design, entity):
+    """Programme l’ouverture du formulaire une fois le rappel Fusion terminé."""
+    global _pending_edit, _edit_event, _edit_event_handler
+    app, ui = _app_and_ui()
+    if app.activeProduct != design:
+        raise ValueError("La conception active a changé.")
+    source = angle_cleat_copy.read(design, entity)
+    if not source.writable:
+        raise ValueError(source.reason)
+    if not _edit_event:
+        event = app.registerCustomEvent(EDIT_EVENT_ID)
+        if not event:
+            raise RuntimeError("Fusion n’a pas enregistré la modification des cornières.")
+        handler = OpenEditEventHandler()
+        if not event.add(handler):
+            app.unregisterCustomEvent(EDIT_EVENT_ID)
+            raise RuntimeError("Fusion n’a pas connecté la modification des cornières.")
+        _edit_event, _edit_event_handler = event, handler
+    _pending_edit = (app.activeDocument, source, ui.activeCommand)
+    if not app.fireCustomEvent(EDIT_EVENT_ID):
+        _pending_edit = None
+        raise RuntimeError("Fusion n’a pas mis en attente la modification des cornières.")
+
+
+class OpenEditEventHandler(adsk.core.CustomEventHandler):
+    def notify(self, _args):
+        global _pending_edit
+        if not _pending_edit:
+            return
+        app, ui = _app_and_ui()
+        document, _, previous_command = _pending_edit
+        if app.activeDocument != document or ui.activeCommand not in (previous_command, "SelectCommand"):
+            _pending_edit = None
+            return
+        try:
+            definition = ui.commandDefinitions.itemById(EDIT_COMMAND_ID)
+            if not definition:
+                definition = ui.commandDefinitions.addButtonDefinition(
+                    EDIT_COMMAND_ID, "Modifier un assemblage par cornières",
+                    "Reprendre les réglages du raccord sélectionné.", addin_info.ribbon_icon("attaches_cornieres"),
+                )
+                handler = CommandCreatedHandler()
+                definition.commandCreated.add(handler)
+                _handlers.append(handler)
+            if not definition.execute():
+                raise RuntimeError("Fusion n’a pas ouvert la modification des cornières.")
+        except Exception as error:
+            _pending_edit = None
+            ui.messageBox(str(error), "Modifier un assemblage par cornières")
 
 
 def _log(message):
@@ -142,33 +201,34 @@ def _hole_row_count(inputs):
     return int(value_input.value)
 
 
-def _suggest(inputs, profiles, design):
-    primary = _selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale")
-    secondary = _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire")
-    opposite = _selected_occurrence(inputs, OPPOSITE_SELECTION_ID, "secondaire opposée", optional=True)
+def _selected_members(inputs):
+    return (_selected_occurrence(inputs, PRIMARY_SELECTION_ID, "principale"),
+            _selected_occurrence(inputs, SECONDARY_SELECTION_ID, "secondaire"),
+            _selected_occurrence(inputs, OPPOSITE_SELECTION_ID, "secondaire opposée", optional=True))
+
+
+def _suggest(inputs, profiles, design, edit=None):
+    primary, secondary, *remaining = edit.occurrences if edit else _selected_members(inputs)
+    opposite = remaining[0] if remaining else None
     if not opposite:
         return angle_cleat_builder.suggest_double_angle(design, primary, secondary, profiles, 0)
 
     return angle_cleat_builder.suggest_opposed_double_angle(design, primary, secondary, opposite, profiles, 0).first
 
 
-def _evaluate(inputs, profiles):
+def _evaluate(inputs, profiles, edit=None):
     app, _ = _app_and_ui()
     design = adsk.fusion.Design.cast(app.activeProduct)
     if not design:
         raise ValueError("Ouvrir une conception Fusion.")
+    if edit:
+        settings = _edit_settings(inputs, profiles, edit.parameters_mm)
+        return design, angle_cleat_copy.evaluate_edit(design, edit, settings).evaluation
+    primary, secondary, opposite = _selected_members(inputs)
     parameters = dict(
         design=design,
-        primary_occurrence=_selected_occurrence(
-            inputs,
-            PRIMARY_SELECTION_ID,
-            "principale",
-        ),
-        secondary_occurrence=_selected_occurrence(
-            inputs,
-            SECONDARY_SELECTION_ID,
-            "secondaire",
-        ),
+        primary_occurrence=primary,
+        secondary_occurrence=secondary,
         angle_profile=_selected_angle_profile(inputs, profiles),
         cleat_height_cm=_height_value(inputs),
         vertical_offset_cm=_vertical_offset_value(inputs),
@@ -195,7 +255,6 @@ def _evaluate(inputs, profiles):
         ),
         bolt_spec=_selected_bolt_spec(inputs),
     )
-    opposite = _selected_occurrence(inputs, OPPOSITE_SELECTION_ID, "secondaire opposée", optional=True)
     if opposite:
         evaluation = angle_cleat_builder.evaluate_opposed_double_angle_preview(
             opposite_occurrence=opposite, **parameters,
@@ -205,7 +264,28 @@ def _evaluate(inputs, profiles):
     return design, evaluation
 
 
-def _success_report(evaluation, mode):
+def _edit_settings(inputs, profiles, original):
+    distances = {
+        "height": CLEAT_HEIGHT_ID, "vertical_offset": VERTICAL_OFFSET_ID,
+        "hole": HOLE_DIAMETER_ID, "pitch": HOLE_PITCH_ID,
+        "primary_gauge": PRIMARY_GAUGE_ID, "secondary_gauge": SECONDARY_GAUGE_ID,
+    }
+    settings = {
+        "profile": _selected_angle_profile(inputs, profiles).relative_path,
+        "bolt": _selected_bolt_spec(inputs).designation,
+        "model_bolts": inputs.itemById(FASTENING_ID).selectedItem.name == MODELED_BOLTS,
+        "rows": _hole_row_count(inputs),
+    }
+    for key, input_id in distances.items():
+        control = inputs.itemById(input_id)
+        if not control.isValidExpression:
+            raise ValueError(f"{control.name} : vérifier l’expression de la cote.")
+        value = 10. * control.value
+        settings[key] = original[key] if math.isclose(value, original[key], rel_tol=0., abs_tol=1e-9) else value
+    return settings
+
+
+def _success_report(evaluation, mode, editing=False):
     first = getattr(evaluation, "first", evaluation)
     opposite = getattr(evaluation, "opposite", None)
     lengths = sorted(
@@ -267,28 +347,29 @@ def _success_report(evaluation, mode):
         ),
     ]
     content = [
-        "<b>CRÉATION PARAMÉTRIQUE</b><br>",
+        "<b>MODIFICATION</b><br>" if editing else "<b>CRÉATION PARAMÉTRIQUE</b><br>",
         "Jaune : cornières. Rouge : perçages. Bleu : axes de la boulonnerie.<br>",
     ]
     if opposite:
         rows.insert(4, ("Barre secondaire opposée", opposite.secondary_occurrence.component.name))
-        content.append("Aux deux faces de l’âme principale, les cornières partagent les mêmes boulons traversants JHR.<br><br>")
-    elif mode == NATIVE_BOLTS:
+        if mode == MODELED_BOLTS:
+            content.append("Aux deux faces de l’âme principale, les cornières partagent les mêmes boulons traversants JHR.<br><br>")
+    elif not editing and mode == NATIVE_BOLTS:
         content.append("La validation ouvre Insérer une attache avec les positions proposées.<br><br>")
-    elif mode == MODELED_BOLTS:
+    elif not editing and mode == MODELED_BOLTS:
         content.append("La validation crée les deux cornières, les trous et les boulons JHR.<br><br>")
-    else:
+    elif not editing:
         content.append("La validation crée les deux cornières et les trous.<br><br>")
     for label, value in rows:
         content.append("<b>{}</b> : {}<br>".format(_escaped(label), _escaped(value)))
     return "".join(content)
 
 
-def _refresh(inputs, profiles, report_input, preview_manager):
+def _refresh(inputs, profiles, report_input, preview_manager, edit=None):
     try:
-        design, evaluation = _evaluate(inputs, profiles)
+        design, evaluation = _evaluate(inputs, profiles, edit)
         report_input.formattedText = _success_report(
-            evaluation, inputs.itemById(FASTENING_ID).selectedItem.name,
+            evaluation, inputs.itemById(FASTENING_ID).selectedItem.name, bool(edit),
         )
         preview_manager.update(design.rootComponent, evaluation)
         return evaluation
@@ -382,21 +463,37 @@ class NativeFastenerEventHandler(adsk.core.CustomEventHandler):
 
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def notify(self, args):
+        global _pending_edit
+        pending, _pending_edit = _pending_edit, None
         try:
             event_args = adsk.core.CommandCreatedEventArgs.cast(args)
             command = event_args.command
             command.isRepeatable = False
+            command.isExecutedWhenPreEmpted = False
+            edit = None
+            if pending:
+                app, _ = _app_and_ui()
+                document, edit, _ = pending
+                if app.activeDocument != document:
+                    raise ValueError("La conception active a changé.")
+                command.okButtonText = "Appliquer"
+            settings = edit.parameters_mm if edit else {}
+
+            def distance(key, default):
+                return adsk.core.ValueInput.createByReal(.1 * settings.get(key, default))
+
             inputs = command.commandInputs
             profiles = profile_catalog.discover_profiles(include_custom=False)
             angle_profiles = angle_cleat_builder.equal_angle_profiles(profiles)
             default_profile = angle_cleat_builder.default_equal_angle_profile(profiles)
             preview_manager = DoubleAnglePreviewManager()
-            native_launcher = _native_fastener_launcher
-            if not native_launcher:
+            native_launcher = None if edit else _native_fastener_launcher
+            if not edit and not native_launcher:
                 raise RuntimeError(
                     "Le passage vers les attaches natives n'est pas initialisé."
                 )
-            native_launcher.cancel()
+            if native_launcher:
+                native_launcher.cancel()
 
             primary = inputs.addSelectionInput(
                 PRIMARY_SELECTION_ID,
@@ -421,6 +518,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             )
             opposite.addSelectionFilter("Occurrences")
             opposite.setSelectionLimits(0, 1)
+            if edit:
+                for selection in (primary, secondary, opposite):
+                    selection.isVisible = False
 
             angle_input = inputs.addDropDownCommandInput(
                 ANGLE_PROFILE_ID,
@@ -430,7 +530,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             for profile in angle_profiles:
                 angle_input.listItems.add(
                     profile.section_label,
-                    profile == default_profile,
+                    (profile.relative_path == settings["profile"] if edit else profile == default_profile),
                     "",
                 )
 
@@ -438,7 +538,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 CLEAT_HEIGHT_ID,
                 "Hauteur des cornières",
                 "mm",
-                adsk.core.ValueInput.createByString("100 mm"),
+                distance("height", 100),
             )
             height.minimumValue = 0.0
             height.isMinimumInclusive = False
@@ -447,7 +547,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 VERTICAL_OFFSET_ID,
                 "Décalage vertical",
                 "mm",
-                adsk.core.ValueInput.createByString("0 mm"),
+                distance("vertical_offset", 0),
             )
 
             default_bolt = bolt_specs.default_bolt_spec()
@@ -459,7 +559,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             for spec in bolt_specs.BOLT_SPECS:
                 bolt_input.listItems.add(
                     spec.display_label,
-                    spec == default_bolt,
+                    (spec.designation == settings["bolt"] if edit else spec == default_bolt),
                     "",
                 )
 
@@ -467,7 +567,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 HOLE_DIAMETER_ID,
                 "Diamètre des perçages",
                 "mm",
-                adsk.core.ValueInput.createByString("18 mm"),
+                distance("hole", 18),
             )
             diameter.minimumValue = 0.0
             diameter.isMinimumInclusive = False
@@ -478,14 +578,14 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 1,
                 6,
                 1,
-                2,
+                settings.get("rows", 2),
             )
 
             pitch = inputs.addValueInput(
                 HOLE_PITCH_ID,
                 "Entraxe vertical",
                 "mm",
-                adsk.core.ValueInput.createByString("50 mm"),
+                distance("pitch", 50),
             )
             pitch.minimumValue = 0.0
             pitch.isMinimumInclusive = False
@@ -494,7 +594,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 PRIMARY_GAUGE_ID,
                 "Distance sur branche principale",
                 "mm",
-                adsk.core.ValueInput.createByString("30 mm"),
+                distance("primary_gauge", 30),
             )
             primary_gauge.minimumValue = 0.0
             primary_gauge.isMinimumInclusive = False
@@ -503,7 +603,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 SECONDARY_GAUGE_ID,
                 "Distance sur branche secondaire",
                 "mm",
-                adsk.core.ValueInput.createByString("30 mm"),
+                distance("secondary_gauge", 30),
             )
             secondary_gauge.minimumValue = 0.0
             secondary_gauge.isMinimumInclusive = False
@@ -513,14 +613,16 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             fastening = inputs.addDropDownCommandInput(
                 FASTENING_ID, "À la validation", adsk.core.DropDownStyles.TextListDropDownStyle,
             )
-            fastening.listItems.add(MODELED_BOLTS, True)
-            fastening.listItems.add(NATIVE_BOLTS, False)
-            fastening.listItems.add("Percer uniquement", False)
+            model_bolts = settings.get("model_bolts", True)
+            fastening.listItems.add(MODELED_BOLTS, model_bolts)
+            if not edit:
+                fastening.listItems.add(NATIVE_BOLTS, False)
+            fastening.listItems.add(HOLES_ONLY, not model_bolts)
 
             report = inputs.addTextBoxCommandInput(
                 REPORT_ID,
                 "Contrôle",
-                "Sélectionner la principale puis la secondaire.",
+                _escaped(edit.group.name) if edit else "Sélectionner la principale puis la secondaire.",
                 12,
                 True,
             )
@@ -529,11 +631,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 profiles,
                 report,
                 preview_manager,
+                edit,
             )
             command.inputChanged.add(input_changed)
             _handlers.append(input_changed)
 
-            validate = ValidateInputsHandler(profiles, report, preview_manager)
+            validate = ValidateInputsHandler(profiles, report, preview_manager, edit)
             command.validateInputs.add(validate)
             _handlers.append(validate)
 
@@ -541,6 +644,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 profiles,
                 report,
                 preview_manager,
+                edit,
             )
             command.executePreview.add(execute_preview)
             _handlers.append(execute_preview)
@@ -549,6 +653,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 profiles,
                 preview_manager,
                 native_launcher,
+                edit,
             )
             command.execute.add(execute)
             _handlers.append(execute)
@@ -556,7 +661,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             destroy = DestroyHandler(preview_manager, native_launcher)
             command.destroy.add(destroy)
             _handlers.append(destroy)
-            _log("Commande de création ouverte")
+            _log("Modification ouverte" if edit else "Commande de création ouverte")
         except Exception:
             _, ui = _app_and_ui()
             ui.messageBox(
@@ -566,11 +671,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
 
 class InputChangedHandler(adsk.core.InputChangedEventHandler):
-    def __init__(self, profiles, report_input, preview_manager):
+    def __init__(self, profiles, report_input, preview_manager, edit=None):
         super().__init__()
         self._profiles = profiles
         self._report_input = report_input
         self._preview_manager = preview_manager
+        self._edit = edit
         self._setting_proposal = False
 
     def notify(self, args):
@@ -578,7 +684,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             return
         event_args = adsk.core.InputChangedEventArgs.cast(args)
         changed = event_args.input
-        if changed and changed.id == OPPOSITE_SELECTION_ID:
+        if not self._edit and changed and changed.id == OPPOSITE_SELECTION_ID:
             selection = adsk.core.SelectionCommandInput.cast(changed)
             event_args.inputs.itemById(FASTENING_ID).isVisible = selection.selectionCount == 0
         selection_ids = (PRIMARY_SELECTION_ID, SECONDARY_SELECTION_ID, OPPOSITE_SELECTION_ID)
@@ -590,7 +696,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             self._setting_proposal = True
             try:
                 design = adsk.fusion.Design.cast(_app_and_ui()[0].activeProduct)
-                proposal = _suggest(inputs, self._profiles, design)
+                proposal = _suggest(inputs, self._profiles, design, self._edit)
                 for field, label in ((ANGLE_PROFILE_ID, proposal.angle_profile.section_label),
                                      (BOLT_SIZE_ID, proposal.bolt_spec.display_label)):
                     next(item for item in inputs.itemById(field).listItems if item.name == label).isSelected = True
@@ -635,15 +741,17 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
                 self._profiles,
                 self._report_input,
                 self._preview_manager,
+                self._edit,
             )
 
 
 class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
-    def __init__(self, profiles, report_input, preview_manager):
+    def __init__(self, profiles, report_input, preview_manager, edit=None):
         super().__init__()
         self._profiles = profiles
         self._report_input = report_input
         self._preview_manager = preview_manager
+        self._edit = edit
 
     def notify(self, args):
         event_args = adsk.core.ValidateInputsEventArgs.cast(args)
@@ -653,17 +761,19 @@ class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
                 self._profiles,
                 self._report_input,
                 self._preview_manager,
+                self._edit,
             )
             is not None
         )
 
 
 class ExecutePreviewHandler(adsk.core.CommandEventHandler):
-    def __init__(self, profiles, report_input, preview_manager):
+    def __init__(self, profiles, report_input, preview_manager, edit=None):
         super().__init__()
         self._profiles = profiles
         self._report_input = report_input
         self._preview_manager = preview_manager
+        self._edit = edit
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
@@ -673,19 +783,30 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
             self._profiles,
             self._report_input,
             self._preview_manager,
+            self._edit,
         )
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
-    def __init__(self, profiles, preview_manager, native_launcher):
+    def __init__(self, profiles, preview_manager, native_launcher, edit=None):
         super().__init__()
         self._profiles = profiles
         self._preview_manager = preview_manager
         self._native_launcher = native_launcher
+        self._edit = edit
 
     def notify(self, args):
         event_args = adsk.core.CommandEventArgs.cast(args)
         try:
+            if self._edit:
+                self._preview_manager.clear()
+                design = adsk.fusion.Design.cast(_app_and_ui()[0].activeProduct)
+                if self._edit.group not in design.rootComponent.occurrences:
+                    raise ValueError("La conception active a changé.")
+                settings = _edit_settings(event_args.command.commandInputs, self._profiles, self._edit.parameters_mm)
+                plan = angle_cleat_copy.evaluate_edit(design, self._edit, settings)
+                angle_cleat_copy.apply_edit(design, self._edit, plan)
+                return
             design, evaluation = _evaluate(
                 event_args.command.commandInputs,
                 self._profiles,
@@ -746,11 +867,13 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 )
             )
         except Exception as error:
-            self._native_launcher.cancel()
+            if self._native_launcher:
+                self._native_launcher.cancel()
             event_args.executeFailed = True
             _log("ÉCHEC: {}\n{}".format(error, traceback.format_exc()))
             _, ui = _app_and_ui()
-            ui.messageBox("La création a été annulée :\n{}".format(error))
+            action = "modification" if self._edit else "création"
+            ui.messageBox(f"La {action} a été annulée :\n{error}")
 
 
 class DestroyHandler(adsk.core.CommandEventHandler):
@@ -761,7 +884,8 @@ class DestroyHandler(adsk.core.CommandEventHandler):
 
     def notify(self, args):
         self._preview_manager.clear()
-        self._native_launcher.queue()
+        if self._native_launcher:
+            self._native_launcher.queue()
 
 
 def start():
@@ -821,6 +945,7 @@ def stop():
     global _native_fastener_event
     global _native_fastener_event_handler
     global _native_fastener_launcher
+    global _pending_edit, _edit_event, _edit_event_handler
     app, ui = _app_and_ui()
     for panel_id in PANEL_IDS:
         panel = ui_layout.panel(ui, panel_id)
@@ -831,6 +956,13 @@ def stop():
     definition = ui.commandDefinitions.itemById(COMMAND_ID)
     if definition:
         definition.deleteMe()
+    edit_definition = ui.commandDefinitions.itemById(EDIT_COMMAND_ID)
+    if edit_definition:
+        edit_definition.deleteMe()
+    if _edit_event:
+        _edit_event.remove(_edit_event_handler)
+        app.unregisterCustomEvent(EDIT_EVENT_ID)
+    _pending_edit = _edit_event = _edit_event_handler = None
     if _native_fastener_event and _native_fastener_event_handler:
         _native_fastener_event.remove(_native_fastener_event_handler)
     if _native_fastener_event:

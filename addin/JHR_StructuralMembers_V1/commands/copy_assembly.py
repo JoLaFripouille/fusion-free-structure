@@ -28,22 +28,22 @@ class Form:
         inputs = command.commandInputs
         self.source = self._selection(inputs, "copySource", "Assemblage source",
                                       "Sélectionner un assemblage du catalogue JHR ou l’une de ses pièces.")
-        self.target_group = inputs.addGroupCommandInput("copyTargets", "Profils cibles")
+        self.target_group = inputs.addGroupCommandInput("copyTargets", "Cibles")
         self.target_group.isExpanded = True
         self.target_group.isVisible = False
         self.selectors = {}
         self.targets = ()
         self.source_assembly = None
         self.source_error = ""
-        self.linked = inputs.addBoolValueInput("copyLinked", "Lier les réglages au pied source", True, "", False)
+        self.linked = inputs.addBoolValueInput("copyLinked", "Lier les réglages à l’assemblage source", True, "", False)
         self.linked.isVisible = False
         self.report = inputs.addTextBoxCommandInput("copyReport", "", "Sélectionner l’assemblage à copier.", 3, True)
         self.report.isFullWidth = True
 
     @staticmethod
-    def _selection(inputs, key, label, prompt):
+    def _selection(inputs, key, label, prompt, filters=("Occurrences", "SolidBodies", "Faces")):
         selection = inputs.addSelectionInput(key, label, prompt)
-        for kind in ("Occurrences", "SolidBodies", "Faces"):
+        for kind in filters:
             selection.addSelectionFilter(kind)
         selection.setSelectionLimits(1, 1)
         return selection
@@ -71,9 +71,10 @@ class Form:
         if template.roles not in self.selectors:
             prefix = f"copyTarget{len(self.selectors)}_"
             roles = ("Poteau cible",) if template.family == "Pieds de poteau" else template.roles
+            filters = ("PlanarFaces",) if template.key == "brace_bay" else ("Occurrences", "SolidBodies", "Faces")
             self.selectors[template.roles] = tuple(
                 self._selection(self.target_group.children, prefix + str(index), role,
-                                f"Sélectionner le profil cible correspondant à « {role} ».")
+                                f"Sélectionner la cible « {role} ».", filters)
                 for index, role in enumerate(roles)
             )
         self.targets = self.selectors[template.roles]
@@ -87,7 +88,7 @@ class Form:
         if not self.source_assembly:
             raise ValueError(self.source_error or "Sélectionner l’assemblage à copier.")
         if any(selection.selectionCount != 1 for selection in self.targets):
-            raise ValueError(f"{self.source_assembly.template.label} · Sélectionner les profils cibles.")
+            raise ValueError(f"{self.source_assembly.template.label} · Sélectionner les cibles demandées.")
         return assembly_copy.prepare(
             self.design, self.source.selection(0).entity,
             tuple(selection.selection(0).entity for selection in self.targets),
@@ -126,7 +127,7 @@ class Validate(core.ValidateInputsEventHandler):
         args.areInputsValid = False
         try:
             plan = self.form.plan()
-            targets = " · ".join(escape(target.name) for target in plan.targets)
+            targets = " · ".join(escape(assembly_copy.target_name(target)) for target in plan.targets)
             summary = f"{escape(plan.source.template.label)} sur {targets}"
             link = (f"Réglages liés à {escape(plan.master.group.name)}"
                     if plan.master else "Copie indépendante")

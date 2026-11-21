@@ -4,6 +4,12 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.26] - Copies liées des assemblages
+
+- Étend la copie indépendante et la copie liée au catalogue d’assemblages, aux cornières d’attache et à l’auto-contreventement.
+- Répercute les réglages d’une copie liée sur le montage source et sur ses autres copies. Chaque montage garde ses propres appuis.
+- Accepte les jonctions latérales à faible angle.
+
 ## [1.30.25] - Faîtages à plat
 
 - Permet de créer les jarrets de faîtage à 0° et sur les faibles pentes en Y ou Z vertical.

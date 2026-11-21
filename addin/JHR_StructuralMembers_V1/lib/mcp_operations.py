@@ -467,7 +467,7 @@ def create_brace_bay(creation_id, face_tokens, profiles, settings=None, *, previ
 def edit_assembly(creation_id, assembly_token, parameters_mm=None, *, alternate=None, profiles=None,
                   preview=False, file_id=None):
     """Modifie les réglages fournis et conserve les autres valeurs enregistrées."""
-    from . import assembly_edit, brace_bay
+    from . import angle_cleat_copy, assembly_copy, assembly_edit, brace_bay
 
     design = active_design(creation_id, file_id)
     entity = _entity(design, assembly_token, _assembly_selection)
@@ -485,7 +485,17 @@ def edit_assembly(creation_id, assembly_token, parameters_mm=None, *, alternate=
         plan = brace_bay.evaluate(design, faces, sections, settings)
         report = _brace_plan_report(brace_bay, plan)
         if not preview:
-            group = brace_bay.reconfigure(design, group, plan)
+            group = assembly_copy.reconfigure_bay(design, group, plan)
+    elif angle_cleat_copy.find_group(entity):
+        if profiles is not None:
+            raise ValueError("Pour une attache par cornières, utiliser la cote « profile ».")
+        target = angle_cleat_copy.read(design, entity)
+        plan = angle_cleat_copy.evaluate_edit(design, target, changes, bool(alternate))
+        group = target.group
+        report = {"type": target.template.key, "parameters_mm": plan.settings_mm,
+                  **_assembly_plan_report(plan.plates, plan.fasteners)}
+        if not preview:
+            group = angle_cleat_copy.apply_edit(design, target, plan)
     else:
         if profiles is not None:
             raise ValueError("La modification de l’assemblage ne remplace pas ses profils sources.")
@@ -502,7 +512,7 @@ def edit_assembly(creation_id, assembly_token, parameters_mm=None, *, alternate=
 
 
 def copy_assembly(creation_id, assembly_token, target_tokens, *, linked=False, preview=False, file_id=None):
-    """Copie un montage du catalogue vers les profils cibles dans l’ordre de ses rôles."""
+    """Copie un assemblage vers les profils ou faces cibles dans l’ordre de ses rôles."""
     from . import assembly_copy
 
     design = active_design(creation_id, file_id)
@@ -510,7 +520,7 @@ def copy_assembly(creation_id, assembly_token, target_tokens, *, linked=False, p
     targets = tuple(_entity(design, token, _assembly_selection) for token in target_tokens)
     plan = assembly_copy.prepare(design, source, targets, linked)
     report = {"type": plan.source.template.key, "linked": plan.master is not None,
-              "targets": [{"name": item.name, "token": item.entityToken} for item in plan.targets],
+              "targets": [{"name": assembly_copy.target_name(item), "token": item.entityToken} for item in plan.targets],
               **_assembly_plan_report(plan.assembly.plates, plan.assembly.fasteners)}
     if not preview:
         group = assembly_copy.create(design, plan)

@@ -25,10 +25,11 @@ def load_copy(edit, operations):
     adsk.fusion = fusion
     spec = importlib.util.spec_from_file_location("lib._copy_test", ROOT / "lib/assembly_copy.py")
     module = importlib.util.module_from_spec(spec)
+    adapter = SimpleNamespace(find_group=lambda entity: None)
     with patch.dict(sys.modules, {"adsk": adsk, "adsk.fusion": fusion, spec.name: module}):
-        with patch.object(lib, "assembly_operations", operations, create=True):
-            with patch.object(lib, "assembly_edit", edit, create=True):
-                spec.loader.exec_module(module)
+        with patch.multiple(lib, assembly_operations=operations, assembly_edit=edit,
+                            angle_cleat_copy=adapter, brace_bay=adapter, create=True):
+            spec.loader.exec_module(module)
     return module
 
 
@@ -84,7 +85,7 @@ class CopyTests(unittest.TestCase):
 
     def record(self, group, post, width):
         return SimpleNamespace(group=group, template=self.type, occurrences=(post,),
-                               parameters_mm={"width": width}, alternate=False, writable=True)
+                               parameters_mm={"width": width}, alternate=False, writable=True, original="{}")
 
     def read(self, design, entity):
         return self.groups[getattr(entity, "assemblyContext", entity)]
@@ -179,7 +180,7 @@ class CopyTests(unittest.TestCase):
         self.assertTrue(self.groups[copy].alternate)
         self.assertIsNone(copy.component.attributes.itemByName("JHR", self.module.SOURCE_ATTRIBUTE))
 
-    def test_multi_profile_copy_refuses_missing_duplicates_and_linking(self):
+    def test_multi_profile_copy_refuses_missing_duplicates_and_same_targets(self):
         source = self.groups[self.original]
         source.template = SimpleNamespace(family="Contreventements", key="gusset_end_2",
                                           roles=("Profil porteur", "Diagonale 1", "Diagonale 2"))
@@ -190,7 +191,7 @@ class CopyTests(unittest.TestCase):
             self.module.prepare(self.design, self.original, (self.post1, self.post2, self.post2))
         with self.assertRaisesRegex(ValueError, "différent de l’assemblage source"):
             self.module.prepare(self.design, self.original, source.occurrences)
-        with self.assertRaisesRegex(ValueError, "uniquement pour les pieds"):
+        with self.assertRaisesRegex(ValueError, "différent de l’assemblage source"):
             self.module.prepare(self.design, self.original, source.occurrences, linked=True)
 
     def test_editing_a_copy_updates_master_and_other_copies(self):
@@ -200,6 +201,34 @@ class CopyTests(unittest.TestCase):
         self.assertEqual([self.groups[item].parameters_mm["width"] for item in (self.original, first, second)],
                          [400, 400, 400])
         self.assertEqual(self.log, ["Pied source", first.name, second.name])
+
+    def test_rebuilt_catalogue_copies_follow_the_replacement_master(self):
+        self.type = SimpleNamespace(family="Poutre-poutre", key="ridge_haunch",
+                                    roles=("Première poutre", "Deuxième poutre"))
+        source = self.groups[self.original]
+        source.template = self.type
+        source.occurrences = (self.post1, self.post2)
+        copy = self.module.create(self.design, self.module.prepare(
+            self.design, self.original, (self.post1, self.post3), linked=True,
+        ))
+
+        def evaluate(design, target, settings, side):
+            return self.evaluate(design, target.template.key, target.occurrences, settings, side)
+
+        def rebuild(design, target, plan):
+            self.items.remove(target.group)
+            return self.make_group(design, plan)
+
+        requested = self.groups[copy]
+        new_plan = evaluate(self.design, requested, {"width": 400}, True)
+        updated = self.module._rebuild_settings(self.design, requested, new_plan,
+                                                (new_plan.settings_mm, new_plan.alternate),
+                                                self.read, evaluate, rebuild)
+        master = self.module._master_group(self.design, updated)
+        self.assertIsNot(master, self.original)
+        self.assertEqual(self.groups[master].parameters_mm, {"width": 400})
+        self.assertEqual(self.groups[updated].occurrences, (self.post1, self.post3))
+        self.assertTrue(self.groups[updated].alternate)
 
     def test_later_failure_rolls_back_already_edited_pieds(self):
         first = self.module.create(self.design, self.module.prepare(self.design, self.original, self.post2, True))

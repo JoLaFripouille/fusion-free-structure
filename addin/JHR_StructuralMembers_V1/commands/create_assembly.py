@@ -149,8 +149,8 @@ class AssemblyForm:
         return self.templates[self.choices.selectedItem.name]
 
     def load_edit_target(self):
-        from ..lib import assembly_edit
-        from . import create_brace_bay
+        from ..lib import angle_cleat_copy, assembly_edit
+        from . import create_brace_bay, preview_angle_cleat
 
         self.edit_target = None
         self.editing_bay = False
@@ -159,6 +159,9 @@ class AssemblyForm:
         try:
             if self.edit_selection.selectionCount:
                 entity = self.edit_selection.selection(0).entity
+                if angle_cleat_copy.find_group(entity):
+                    preview_angle_cleat.open_edit(self.design, entity)
+                    return
                 if create_brace_bay.brace_bay.find_group(entity):
                     self.bay_form.target = None
                     self.bay_form.read_existing(entity)
@@ -502,9 +505,9 @@ class CommandAction(core.CommandEventHandler):
                 self.form.clear_preview()
                 plan = self.form.plan()
                 if self.form.editing_bay:
-                    from ..lib import brace_bay
+                    from ..lib import assembly_copy
 
-                    brace_bay.reconfigure(self.form.design, self.form.bay_form.target[0], plan)
+                    assembly_copy.reconfigure_bay(self.form.design, self.form.bay_form.target[0], plan)
                 elif self.form.editing:
                     from ..lib import assembly_edit
 

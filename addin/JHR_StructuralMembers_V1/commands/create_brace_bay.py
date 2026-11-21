@@ -285,7 +285,9 @@ class Action(core.CommandEventHandler):
                 self.form.clear_preview()
                 plan = self.form.plan()
                 if self.form.edit_mode.value:
-                    brace_bay.reconfigure(self.form.design, self.form.target[0], plan)
+                    from ..lib import assembly_copy
+
+                    assembly_copy.reconfigure_bay(self.form.design, self.form.target[0], plan)
                 else:
                     brace_bay.create(self.form.design, plan)
         except Exception as error:
@@ -395,7 +397,9 @@ class UpdateExecute(core.CommandEventHandler):
         group, faces, record = self.target
         try:
             plan = brace_bay.evaluate(self.design, faces, record["profiles"], record["settings"])
-            brace_bay.reconfigure(self.design, group, plan)
+            from ..lib import assembly_copy
+
+            assembly_copy.reconfigure_bay(self.design, group, plan)
         except (ValueError, RuntimeError) as error:
             args.executeFailed = True
             args.executeFailedMessage = f"Auto-contreventement à recalculer · {error}"

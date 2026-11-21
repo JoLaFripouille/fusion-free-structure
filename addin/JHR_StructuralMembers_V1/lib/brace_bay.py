@@ -284,13 +284,59 @@ def pending_update(design):
 
 
 def editable_history(design, group):
-    history = group.timelineObject.parentGroup
-    if not history or not history.isValid or not history.isCollapsed or history.index != design.timeline.count-1:
+    _, history = target_group(design, group)
+    if not history.isCollapsed or history.index != design.timeline.count-1:
         raise ValueError("Le recalcul de cet X requiert son groupe replié en fin d’historique.")
-    if any(occurrence != group and occurrence.timelineObject.parentGroup == history
-           for occurrence in design.rootComponent.occurrences):
-        raise ValueError("Le groupe contient un autre composant racine.")
     return history
+
+
+def target_group(design, entity):
+    """Vérifie que l'historique contient uniquement la géométrie de ce X."""
+    group = find_group(entity)
+    if not group:
+        raise ValueError("Sélectionner une pièce d’un auto-contreventement.")
+    root = design.rootComponent
+    if group not in root.occurrences or root.allOccurrencesByComponent(group.component).count != 1:
+        raise ValueError("Le X doit être une occurrence unique à la racine de la conception.")
+    item = group.timelineObject
+    history = item.parentGroup if item else None
+    if not history or not history.isValid or history.name != group.component.name:
+        raise ValueError("Le groupe d’historique de ce X est introuvable ou a été renommé.")
+    components = [group.component, *(item.component for item in group.component.allOccurrences)]
+    for index in range(history.count):
+        item = history.item(index).entity
+        occurrence = fusion.Occurrence.cast(item) if item else None
+        owner = occurrence.component if occurrence else getattr(item, "parentComponent", None)
+        if owner and owner not in components:
+            raise ValueError(f"Le groupe du X contient une opération dans le composant {owner.name}.")
+    return group, history
+
+
+def _remove_history(design, group, history):
+    timeline = design.timeline
+    if timeline.markerPosition != timeline.count:
+        raise ValueError("Placer le marqueur en fin d’historique avant la suppression.")
+    other_occurrences = [item for item in design.rootComponent.occurrences if item != group]
+    was_collapsed = history.isCollapsed
+    if not was_collapsed:
+        history.isCollapsed = True
+    try:
+        if history.index < 0:
+            raise RuntimeError("Fusion n’a pas identifié la position du groupe du X.")
+        later = [timeline.item(index) for index in range(history.index + 1, timeline.count)]
+        if not history.deleteMe(True) or group.isValid:
+            raise RuntimeError("Fusion refuse de retirer le groupe du X.")
+        if any(not item.isValid for item in (*other_occurrences, *later)):
+            raise RuntimeError("La suppression du X toucherait une autre opération de la conception.")
+    finally:
+        if not was_collapsed and history.isValid:
+            history.isCollapsed = False
+
+
+def remove(design, entity):
+    """Retire un X et ses pièces dans la transaction courante."""
+    group, history = target_group(design, entity)
+    _remove_history(design, group, history)
 
 
 def _edit_central_scallops(design, group, record, plan, state, signature):
@@ -325,33 +371,54 @@ def _edit_central_scallops(design, group, record, plan, state, signature):
     return True
 
 
-def reconfigure(design, group, plan):
-    record = _read_definition(group)
+def prepare_edit(design, group, plan, *, allow_earlier=False):
+    """Vérifie les faces et l'historique avant la modification d'un X."""
+    _, faces, record = read(design, group)
+    if faces != plan.faces:
+        raise ValueError("Les faces porteuses du X ont changé. Rouvrir l’assemblage.")
     state, signature = _face_state(plan.faces), _signature(plan)
     if record["settings"] == plan.settings and tuple(record["profiles"]) == plan.profiles and record.get("signature") == signature:
+        return record, state, signature, None
+    if design.timeline.markerPosition != design.timeline.count:
+        raise ValueError("Placer le marqueur en fin d’historique avant la modification.")
+    history = target_group(design, group)[1] if allow_earlier else editable_history(design, group)
+    return record, state, signature, history
+
+
+def reconfigure(design, group, plan, *, allow_earlier=False):
+    record, state, signature, history = prepare_edit(design, group, plan, allow_earlier=allow_earlier)
+    if history is None:
         if record.get("face_state") != state:
             record["face_state"] = state
             group.component.attributes.itemByName(ATTRIBUTE_GROUP, "definition").value = json.dumps(record)
         return group
-    history = editable_history(design, group)
     if _edit_central_scallops(design, group, record, plan, state, signature):
         return group
     new_group = create(design, plan, replacing=group)
-    if not history.deleteMe(True) or group.isValid:
-        new_group.timelineObject.parentGroup.deleteMe(True)
-        raise RuntimeError("Fusion refuse de remplacer le groupe généré.")
+    try:
+        _remove_history(design, group, history)
+    except Exception:
+        remove(design, new_group)
+        raise
     return new_group
+
+
+def check_free_faces(design, faces, *, replacing=None):
+    """Détecte un X déjà posé entre les deux mêmes faces, dans les deux ordres."""
+    for group in design.rootComponent.occurrences:
+        record = _read_definition(group)
+        if group != replacing and record and all(
+            any(face == item for token in record["faces"] for item in design.findEntityByToken(token) or ())
+            for face in faces
+        ):
+            raise ValueError("Un auto-contreventement existe déjà entre ces deux faces.")
 
 
 def create(design, plan, *, replacing=None):
     """Construit les pièces dans un groupe unique. Les deux poteaux restent intacts."""
     root = design.rootComponent
     face_tokens = [face.entityToken for face in plan.faces]
-    for group in root.occurrences:
-        record = _read_definition(group)
-        if group != replacing and record and all(any(face == candidate for token in record["faces"]
-                              for candidate in design.findEntityByToken(token) or ()) for face in plan.faces):
-            raise ValueError("Un auto-contreventement existe déjà entre ces deux faces.")
+    check_free_faces(design, plan.faces, replacing=replacing)
     timeline = design.timeline
     start = timeline_groups.creation_start(timeline)
     group = root.occurrences.addNewComponent(core.Matrix3D.create())

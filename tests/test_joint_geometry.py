@@ -83,6 +83,20 @@ class JointGeometryTests(unittest.TestCase):
         )
         self.assertAlmostEqual(cut[1], -3.2)
 
+    def test_shallow_side_joint_uses_the_reference_envelope(self):
+        for angle in (4.0, 1.0, 0.01):
+            rise = 80.0 * math.tan(math.radians(angle))
+            with self.subTest(angle=angle):
+                result = joint_geometry.analyze_straight_joint(
+                    (-100.0, 0.0, 0.0),
+                    (100.0, 0.0, 0.0),
+                    (80.0, -rise, 0.0),
+                    (0.0, 0.0, 0.0),
+                )
+                self.assertAlmostEqual(result.angle_degrees, angle)
+                self.assertEqual(result.main_parameter, 0.5)
+                self.assertEqual(result.plane_normal, (0.0, -1.0, 0.0))
+
     def test_secondary_section_is_projected_to_the_real_contact_plane(self):
         points = ((-0.5, -2.0, 0.0), (0.5, -2.0, 0.0))
         direction = (0.6, 0.8, 0.0)

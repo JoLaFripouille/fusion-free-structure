@@ -7,7 +7,7 @@ import adsk.core as core
 import adsk.fusion as fusion
 
 from .inspect_assembly import _assembly
-from ..lib import addin_info, angle_cleat_creator, assembly_operations, joint_records, ui_layout
+from ..lib import addin_info, angle_cleat_creator, assembly_operations, brace_bay, joint_records, ui_layout
 
 
 COMMAND_ID = "EI_JHR_RemoveAssembly"
@@ -39,7 +39,9 @@ def _belongs_to(occurrence, assembly):
 
 
 def _definition(assembly):
-    marker = assembly.component.attributes.itemByName(assembly_operations.ATTRIBUTE_GROUP, "definition")
+    attributes = assembly.component.attributes
+    marker = (attributes.itemByName(assembly_operations.ATTRIBUTE_GROUP, "definition")
+              or attributes.itemByName(angle_cleat_creator.ATTRIBUTE_GROUP, "definition"))
     return json.loads(marker.value) if marker else {}
 
 
@@ -79,6 +81,8 @@ def target_group(design, entity):
     """Identifie le groupe d’historique et contrôle son périmètre sans le modifier."""
     if not design:
         raise ValueError("Ouvrir une conception Fusion.")
+    if brace_bay.find_group(entity):
+        return brace_bay.target_group(design, entity)
     assembly = _find_assembly(entity)
     root = design.rootComponent
     if assembly not in root.occurrences or root.allOccurrencesByComponent(assembly.component).count != 1:
@@ -106,6 +110,8 @@ def target_group(design, entity):
 
 def remove(design, entity):
     """Supprime le groupe vérifié dans la transaction de la commande Fusion."""
+    if design and brace_bay.find_group(entity):
+        return brace_bay.remove(design, entity)
     assembly, group = target_group(design, entity)
     timeline = design.timeline
     if timeline.markerPosition != timeline.count:

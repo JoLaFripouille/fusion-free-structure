@@ -115,7 +115,8 @@ def _prepare_cope(design, beam, purlin, clearances_cm):
     return cope
 
 
-def evaluate_batch(design, beams, purlins, settings_mm=None, *, allow_bars=False, alternate=False):
+def evaluate_batch(design, beams, purlins, settings_mm=None, *, allow_bars=False, alternate=False,
+                   cope_clearances_cm=None):
     """Valide les appuis et les perçages du lot, sans modifier la conception."""
     from . import angle_cleat_creator, assembly_operations, default_settings
 
@@ -128,10 +129,11 @@ def evaluate_batch(design, beams, purlins, settings_mm=None, *, allow_bars=False
     pairs, unmatched = match_ends(beam_axes, purlin_axes)
     records = tuple(_existing_pairs(design, assembly_operations.ATTRIBUTE_GROUP)) if pairs else ()
     cleats = _angle_cleat_pairs(design, angle_cleat_creator.ATTRIBUTE_GROUP) if pairs else set()
-    defaults, _ = default_settings.load_or_factory()
-    clearances_cm = tuple(value * default_settings.MM_TO_CM for value in (
-        defaults.cope_ih_vertical_mm, defaults.cope_ih_longitudinal_mm, defaults.cope_ih_support_mm,
-    ))
+    if cope_clearances_cm is None:
+        defaults, _ = default_settings.load_or_factory()
+        cope_clearances_cm = tuple(value * default_settings.MM_TO_CM for value in (
+            defaults.cope_ih_vertical_mm, defaults.cope_ih_longitudinal_mm, defaults.cope_ih_support_mm,
+        ))
     plans, cope_plans, existing_count = [], [], 0
     for beam, purlin in pairs:
         if frozenset((beam.component.name, purlin.component.name)) in cleats:
@@ -145,12 +147,12 @@ def evaluate_batch(design, beams, purlins, settings_mm=None, *, allow_bars=False
             continue
         try:
             plan = assembly_operations.evaluate(design, KIND, (beam, purlin), settings_mm, alternate)
-            cope = _prepare_cope(design, beam, purlin, clearances_cm) if _interferes(design, beam, purlin) else None
+            cope = _prepare_cope(design, beam, purlin, cope_clearances_cm) if _interferes(design, beam, purlin) else None
         except (ValueError, FileNotFoundError, RuntimeError) as error:
             raise ValueError(f"{purlin.name} → {beam.name} — {error}") from error
         plans.append(plan)
         cope_plans.append(cope)
-    return Batch(tuple(plans), existing_count, unmatched, tuple(cope_plans), clearances_cm)
+    return Batch(tuple(plans), existing_count, unmatched, tuple(cope_plans), cope_clearances_cm)
 
 
 def create_batch(design, batch):
@@ -175,15 +177,17 @@ def create_batch(design, batch):
                 if cope or already_modified:
                     plan = assembly_operations.evaluate(design, KIND, (beam, purlin), plan.settings_mm, plan.alternate)
                 group = assembly_operations.create(design, plan)
+                marker = group.component.attributes.itemByName(assembly_operations.ATTRIBUTE_GROUP, "definition")
+                record = json.loads(marker.value)
+                record["purlin_connection"] = True
+                record["cope_clearances_cm"] = batch.cope_clearances_cm
                 if cope:
-                    marker = group.component.attributes.itemByName(assembly_operations.ATTRIBUTE_GROUP, "definition")
-                    record = json.loads(marker.value)
                     record["joint_records"] = [
                         {"member": purlin.entityToken, "name": item.name}
                         for item in purlin.component.attributes.itemsByGroup(joint_records.ATTRIBUTE_GROUP)
                         if item.name not in previous_records
                     ]
-                    marker.value = json.dumps(record)
+                marker.value = json.dumps(record)
             timeline_groups.group_creation(design.timeline, start, group.component.name)
             groups.append(group)
         except Exception as error:

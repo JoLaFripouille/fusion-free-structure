@@ -236,25 +236,17 @@ def endpoint_joint_geometry(
     """Finalise une coupe droite à partir des tangentes locales des deux chemins."""
     approach = normalize(approach_direction)
     main_direction = normalize(main_direction)
-    cosine = min(1.0, max(-1.0, abs(dot(main_direction, approach))))
-    angle_degrees = math.degrees(math.acos(cosine))
-    if angle_degrees < MINIMUM_JOIN_ANGLE_DEGREES:
+    axis = cross(main_direction, approach)
+    sine = length(axis)
+    if sine <= GEOMETRY_TOLERANCE_CM:
         raise ValueError(
-            "Les deux axes sont presque parallèles ; aucun plan de jonction fiable ne peut être calculé."
+            "Les deux axes sont parallèles. Ils ne désignent pas de côté d’appui pour la jonction ajustée."
         )
+    angle_degrees = math.degrees(math.atan2(sine, abs(dot(main_direction, approach))))
     # La normale vise le côté de la principale d'où arrive la barre à ajuster.
     # Elle est la projection de l'axe intérieur secondaire sur le plan normal
     # à l'axe principal et reste donc valable pour tout angle non parallèle.
-    secondary_interior_direction = scale(approach, -1.0)
-    plane_normal = normalize(
-        subtract(
-            secondary_interior_direction,
-            scale(
-                main_direction,
-                dot(secondary_interior_direction, main_direction),
-            ),
-        )
-    )
+    plane_normal = normalize(cross(main_direction, axis))
     return StraightJointGeometry(
         main_point=main_point,
         main_parameter=main_parameter,

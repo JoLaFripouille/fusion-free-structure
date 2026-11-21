@@ -829,7 +829,7 @@ def _adjust_brace_end(adjustment, created):
     return body
 
 
-def _central_gusset(members, dims, alternate):
+def _central_gusset(members, dims, alternate, *, check_material=True):
     endpoints = [joints._line_endpoints(member.curve) for member in members]
 
     def sum_spans(indices):
@@ -841,7 +841,7 @@ def _central_gusset(members, dims, alternate):
     arms = tuple(_brace_arm(member, end[index], end[1-index])
                  for member, end, index in zip(members, endpoints, joint_ends))
     shape, bolt = _central_shape(arms, dims, alternate)
-    return _brace_hardware(members, arms, shape, dims, bolt)
+    return _brace_hardware(members, arms, shape, dims, bolt, check_material=check_material)
 
 
 def _central_shape(arms, dims, alternate, level_outline=False, *, bearing_vertical=None, scallop_depth_cm=0.):
@@ -856,13 +856,14 @@ def _central_shape(arms, dims, alternate, level_outline=False, *, bearing_vertic
     return shape, bolt
 
 
-def _crossing_gusset(members, dims, alternate):
+def _crossing_gusset(members, dims, alternate, *, check_material=True):
     cuts = crossing_braces.plan(members, dims["cross_gap"])
     arms = tuple(_brace_arm(member, near, far) for member, cut in zip(members, cuts)
                  for near, far in cut.branches)
     shape, bolt = _central_shape(arms, dims, alternate, level_outline=True)
     plates, drills, fasteners = _brace_hardware(
         tuple(member for member in members for _ in range(2)), arms, shape, dims, bolt,
+        check_material=check_material,
     )
     merged = tuple(replace(first, centres=first.centres+second.centres)
                    for first, second in zip(drills[::2], drills[1::2]))
@@ -939,6 +940,13 @@ def evaluate(design, kind, occurrences, parameters_mm=None, alternate=False, *, 
         support = _member(design, occurrences[0], template.roles[0])
         members = (support, *(_brace_member(design, occurrence, role, support)
                               for occurrence, role in zip(occurrences[1:], template.roles[1:])))
+    elif kind == "gusset_cross" and not check_material:
+        members = []
+        for occurrence, role in zip(occurrences, template.roles):
+            bodies = list(occurrence.component.bRepBodies)
+            branch = bodies[0] if len(bodies) == 2 and all(map(crossing_braces.is_branch, bodies)) else None
+            members.append(_member(design, occurrence, role, branch))
+        members = tuple(members)
     else:
         members = tuple(_member(design, o, role) for o, role in zip(occurrences, template.roles))
     dims = shapes.dimensions(template, parameters_mm or {})
@@ -956,9 +964,9 @@ def evaluate(design, kind, occurrences, parameters_mm=None, alternate=False, *, 
     elif kind == "splice_web":
         plates, drilling, fasteners = _splice_web(*members, dims, alternate, check_material=check_material)
     elif kind == "gusset_4":
-        plates, drilling, fasteners = _central_gusset(members, dims, alternate)
+        plates, drilling, fasteners = _central_gusset(members, dims, alternate, check_material=check_material)
     elif kind == "gusset_cross":
-        plates, drilling, fasteners, crossing = _crossing_gusset(members, dims, alternate)
+        plates, drilling, fasteners, crossing = _crossing_gusset(members, dims, alternate, check_material=check_material)
     elif kind.startswith("gusset_end_"):
         plates, drilling, fasteners, brace_ends, brace_gaps = _end_gusset(members[0], members[1:], dims, alternate, check_material=check_material)
     elif kind.startswith("ridge_"):

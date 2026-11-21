@@ -30,9 +30,11 @@ def load_editor():
     mechanism.AssemblyPlan = SimpleNamespace
     mechanism.joints = SimpleNamespace(_line_endpoints=lambda curve: curve)
     mechanism._member = lambda design, occurrence, role: SimpleNamespace(curve=occurrence.curve)
-    spec = importlib.util.spec_from_file_location("lib._editor_test", ROOT / "lib/assembly_edit.py")
+    package = "_jhr_edit_smoke"
+    spec = importlib.util.spec_from_file_location(package + ".lib._editor_test", ROOT / "lib/assembly_edit.py")
     module = importlib.util.module_from_spec(spec)
-    with patch.dict(sys.modules, {"adsk": adsk, "adsk.core": core, "adsk.fusion": fusion, spec.name: module}):
+    with patch.dict(sys.modules, {"adsk": adsk, "adsk.core": core, "adsk.fusion": fusion, spec.name: module,
+                                  package + ".lib": lib}):
         with patch.object(lib, "assembly_operations", mechanism, create=True):
             spec.loader.exec_module(module)
     return module
@@ -72,15 +74,22 @@ class AssemblyEditingTests(unittest.TestCase):
         target = self.editor.read(self.design, self.group)
         self.assertTrue(self.editor._use_hardware(target, {"anchor_diameter": 16}))
 
-    def test_recorded_linked_assembly_is_identified_but_not_replaced(self):
+    def test_catalogue_assembly_edit_requires_an_owned_history_group(self):
         self.marker.value = json.dumps({"kind": "beam_column_haunch", "members": ["main", "side"],
                                         "parameters_mm": {"width": 135}, "end_plate_link": {"alternate": True}})
-        target = self.editor.read(self.design, self.group)
+        remove = ModuleType("_jhr_edit_smoke.commands.remove_assembly")
+        remove.target_group = lambda design, group: (group, object())
+        with patch.dict(sys.modules, {remove.__name__: remove}):
+            target = self.editor.read(self.design, self.group)
         self.assertEqual("beam_column_haunch", target.template.key)
         self.assertEqual(135, target.parameters_mm["width"])
         self.assertTrue(target.alternate)
+        self.assertTrue(target.writable)
+        with patch.object(remove, "target_group", side_effect=ValueError("Historique introuvable")):
+            with patch.dict(sys.modules, {remove.__name__: remove}):
+                target = self.editor.read(self.design, self.group)
         self.assertFalse(target.writable)
-        with self.assertRaisesRegex(ValueError, "perçages"):
+        with self.assertRaisesRegex(ValueError, "Historique introuvable"):
             self.editor.evaluate(self.design, target, target.parameters_mm)
 
     def test_adjustment_retains_existing_pieces_and_permits_trailing_parts(self):

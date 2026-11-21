@@ -33,6 +33,7 @@ class DoubleAngleCreationResult:
     secondary_hole_feature: object
     native_fastener_edges: tuple
     bolts_created: int = 0
+    group: object = None
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class OpposedAngleCreationResult:
     primary_hole_feature: object
     secondary_hole_features: tuple
     bolts_created: int
+    group: object = None
 
 
 def _point_tuple(point):
@@ -669,11 +671,14 @@ def _create_angle_assembly(root, plans, bolts, model_bolts):
         if model_bolts:
             with timeline_groups.defer_grouping():
                 count = _make_bolts(root.parentDesign, group, bolts, first.bolt_spec, assembly_parts)
+        from .angle_cleat_copy import store_definition
+
+        store_definition(group, plans, model_bolts)
         if opposed:
             if not model_bolts:
                 fastener_creator.verify_clearance(root.parentDesign, assembly_parts)
             timeline_groups.group_creation(timeline, start, group.component.name)
-            return OpposedAngleCreationResult(occurrences, primary_feature, secondary_features, count)
+            return OpposedAngleCreationResult(occurrences, primary_feature, secondary_features, count, group)
 
         left_secondary_centers = angle_cleat_geometry.hole_centers_for_placement(first.placements[0],
                                                                                 first.hole_pattern)[1]
@@ -687,7 +692,7 @@ def _create_angle_assembly(root, plans, bolts, model_bolts):
         )
         timeline_groups.group_creation(timeline, start, group.component.name)
         return DoubleAngleCreationResult(*occurrences, primary_feature, secondary_features[0],
-                                         primary_edges + secondary_edges, count)
+                                         primary_edges + secondary_edges, count, group)
     except Exception:
         _delete_valid(member_features)
         _delete_valid(drafts)
