@@ -122,6 +122,8 @@ def analyze_miter_joint(
     secondary_start,
     secondary_end,
     endpoint_tolerance_cm=JOINT_ENDPOINT_TOLERANCE_CM,
+    *,
+    allow_aligned=False,
 ):
     """Valide deux lignes jointes par leurs extrémités et calcule leur plan bissecteur."""
     primary_endpoints = (primary_start, primary_end)
@@ -150,7 +152,8 @@ def analyze_miter_joint(
     secondary_approach = normalize(subtract(secondary_joint, secondary_inner))
     cosine = dot(primary_approach, secondary_approach)
     sine = length(cross(primary_approach, secondary_approach))
-    if sine <= GEOMETRY_TOLERANCE_CM:
+    aligned = sine <= GEOMETRY_TOLERANCE_CM
+    if aligned and (cosine >= 0 or not allow_aligned):
         message = ("Les deux barres sont alignées bout à bout. Aucun onglet n’est nécessaire."
                    if cosine < 0 else "Les deux barres alignées arrivent du même côté de la jonction.")
         raise ValueError(message)
@@ -159,7 +162,7 @@ def analyze_miter_joint(
     # Les deux directions sont orientées depuis l'intérieur de chaque barre vers le raccord.
     # Leur différence est normale au plan qui laisse chaque barre d'un côté opposé.
     plane_normal = normalize(subtract(primary_approach, secondary_approach))
-    if distance_cm <= GEOMETRY_TOLERANCE_CM:
+    if aligned or distance_cm <= GEOMETRY_TOLERANCE_CM:
         joint_point = scale(add(primary_joint, secondary_joint), 0.5)
     else:
         joint_point = normal_plane_intersection_point(

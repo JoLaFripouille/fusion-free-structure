@@ -23,13 +23,13 @@ def beam(side, slope, width=(-4.1, 4.1), height=(-8., 8.)):
 
 
 class RidgeGeometryTests(unittest.TestCase):
-    def test_minimum_pente_is_two_percent_on_each_rafter(self):
-        for slope in (.02, tan(radians(2.))):
+    def test_accepts_flat_and_shallow_ridges(self):
+        for slope in (0., .001, .02, tan(radians(2.))):
             with self.subTest(slope=slope):
                 plan = ridge.plan_ridge(POINT, beam(-1, slope), beam(1, slope), DIMS)
                 self.assertEqual(len(plan.plates), 6)
-        with self.assertRaisesRegex(ValueError, r"2 %.*par versant.*50 % et 1\.9 %"):
-            ridge.plan_ridge(POINT, beam(-1, .5), beam(1, .019), DIMS)
+        with self.assertRaisesRegex(ValueError, "descendre depuis le faîtage"):
+            ridge.plan_ridge(POINT, beam(-1, -.1), beam(1, -.1), DIMS)
 
     def test_y_up_rotates_cuts_plates_and_bolts_together(self):
         def rotate(vector):
@@ -40,7 +40,12 @@ class RidgeGeometryTests(unittest.TestCase):
             return replace(original, endpoint=rotate(original.endpoint), interior_axis=rotate(original.interior_axis),
                            height_axis=rotate(original.height_axis), across_axis=rotate(original.across_axis))
 
-        rafters = (beam(-1, .02), beam(1, .2, width=(-3.1, 8.), height=(-13., 7.)))
+        for left_slope, right_slope in ((0., 0.), (.02, .2)):
+            with self.subTest(left=left_slope, right=right_slope):
+                self._assert_y_up_ridge(rotate, rotated_beam, left_slope, right_slope)
+
+    def _assert_y_up_ridge(self, rotate, rotated_beam, left_slope, right_slope):
+        rafters = (beam(-1, left_slope), beam(1, right_slope, width=(-3.1, 8.), height=(-13., 7.)))
         z_up = ridge.plan_ridge(POINT, *rafters, DIMS, double=True)
         y_up = ridge.plan_ridge(rotate(POINT), *(rotated_beam(rafter) for rafter in rafters), DIMS, double=True)
         self.assertEqual(y_up.plates[0].v, (0., 1., 0.))

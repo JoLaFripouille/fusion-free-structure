@@ -7,7 +7,6 @@ from . import assembly_geometry as shapes, joint_geometry as geo
 
 
 VERTICAL_AXES = ((0., 0., 1.), (0., 1., 0.))
-MIN_SLOPE = .02
 TOL = geo.PLANE_RELATION_TOLERANCE_CM
 
 
@@ -38,7 +37,7 @@ class RidgePlan:
     bolt_axis: tuple
 
 
-def _ridge_plane(axes):
+def _ridge_plane(beams, axes):
     candidates = []
     for up in VERTICAL_AXES:
         drops = tuple(-geo.dot(axis, up) for axis in axes)
@@ -48,15 +47,17 @@ def _ridge_plane(axes):
             continue
         first, second = (geo.scale(direction, 1. / run) for direction, run in zip(horizontal, runs))
         if geo.length(geo.add(first, second)) <= TOL:
+            across = geo.cross(up, first)
+            if any(geo.length(geo.cross(geo.normalize(beam.across_axis), across)) > TOL for beam in beams):
+                continue
             slopes = tuple(drop / run for drop, run in zip(drops, runs))
-            candidates.append((up, first, slopes))
+            height_alignment = min(abs(geo.dot(geo.normalize(beam.height_axis), up)) for beam in beams)
+            candidates.append((height_alignment, up, first, slopes))
     if not candidates:
         raise ValueError("Les axes des deux poutres doivent former des versants opposés dans un même plan vertical Y ou Z.")
-    up, normal, slopes = max(candidates, key=lambda candidate: min(candidate[2]))
-    if min(slopes) < MIN_SLOPE - 1e-12:
-        first, second = (100 * slope for slope in slopes)
-        raise ValueError(f"Le faîtage demande au moins 2 % de pente descendante par versant. "
-                         f"Pentes relevées de {first:.6g} % et {second:.6g} %.")
+    _, up, normal, slopes = max(candidates, key=lambda candidate: candidate[0])
+    if min(slopes) < -1e-12:
+        raise ValueError("Les deux poutres doivent être horizontales ou descendre depuis le faîtage.")
     return up, normal
 
 
@@ -130,7 +131,7 @@ def plan_ridge(joint_point, first, second, dims, double=False, washer_radius=0.)
             not isfinite(washer_radius) or washer_radius < 0 or dims["thickness"] <= 0):
         raise ValueError("Les dimensions de l’assemblage doivent être finies et positives.")
     axes = tuple(geo.normalize(beam.interior_axis) for beam in beams)
-    up, normal = _ridge_plane(axes)
+    up, normal = _ridge_plane(beams, axes)
     across = geo.cross(up, normal)
     cuts = tuple(RidgeCut(geo.add(joint_point, geo.scale(n, dims["thickness"])), n)
                  for n in (normal, geo.scale(normal, -1.)))

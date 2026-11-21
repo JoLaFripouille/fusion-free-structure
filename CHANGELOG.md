@@ -4,6 +4,10 @@ Toutes les évolutions livrées de `fusion-free-structure` sont consignées ici.
 
 ## [Non publié]
 
+## [1.30.25] - Faîtages à plat
+
+- Permet de créer les jarrets de faîtage à 0° et sur les faibles pentes en Y ou Z vertical.
+
 ## [1.30.24] - Illustrations des montages
 
 - Affiche le montage sélectionné dans l’onglet des profils pour les quatre raccords Poutre-poutre et le jarret Poutre-poteau.

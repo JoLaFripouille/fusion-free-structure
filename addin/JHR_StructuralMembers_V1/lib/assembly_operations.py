@@ -888,7 +888,7 @@ def _brace_hardware(members, arms, shape, dims, bolt, *, check_material=True):
 def _ridge(design, members, dims, double):
     for member in members:
         _i_geometry(member)
-    cut = joints.evaluate_miter_joint(design, *(member.occurrence for member in members))
+    cut = joints.evaluate_miter_joint(design, *(member.occurrence for member in members), allow_aligned=True)
     treatments = cut.first_treatment, cut.second_treatment
     beams = []
     for member, t in zip(members, treatments):
@@ -911,9 +911,17 @@ def _ridge(design, members, dims, double):
 
 def _apply_ridge_trim(ridge, created):
     evaluation, targets = ridge
+    geometry = evaluation.geometry
+    aligned = geo.length(geo.cross(geometry.primary_approach_direction,
+                                   geometry.secondary_approach_direction)) <= geo.GEOMETRY_TOLERANCE_CM
     for treatment, target in zip((evaluation.first_treatment, evaluation.second_treatment), targets):
         occurrence = treatment.occurrence
-        mid_plane = joints._add_miter_cut_plane(evaluation, occurrence, created)
+        if aligned:
+            mid_plane = joints._add_path_plane(occurrence.component, occurrence, treatment.curve,
+                                              treatment.endpoint_index, "Plan d’about des poutres alignées")
+            created.append(mid_plane)
+        else:
+            mid_plane = joints._add_miter_cut_plane(evaluation, occurrence, created)
         plane = joints._add_offset_to_point(occurrence.component, occurrence, mid_plane, target.point,
                                            "Plan d’appui du faîtage")
         created.append(plane)

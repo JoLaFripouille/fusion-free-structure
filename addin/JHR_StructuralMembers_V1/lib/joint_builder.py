@@ -602,7 +602,7 @@ def evaluate_straight_joint(design, primary_occurrence, secondary_occurrence, ga
     )
 
 
-def evaluate_miter_joint(design, primary_occurrence, secondary_occurrence):
+def evaluate_miter_joint(design, primary_occurrence, secondary_occurrence, *, allow_aligned=False):
     if primary_occurrence == secondary_occurrence:
         raise ValueError("Les deux barres de l'onglet doivent être différentes.")
     primary_metadata = _member_metadata(primary_occurrence, "1")
@@ -616,6 +616,7 @@ def evaluate_miter_joint(design, primary_occurrence, secondary_occurrence):
         primary_end,
         secondary_start,
         secondary_end,
+        allow_aligned=allow_aligned,
     )
     primary_body = _single_body(primary_occurrence, "1")
     secondary_body = _single_body(secondary_occurrence, "2")
